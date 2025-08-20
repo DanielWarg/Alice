@@ -331,7 +331,7 @@ async def alice_command(cmd: AliceCommand) -> AliceResponse:
         if (cmd.type or "").upper() == "USER_QUERY":
             q = (cmd.payload or {}).get("query", "")
             if q:
-                memory.upsert_text_memory(q, score=0.0, tags_json=json.dumps({"source": "user_query"}, ensure_ascii=False))
+                memory.upsert_text_memory_single_single(q, score=0.0, tags_json=json.dumps({"source": "user_query"}, ensure_ascii=False))
     except Exception:
         pass
     # simulate-first risk gating
@@ -414,6 +414,17 @@ class ChatBody(BaseModel):
 async def chat(body: ChatBody) -> Dict[str, Any]:
     logger.info("/api/chat model=%s prompt_len=%d", body.model, len(body.prompt or ""))
     t_request = time.time()
+    
+    # Generate session ID based on model and time
+    import hashlib
+    session_id = hashlib.md5(f"{body.model or 'default'}_{int(t_request/3600)}".encode()).hexdigest()[:8]
+    
+    # Track user message in conversation context
+    try:
+        memory.add_conversation_turn(session_id, "user", body.prompt or "")
+    except Exception:
+        pass
+    
     # Minimal RAG: hämta relevanta textminnen via LIKE och inkludera i prompten
     if MINIMAL_MODE or bool(body.raw):
         contexts = []
@@ -421,13 +432,16 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
         full_prompt = f"Besvara på svenska.\n\nFråga: {body.prompt}\nSvar:"
     else:
         try:
-            # Hybrid: använd lokalt BM25+recency om tillgängligt, annars LIKE
-            contexts = memory.retrieve_text_bm25_recency(body.prompt, limit=5)
+            # Enhanced: använd conversation context för bättre retrieval
+            contexts = memory.get_related_memories_from_context(session_id, body.prompt, limit=5)
         except Exception:
             try:
-                contexts = memory.retrieve_text_memories(body.prompt, limit=5)
+                contexts = memory.retrieve_text_bm25_recency(body.prompt, limit=5)
             except Exception:
-                contexts = []
+                try:
+                    contexts = memory.retrieve_text_memories(body.prompt, limit=5)
+                except Exception:
+                    contexts = []
         ctx_text = "\n".join([f"- {it.get('text','')}" for it in (contexts or []) if it.get('text')])
         ctx_payload = [it.get('text','') for it in contexts[:3] if it.get('text')]
         full_prompt = (
@@ -444,8 +458,10 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
         mem_id: Optional[int] = None
         try:
             tags = {"source": "chat", "model": body.model or "gpt-oss:20b", "provider": used_provider, "engine": engine}
-            mem_id = memory.upsert_text_memory(text, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
+            mem_id = memory.upsert_text_memory_single(text, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
             memory.append_event("chat.out", json.dumps({"text": text, "memory_id": mem_id}, ensure_ascii=False))
+            # Track assistant message in conversation context
+            memory.add_conversation_turn(session_id, "assistant", text, mem_id)
         except Exception:
             pass
         return {"ok": True, "text": text, "memory_id": mem_id, "provider": used_provider, "engine": engine}
@@ -760,7 +776,7 @@ async def chat_stream(body: ChatBody):
                                                         mem_id = None
                                                         try:
                                                             tags = {"source": "chat", "provider": "openai"}
-                                                            mem_id = memory.upsert_text_memory(confirm, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
+                                                            mem_id = memory.upsert_text_memory_single(confirm, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
                                                         except Exception:
                                                             pass
                                                         try:
@@ -884,7 +900,7 @@ async def chat_stream(body: ChatBody):
                                                     mem_id = None
                                                     try:
                                                         tags = {"source": "chat", "provider": "local"}
-                                                        mem_id = memory.upsert_text_memory(confirm, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
+                                                        mem_id = memory.upsert_text_memory_single(confirm, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
                                                     except Exception:
                                                         pass
                                                     try:
@@ -991,7 +1007,7 @@ async def chat_stream(body: ChatBody):
                         mem_id = None
                         try:
                             tags = {"source": "chat", "provider": "router"}
-                            mem_id = memory.upsert_text_memory(confirm, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
+                            mem_id = memory.upsert_text_memory_single(confirm, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
                         except Exception:
                             pass
                         async for out in sse_send({"type": "done", "provider": "router", "memory_id": mem_id}):
@@ -1010,7 +1026,7 @@ async def chat_stream(body: ChatBody):
                     mem_id = None
                     try:
                         tags = {"source": "chat", "provider": "router"}
-                        mem_id = memory.upsert_text_memory(confirm, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
+                        mem_id = memory.upsert_text_memory_single(confirm, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
                     except Exception:
                         pass
                     async for out in sse_send({"type": "done", "provider": "router", "memory_id": mem_id}):
@@ -1036,7 +1052,7 @@ async def chat_stream(body: ChatBody):
         try:
             if final_text:
                 tags = {"source": "chat", "provider": used_provider}
-                mem_id = memory.upsert_text_memory(final_text, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
+                mem_id = memory.upsert_text_memory_single(final_text, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
         except Exception:
             pass
         try:
@@ -1425,7 +1441,7 @@ class MemoryUpsert(BaseModel):
 @app.post("/api/memory/upsert")
 async def memory_upsert(body: MemoryUpsert) -> Dict[str, Any]:
     tags_json = json.dumps(body.tags) if body.tags is not None else None
-    mem_id = memory.upsert_text_memory(body.text, score=body.score or 0.0, tags_json=tags_json)
+    mem_id = memory.upsert_text_memory_single(body.text, score=body.score or 0.0, tags_json=tags_json)
     # Skapa embeddings (OpenAI) om nyckel finns
     try:
         api_key = os.getenv("OPENAI_API_KEY")

@@ -5,6 +5,7 @@ Använder core.tool_specs som enda sanningskälla.
 
 from typing import Dict, Any, Optional
 from .tool_specs import TOOL_SPECS, enabled_tools, is_tool_enabled
+from .gmail_service import gmail_service
 
 # Dummy-implementationer för demo
 def play() -> str:
@@ -48,6 +49,16 @@ def like_track() -> str:
 def unlike_track() -> str:
     return "Gilla-markering borttagen."
 
+# Gmail-funktioner
+def send_email(to: str, subject: str, body: str, cc: str = None, bcc: str = None) -> str:
+    return gmail_service.send_email(to, subject, body, cc, bcc)
+
+def read_emails(max_results: int = 10, query: str = None) -> str:
+    return gmail_service.read_emails(max_results, query)
+
+def search_emails(query: str, max_results: int = 20) -> str:
+    return gmail_service.search_emails(query, max_results)
+
 # Verktygsexekverare som matchar TOOL_SPECS exakt - SAMMA NAMN!
 EXECUTORS = {
     "PLAY": lambda _args: play(),
@@ -62,6 +73,9 @@ EXECUTORS = {
     "SHUFFLE": lambda args: set_shuffle(args.enabled),
     "LIKE": lambda _args: like_track(),
     "UNLIKE": lambda _args: unlike_track(),
+    "SEND_EMAIL": lambda args: send_email(args.to, args.subject, args.body, args.cc, args.bcc),
+    "READ_EMAILS": lambda args: read_emails(args.max_results, args.query),
+    "SEARCH_EMAILS": lambda args: search_emails(args.query, args.max_results),
 }
 
 def list_tool_specs() -> list[Dict[str, Any]]:

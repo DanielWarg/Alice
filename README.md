@@ -24,16 +24,19 @@ Alice HUD är byggt som den ultimata AI-assistenten med fokus på intelligens, m
 
 ### 🧠 **Supersmart AI Core**
 - **Deep Understanding**: Naturliga svenska samtal med fullständig kontextbehållning
-- **RAG Memory System**: Kommer ihåg allt, hämtar intelligent information  
-- **Predictive Analysis**: Lär sig mönster, föreslår nästa steg
+- **Advanced RAG Memory**: Multi-factor scoring (BM25 + recency + context + quality)
+- **Semantic Chunking**: Intelligent text-uppdelning som respekterar semantiska gränser  
+- **Conversation Context**: Session-baserad kontextspårning för bättre minnesförmåga
+- **Local LLM**: gpt-oss:20B via Ollama för privat 20B-parameter inferens
 - **Advanced Reasoning**: Komplexa flerstegs problemlösningar
 
 ### 🎯 **Intelligent Verktygsystem**  
-- **Email Intelligence**: Smart sortering, skriva meddelanden, schemaläggning
-- **Calendar Master**: Automatisk schemaläggning, konfliktlösning, mötesförberedelser
-- **Project Planner**: Målsättning, milestone-spårning, resursallokering
-- **Data Synthesizer**: Rapportgenerering, trendanalys, insikter
-- **Predictive Assistant**: Förutser behov, proaktiva förslag
+- **Gmail Integration**: Fullständig e-posthantering (skicka, läsa, söka)
+- **Music Control**: Avancerad musikstyrning med NLU-stöd
+- **Smart NLU Router**: 89% accuracy command vs chat discrimination
+- **Command Classification**: Förstår skillnad mellan "spela back in black" och "berätta om AC/DC"
+- **Tool Execution**: Robust tool registry med Pydantic validering
+- **Context-Aware Tools**: Verktyg som förstår conversationskontext
 
 ### 🚀 **Teknisk Excellence**
 - **Frontend**: Next.js 15 HUD med real-time uppdateringar och futuristisk design

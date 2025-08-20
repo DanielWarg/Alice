@@ -90,6 +90,21 @@ class MemoryStore:
                 """
             )
             c.execute("CREATE INDEX IF NOT EXISTS idx_sensor_ts ON sensor_timeseries(sensor, ts)")
+            # Conversation context tracking
+            c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT,
+                    ts TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    memory_id INTEGER,
+                    FOREIGN KEY (memory_id) REFERENCES memories(id)
+                )
+                """
+            )
+            c.execute("CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id, ts)")
             # Embeddings för semantisk sökning
             c.execute(
                 """
@@ -155,14 +170,100 @@ class MemoryStore:
             )
 
     # --- Memories (text) ---
-    def upsert_text_memory(self, text: str, score: float = 0.0, tags_json: Optional[str] = None) -> int:
+    def _chunk_text_semantically(self, text: str, max_chunk_size: int = 500) -> List[str]:
+        """Smart text chunking that preserves semantic boundaries"""
+        if len(text) <= max_chunk_size:
+            return [text]
+        
+        chunks = []
+        # First split by double newlines (paragraphs)
+        paragraphs = text.split('\n\n')
+        
+        current_chunk = ""
+        for paragraph in paragraphs:
+            # If paragraph alone is too long, split by sentences
+            if len(paragraph) > max_chunk_size:
+                # Split by sentence endings
+                sentences = []
+                for delimiter in ['. ', '! ', '? ', '.\n', '!\n', '?\n']:
+                    if delimiter in paragraph:
+                        parts = paragraph.split(delimiter)
+                        for i, part in enumerate(parts[:-1]):
+                            sentences.append(part + delimiter.strip())
+                        if parts[-1].strip():
+                            sentences.append(parts[-1])
+                        break
+                else:
+                    # No sentence delimiters found, split by length
+                    sentences = [paragraph[i:i+max_chunk_size] 
+                               for i in range(0, len(paragraph), max_chunk_size)]
+                
+                # Process sentences
+                for sentence in sentences:
+                    if len(current_chunk) + len(sentence) > max_chunk_size:
+                        if current_chunk.strip():
+                            chunks.append(current_chunk.strip())
+                        current_chunk = sentence
+                    else:
+                        current_chunk += (' ' if current_chunk else '') + sentence
+            else:
+                # Normal paragraph processing
+                if len(current_chunk) + len(paragraph) > max_chunk_size:
+                    if current_chunk.strip():
+                        chunks.append(current_chunk.strip())
+                    current_chunk = paragraph
+                else:
+                    current_chunk += ('\n\n' if current_chunk else '') + paragraph
+        
+        if current_chunk.strip():
+            chunks.append(current_chunk.strip())
+        
+        return chunks if chunks else [text]
+
+    def upsert_text_memory(self, text: str, score: float = 0.0, tags_json: Optional[str] = None, auto_chunk: bool = True) -> List[int]:
+        """Insert text memory with optional semantic chunking for long texts"""
+        if not auto_chunk or len(text) <= 500:
+            # Single memory entry
+            ts = datetime.utcnow().isoformat() + "Z"
+            with self._conn() as c:
+                cur = c.execute(
+                    "INSERT INTO memories (ts, kind, text, score, tags) VALUES (?, 'text', ?, ?, ?)",
+                    (ts, text, score, tags_json),
+                )
+                return [int(cur.lastrowid)]
+        
+        # Chunked memory entries
+        chunks = self._chunk_text_semantically(text)
+        memory_ids = []
         ts = datetime.utcnow().isoformat() + "Z"
+        
+        # Add chunk metadata to tags
+        import json
+        base_tags = json.loads(tags_json) if tags_json else {}
+        base_tags.update({
+            "chunked": True,
+            "total_chunks": len(chunks),
+            "original_length": len(text)
+        })
+        
         with self._conn() as c:
-            cur = c.execute(
-                "INSERT INTO memories (ts, kind, text, score, tags) VALUES (?, 'text', ?, ?, ?)",
-                (ts, text, score, tags_json),
-            )
-            return int(cur.lastrowid)
+            for i, chunk in enumerate(chunks):
+                chunk_tags = base_tags.copy()
+                chunk_tags["chunk_index"] = i
+                chunk_tags_json = json.dumps(chunk_tags, ensure_ascii=False)
+                
+                cur = c.execute(
+                    "INSERT INTO memories (ts, kind, text, score, tags) VALUES (?, 'text', ?, ?, ?)",
+                    (ts, chunk, score, chunk_tags_json),
+                )
+                memory_ids.append(int(cur.lastrowid))
+        
+        return memory_ids
+    
+    def upsert_text_memory_single(self, text: str, score: float = 0.0, tags_json: Optional[str] = None) -> int:
+        """Backward compatible version that returns single memory ID"""
+        memory_ids = self.upsert_text_memory(text, score, tags_json, auto_chunk=False)
+        return memory_ids[0]
 
     def retrieve_text_memories(self, query: str, limit: int = 5):
         # Simple LIKE-based retrieval as a baseline; embeddings can replace this later
@@ -182,9 +283,9 @@ class MemoryStore:
             cols = [d[0] for d in cur.description]
             return [dict(zip(cols, r)) for r in rows]
 
-    def retrieve_text_bm25_recency(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """Hybrid retrieval: FTS5 BM25 followed by Python-side recency re-rank.
-        Returns top items with highest combined score.
+    def retrieve_text_bm25_recency(self, query: str, limit: int = 5, context_bonus: float = 0.0) -> List[Dict[str, Any]]:
+        """Advanced hybrid retrieval: FTS5 BM25 + recency + relevance + context.
+        Returns top items with optimized combined score.
         """
         try:
             with self._conn() as c:
@@ -196,7 +297,7 @@ class MemoryStore:
                     JOIN memories m ON m.id = memories_fts.rowid
                     WHERE memories_fts MATCH ? AND m.kind='text'
                     ORDER BY rank ASC
-                    LIMIT 50
+                    LIMIT 100
                     """,
                     (query,)
                 )
@@ -207,7 +308,10 @@ class MemoryStore:
             # FTS not available; fallback to LIKE
             return self.retrieve_text_memories(query, limit)
 
-        # Combine BM25 rank (lower is better) with recency and explicit score
+        if not items:
+            return []
+
+        # Advanced multi-factor scoring
         now = datetime.utcnow()
         def to_dt(ts: str) -> Optional[datetime]:
             if not ts:
@@ -217,17 +321,75 @@ class MemoryStore:
                 return datetime.fromisoformat(t)
             except Exception:
                 return None
+
         rescored = []
+        query_lower = query.lower()
+        query_words = set(query_lower.split())
+        
         for it in items:
-            rank = float(it.get("rank") or 100.0)
+            # 1. BM25 relevance (lower rank = higher relevance)
+            bm25_score = max(0.0, 10.0 - float(it.get("rank") or 100.0))
+            
+            # 2. Recency with improved decay
             ts = to_dt(str(it.get("ts") or ""))
-            age_days = (now - ts).total_seconds() / 86400.0 if ts else 365.0
-            recency = max(0.0, 1.0 - (age_days / 30.0))  # 0..1, decays over ~1 month
-            base = float(it.get("score") or 0.0)
-            combined = (-rank) + (recency * 10.0) + (base * 1.0)
-            rescored.append((combined, it))
+            if ts:
+                age_hours = (now - ts).total_seconds() / 3600.0
+                # Multi-tier recency: bonus for very recent, gradual decay
+                if age_hours < 1:
+                    recency = 5.0  # Very recent
+                elif age_hours < 24:
+                    recency = 3.0  # Same day
+                elif age_hours < 168:  # 1 week
+                    recency = 2.0
+                else:
+                    age_days = age_hours / 24.0
+                    recency = max(0.0, 1.0 - (age_days / 60.0))  # Decay over 2 months
+            else:
+                recency = 0.0
+            
+            # 3. Explicit score (user/system assigned importance)
+            explicit = float(it.get("score") or 0.0)
+            
+            # 4. Text quality indicators
+            text = str(it.get("text") or "")
+            text_lower = text.lower()
+            
+            # Length bonus (neither too short nor too long)
+            length = len(text)
+            if 50 <= length <= 500:
+                length_bonus = 1.0
+            elif length > 500:
+                length_bonus = 0.5  # Long texts get reduced priority
+            else:
+                length_bonus = 0.3  # Very short texts get reduced priority
+            
+            # Query word coverage
+            text_words = set(text_lower.split())
+            coverage = len(query_words.intersection(text_words)) / max(1, len(query_words))
+            coverage_bonus = coverage * 2.0
+            
+            # 5. Context bonus (for related conversations)
+            context_score = context_bonus if any(word in text_lower for word in query_words) else 0.0
+            
+            # 6. Combined scoring with optimized weights
+            combined = (
+                bm25_score * 1.0 +          # BM25 relevance
+                recency * 0.8 +             # Recency importance
+                explicit * 0.5 +            # Explicit user score
+                length_bonus * 0.3 +        # Text quality
+                coverage_bonus * 0.7 +      # Query coverage
+                context_score * 0.4         # Context bonus
+            )
+            
+            rescored.append((combined, it, {
+                'bm25': bm25_score, 'recency': recency, 'explicit': explicit,
+                'length_bonus': length_bonus, 'coverage': coverage_bonus,
+                'context': context_score, 'final': combined
+            }))
+        
+        # Sort by combined score and return top results
         rescored.sort(key=lambda x: x[0], reverse=True)
-        top = [it for _, it in rescored[: max(1, limit)]]
+        top = [it for _, it, _ in rescored[: max(1, limit)]]
         return top
 
     def get_recent_text_memories(self, limit: int = 10):
@@ -319,5 +481,67 @@ class MemoryStore:
                 (ts, sensor, value, meta_json),
             )
             return int(cur.lastrowid)
+    
+    # --- Conversation Context Tracking ---
+    def add_conversation_turn(self, session_id: str, role: str, content: str, memory_id: int = None) -> int:
+        """Add a conversation turn for context tracking"""
+        ts = datetime.utcnow().isoformat() + "Z"
+        with self._conn() as c:
+            cur = c.execute(
+                "INSERT INTO conversations (session_id, ts, role, content, memory_id) VALUES (?, ?, ?, ?, ?)",
+                (session_id, ts, role, content, memory_id),
+            )
+            return int(cur.lastrowid)
+    
+    def get_conversation_context(self, session_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get recent conversation context for a session"""
+        with self._conn() as c:
+            cur = c.execute(
+                """
+                SELECT id, ts, role, content, memory_id
+                FROM conversations
+                WHERE session_id = ?
+                ORDER BY ts DESC
+                LIMIT ?
+                """,
+                (session_id, limit),
+            )
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, r)) for r in reversed(rows)]  # Reverse to chronological order
+    
+    def get_related_memories_from_context(self, session_id: str, query: str, limit: int = 3) -> List[Dict[str, Any]]:
+        """Retrieve memories related to current conversation context"""
+        # Get recent conversation turns
+        context = self.get_conversation_context(session_id, limit=5)
+        
+        if not context:
+            return self.retrieve_text_bm25_recency(query, limit)
+        
+        # Extract keywords from recent conversation
+        context_words = set()
+        for turn in context[-3:]:  # Last 3 turns
+            content = turn.get('content', '').lower()
+            words = content.split()
+            context_words.update(word.strip('.,!?;:') for word in words if len(word) > 3)
+        
+        # Enhanced query with context
+        if context_words:
+            context_query = query + ' ' + ' '.join(list(context_words)[:5])
+            return self.retrieve_text_bm25_recency(context_query, limit, context_bonus=1.0)
+        
+        return self.retrieve_text_bm25_recency(query, limit)
+    
+    def cleanup_old_conversations(self, days: int = 30) -> int:
+        """Clean up old conversation history"""
+        cutoff = datetime.utcnow().timestamp() - (days * 24 * 3600)
+        cutoff_iso = datetime.fromtimestamp(cutoff).isoformat() + "Z"
+        
+        with self._conn() as c:
+            cur = c.execute(
+                "DELETE FROM conversations WHERE ts < ?",
+                (cutoff_iso,)
+            )
+            return cur.rowcount
 
 

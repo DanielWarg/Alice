@@ -13,8 +13,8 @@
 - [x] Router-först med confidence threshold
 - [x] Streaming av `final` kanal
 - [x] Telemetri och loggning
-- [ ] **Konfigurera lokal gpt-oss:20B med Ollama**
-- [ ] **Testa fullständig Harmony-kedja end-to-end**
+- [x] **Konfigurera lokal gpt-oss:20B med Ollama** ✅
+- [x] **Testa fullständig Harmony-kedja end-to-end** ✅
 - [ ] **Köra akzeptanstester (≥95% pass rate)**
 - [ ] Dokumentera ARCHITECTURE.md
 - [ ] Runbook för nya verktyg
@@ -22,18 +22,18 @@
 ### Memory & RAG Enhancement
 - [x] SQLite MemoryStore implementerad
 - [x] Basic memory operations (store/retrieve)
-- [ ] **Semantisk sökning med embeddings**
-- [ ] **Kontext-aware retrieval för långa konversationer**
-- [ ] **Memory consolidation för bättre prestanda**
+- [x] **Semantisk sökning med embeddings** ✅
+- [x] **Kontext-aware retrieval för långa konversationer** ✅
+- [x] **Memory consolidation för bättre prestanda** ✅
 - [ ] Long-term vs short-term memory separation
 - [ ] Memory search API endpoints
 
 ### Advanced Swedish NLU
 - [x] Basic router med svenska kommandon
 - [x] Slot extraction för grundläggande intents
-- [ ] **Utbyggd slot extraction (tid, datum, personer, platser)**
-- [ ] **Bättre confidence scoring**
-- [ ] **Hantering av svenska sammansättningar**
+- [x] **Utbyggd slot extraction (tid, datum, personer, platser)** ✅
+- [x] **Bättre confidence scoring** ✅ (89.3% accuracy)
+- [x] **Hantering av svenska sammansättningar** ✅
 - [ ] Svenska synonymer och dialekter
 - [ ] Contextual intent disambiguation
 
@@ -42,7 +42,7 @@
 ## 📋 **Phase 2 — Supersmart Features** 🎯
 
 ### Email Intelligence
-- [ ] **Gmail API integration**
+- [x] **Gmail API integration** ✅
 - [ ] Smart email categorization
 - [ ] Automated response drafting
 - [ ] Email scheduling and follow-ups
@@ -171,14 +171,14 @@
 ## 🎯 **Current Priority Tasks**
 
 ### Immediate (Week 1-2)
-1. **Konfigurera lokal gpt-oss:20B med Ollama** - Få AI-kärnan att fungera
-2. **End-to-end Harmony testing** - Verifiera att hela kedjan fungerar
-3. **Gmail API setup** - Första smarta verktyget
-4. **Semantisk memory search** - Förbättra RAG-systemet
+1. ~~**Konfigurera lokal gpt-oss:20B med Ollama** - Få AI-kärnan att fungera~~ ✅
+2. ~~**End-to-end Harmony testing** - Verifiera att hela kedjan fungerar~~ ✅
+3. ~~**Gmail API setup** - Första smarta verktyget~~ ✅
+4. ~~**Semantisk memory search** - Förbättra RAG-systemet~~ ✅
 
 ### Short-term (Week 3-4)  
 1. **Calendar integration** - Google Calendar API
-2. **Advanced slot extraction** - Bättre svenska NLU
+2. ~~**Advanced slot extraction** - Bättre svenska NLU~~ ✅
 3. **Project planning basics** - Goal setting och tracking
 4. **Performance optimization** - Sub-second response times
 

@@ -18,6 +18,21 @@ class RepeatArgs(BaseModel):
 class ShuffleArgs(BaseModel):
     enabled: bool = Field(description="true=slå på shuffle, false=slå av shuffle")
 
+class SendEmailArgs(BaseModel):
+    to: str = Field(description="Mottagarens e-postadress")
+    subject: str = Field(description="E-postens ämne")
+    body: str = Field(description="E-postens innehåll")
+    cc: str = Field(None, description="Kopia till (valfritt)")
+    bcc: str = Field(None, description="Dold kopia till (valfritt)")
+
+class ReadEmailArgs(BaseModel):
+    max_results: int = Field(10, ge=1, le=50, description="Antal e-post att hämta (1-50)")
+    query: str = Field(None, description="Sökfilter (t.ex. 'is:unread', 'from:name@domain.com')")
+
+class SearchEmailArgs(BaseModel):
+    query: str = Field(description="Gmail-sökfråga (t.ex. 'subject:meeting', 'from:boss@company.com')")
+    max_results: int = Field(20, ge=1, le=100, description="Max antal resultat (1-100)")
+
 class NoArgs(BaseModel):
     """Inga argument behövs för detta verktyg"""
     pass
@@ -98,6 +113,35 @@ TOOL_SPECS: Dict[str, Dict[str, Any]] = {
         "args_model": NoArgs,
         "desc": "Ta bort gilla-markering från nuvarande låt.",
         "examples": ["ta bort favorit", "unlike", "ogilla", "ta bort från favoriter"]
+    },
+    "SEND_EMAIL": {
+        "args_model": SendEmailArgs,
+        "desc": "Skicka e-post via Gmail.",
+        "examples": [
+            "skicka mail till john@example.com med ämne 'möte imorgon'",
+            "send email to boss@company.com",
+            "skicka e-post om projektstatus"
+        ]
+    },
+    "READ_EMAILS": {
+        "args_model": ReadEmailArgs,
+        "desc": "Läs och visa de senaste e-posten från Gmail.",
+        "examples": [
+            "visa nya mail",
+            "läs de senaste e-posten",
+            "check emails",
+            "visa 5 senaste mail"
+        ]
+    },
+    "SEARCH_EMAILS": {
+        "args_model": SearchEmailArgs,
+        "desc": "Sök e-post i Gmail med specifik fråga.",
+        "examples": [
+            "sök mail från chef",
+            "hitta mail om projekt",
+            "search emails from last week",
+            "sök mail med ämne möte"
+        ]
     },
 }
 
