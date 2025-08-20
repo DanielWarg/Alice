@@ -1,2 +1,2 @@
-# Jarvis server package
+# Alice server package
 

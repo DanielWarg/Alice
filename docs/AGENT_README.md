@@ -29,7 +29,7 @@ Skapa en liten FastAPI-app (externt repo/skript) som:
 - Kör modellen via Transformers.
 - Returnerar endast `final` till klient och behåller `analysis`/`commentary` server-side.
 
-4) Konfigurera Jarvis att använda gatewayn
+4) Konfigurera Alice att använda gatewayn
 ```bash
 export USE_HARMONY=true
 export USE_TOOLS=false

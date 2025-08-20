@@ -14,27 +14,30 @@ from pydantic import BaseModel, Field
 import logging
 from dotenv import load_dotenv
 import httpx
-import httpx
-import math
-import base64
-from urllib.parse import urlencode
 
-from .memory import MemoryStore
-from .decision import EpsilonGreedyBandit, simulate_first
-from .prompts.system_prompts import system_prompt as SP, developer_prompt as DP
-from .metrics import metrics
-from .training import stream_dataset
-from .memory import MemoryStore
-from .tools.registry import list_tool_specs, validate_and_execute_tool
-from .harmony_test_endpoint import HarmonyTestBatchRequest, HarmonyTestBatchResponse, run_harmony_test_case
+from memory import MemoryStore
+from decision import EpsilonGreedyBandit, simulate_first
+from prompts.system_prompts import system_prompt as SP, developer_prompt as DP
+from metrics import metrics
+from training import stream_dataset
+from core import (
+    list_tool_specs, 
+    validate_and_execute_tool,
+    enabled_tools,
+    build_harmony_tool_specs,
+    classify,
+    run_preflight_checks,
+    log_preflight_results
+)
+from harmony_test_endpoint import HarmonyTestBatchRequest, HarmonyTestBatchResponse, run_harmony_test_case
 
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("jarvis")
+logger = logging.getLogger("alice")
 
-app = FastAPI(title="Jarvis 2.0 Backend", version="0.1.0", default_response_class=ORJSONResponse)
-MINIMAL_MODE = os.getenv("JARVIS_MINIMAL", "0") == "1"
+app = FastAPI(title="Alice 2.0 Backend", version="0.1.0", default_response_class=ORJSONResponse)
+MINIMAL_MODE = os.getenv("ALICE_MINIMAL", "0") == "1"
 # Harmony feature flags (Fas 1 – adapter bakom flaggor)
 USE_HARMONY = (os.getenv("USE_HARMONY", "false").lower() == "true")
 USE_TOOLS = (os.getenv("USE_TOOLS", "false").lower() == "true")
@@ -43,9 +46,9 @@ try:
 except Exception:
     HARMONY_TEMPERATURE_COMMANDS = 0.2
 try:
-    NLU_CONFIDENCE_THRESHOLD = float(os.getenv("NLU_CONFIDENCE_THRESHOLD", "0.85"))
+    NLU_CONFIDENCE_THRESHOLD = float(os.getenv("NLU_CONFIDENCE_THRESHOLD", "0.9"))
 except Exception:
-    NLU_CONFIDENCE_THRESHOLD = 0.85
+    NLU_CONFIDENCE_THRESHOLD = 0.9
 NLU_AGENT_URL = os.getenv("NLU_AGENT_URL", "http://127.0.0.1:7071")
 
 # Optional: styr resonemangsnivå (påverkar temp om HARMONY_TEMPERATURE_COMMANDS inte satts)
@@ -66,12 +69,11 @@ if _enabled_tools_env is None:
 else:
     ENABLED_TOOLS = {t.strip().upper() for t in _enabled_tools_env.split(",") if t.strip()}
 
+# Exportera ENABLED_TOOLS till miljövariabeln för verify_tool_surface.py
+os.environ["ENABLED_TOOLS"] = ",".join(sorted(ENABLED_TOOLS))
 
-def _is_tool_enabled(name: str) -> bool:
-    try:
-        return (name or "").upper() in ENABLED_TOOLS
-    except Exception:
-        return False
+
+# Använd core.is_tool_enabled istället
 
 
 def _harmony_system_prompt() -> str:
@@ -122,10 +124,21 @@ def _maybe_parse_tool_call(text: str) -> Optional[Dict[str, Any]]:
     return None
 
 async def _router_first_try(prompt: str) -> Optional[Dict[str, Any]]:
-    """Fråga NLU/Agent-routern om ett verktyg kan köras med hög confidence.
+    """Försök router-först med core.router för snabba intents.
     Returnerar plan-dict eller None.
     """
     try:
+        # Först, testa core.router
+        router_result = classify(prompt)
+        if router_result and router_result.get("confidence", 0) >= NLU_CONFIDENCE_THRESHOLD:
+            return {
+                "tool": router_result["tool"],
+                "params": router_result["args"],
+                "confidence": router_result["confidence"],
+                "source": "core_router"
+            }
+        
+        # Fallback till NLU/Agent-routern
         async with httpx.AsyncClient(timeout=2.5) as client:
             r = await client.post(f"{NLU_AGENT_URL}/agent/route", json={"text": prompt})
             if r.status_code != 200:
@@ -136,7 +149,7 @@ async def _router_first_try(prompt: str) -> Optional[Dict[str, Any]]:
             if plan and conf >= NLU_CONFIDENCE_THRESHOLD:
                 return plan
     except Exception:
-        return None
+        pass
     return None
 
 
@@ -187,12 +200,44 @@ async def harmony_test(req: HarmonyTestBatchRequest):
     }
     return HarmonyTestBatchResponse(results=results, summary=summary)
 
+@router.get("/tools/spec")
+async def tools_spec():
+    """Hämta Harmony-verktygsspecs för aktiverade verktyg"""
+    return build_harmony_tool_specs()
+
+@router.get("/tools/registry")
+async def tools_registry():
+    """Hämta lista över tillgängliga verktygsexekverare"""
+    from core import get_executor_names
+    return {"executors": get_executor_names()}
+
+@router.get("/tools/enabled")
+async def tools_enabled():
+    """Hämta lista över aktiverade verktyg från miljövariabel"""
+    return {"enabled": enabled_tools()}
+
 app.include_router(router)
 
+# Kör preflight-kontroller vid startup
+@app.on_event("startup")
+async def startup_event():
+    """Kör preflight-kontroller när servern startar"""
+    try:
+        logger.info("Running preflight checks...")
+        all_passed, results = run_preflight_checks()
+        log_preflight_results(results)
+        
+        if not all_passed:
+            logger.error("Preflight checks failed - server may not work correctly")
+        else:
+            logger.info("All preflight checks passed - server ready")
+            
+    except Exception as e:
+        logger.error(f"Error during preflight checks: {e}")
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
-MEMORY_PATH = os.path.join(DATA_DIR, "jarvis.db")
+MEMORY_PATH = os.path.join(DATA_DIR, "alice.db")
 memory = MemoryStore(MEMORY_PATH)
 bandit = EpsilonGreedyBandit(memory)
 
@@ -209,9 +254,72 @@ class JarvisResponse(BaseModel):
     command: Optional[JarvisCommand] = None
 
 
+class TTSRequest(BaseModel):
+    text: str = Field(..., description="Text to synthesize to speech")
+    voice: str = Field(default="sv_SE-nst-medium", description="Voice model to use")
+    speed: float = Field(default=1.0, description="Speech speed multiplier")
+
+
 @app.get("/api/health")
 async def health() -> Dict[str, Any]:
     return {"status": "ok", "db": memory.ping(), "ts": datetime.utcnow().isoformat() + "Z", "harmony": USE_HARMONY, "tools": USE_TOOLS}
+
+
+@app.post("/api/tts/synthesize")
+async def text_to_speech(request: TTSRequest):
+    """Synthesize Swedish text to speech using Piper TTS"""
+    try:
+        # Create temporary file for output
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+            temp_path = temp_file.name
+        
+        # Build Piper command
+        model_path = f"models/tts/{request.voice}.onnx"
+        if not os.path.exists(model_path):
+            return {"error": f"Voice model {request.voice} not found", "available": ["sv_SE-nst-medium"]}
+        
+        # Run Piper TTS
+        cmd = [
+            "python", "-m", "piper",
+            "--model", model_path,
+            "--output_file", temp_path
+        ]
+        
+        if request.speed != 1.0:
+            cmd.extend(["--speed", str(request.speed)])
+        
+        process = subprocess.run(
+            cmd,
+            input=request.text,
+            text=True,
+            capture_output=True,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
+        
+        if process.returncode != 0:
+            logger.error(f"Piper TTS failed: {process.stderr}")
+            return {"error": "TTS synthesis failed", "details": process.stderr}
+        
+        # Read and encode the audio file
+        with open(temp_path, 'rb') as f:
+            audio_data = f.read()
+        
+        # Clean up temp file
+        os.unlink(temp_path)
+        
+        # Return base64 encoded audio
+        audio_b64 = base64.b64encode(audio_data).decode('utf-8')
+        return {
+            "success": True,
+            "audio_data": audio_b64,
+            "format": "wav",
+            "voice": request.voice,
+            "text": request.text
+        }
+        
+    except Exception as e:
+        logger.error(f"TTS error: {str(e)}")
+        return {"error": "TTS synthesis failed", "details": str(e)}
 
 
 @app.post("/api/jarvis/command", response_model=JarvisResponse)
@@ -273,9 +381,23 @@ async def tools_exec(body: ExecToolBody) -> Dict[str, Any]:
     return res
 
 
-@app.get("/api/tools/specs")
-async def tools_specs() -> Dict[str, Any]:
-    return {"ok": True, "items": list_tool_specs()}
+# Använd core-modulerna istället
+
+@app.get("/api/tools/spec")
+async def tools_spec() -> Dict[str, Any]:
+    """Hämta verktygsspecifikationer för Harmony"""
+    return {"ok": True, "specs": build_tool_specs_for_harmony()}
+
+@app.get("/api/tools/registry")
+async def tools_registry() -> Dict[str, Any]:
+    """Hämta registrerade verktyg från registry"""
+    from tools.registry import EXECUTORS
+    return {"ok": True, "executors": sorted(list(EXECUTORS.keys()))}
+
+@app.get("/api/tools/enabled")
+async def tools_enabled() -> Dict[str, Any]:
+    """Hämta aktiverade verktyg från miljövariabeln"""
+    return {"ok": True, "enabled": enabled_tools()}
 
 
 class ChatBody(BaseModel):
@@ -345,6 +467,28 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
                     dt = (time.time() - t0) * 1000
                     logger.info("chat local ms=%.0f", dt)
                     raw_text = (data.get("response", "") or "").strip()
+                    # Harmony: tolka ev. verktygsanrop innan FINAL-extraktion
+                    if USE_TOOLS and USE_HARMONY:
+                        call = _maybe_parse_tool_call(raw_text)
+                        if call:
+                            name = str(call.get("tool") or "").upper()
+                            args = call.get("args") or {}
+                            if is_tool_enabled(name):
+                                t_tool = time.time()
+                                res = validate_and_execute_tool(name, args, memory)
+                                dt_tool = (time.time() - t_tool) * 1000
+                                try:
+                                    metrics.record_tool_call_attempted()
+                                    if res.get("ok"):
+                                        metrics.record_llm_hit()
+                                        metrics.record_tool_call_latency(dt_tool)
+                                    metrics.record_final_latency((time.time() - t_request) * 1000)
+                                except Exception:
+                                    pass
+                                msg = _format_tool_confirmation(name, args)
+                                resp = await respond(msg, used_provider="local", engine=(body.model or os.getenv("LOCAL_MODEL", "gpt-oss:20b")))
+                                resp["meta"] = {"tool": {"name": name, "args": args, "source": "harmony", "executed": bool(res.get("ok")), "latency_ms": dt_tool}}
+                                return resp
                     local_text = _extract_final(raw_text) if USE_HARMONY else raw_text
                     if USE_HARMONY:
                         try:
@@ -388,6 +532,28 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
                 if r.status_code == 200:
                     data = r.json()
                     raw_text = ((data.get("choices") or [{}])[0].get("message") or {}).get("content", "")
+                    # Harmony: tolka ev. verktygsanrop innan FINAL-extraktion
+                    if USE_TOOLS and USE_HARMONY:
+                        call = _maybe_parse_tool_call(raw_text)
+                        if call:
+                            name = str(call.get("tool") or "").upper()
+                            args = call.get("args") or {}
+                            if is_tool_enabled(name):
+                                t_tool = time.time()
+                                res = validate_and_execute_tool(name, args, memory)
+                                dt_tool = (time.time() - t_tool) * 1000
+                                try:
+                                    metrics.record_tool_call_attempted()
+                                    if res.get("ok"):
+                                        metrics.record_llm_hit()
+                                        metrics.record_tool_call_latency(dt_tool)
+                                    metrics.record_final_latency((time.time() - t_request) * 1000)
+                                except Exception:
+                                    pass
+                                msg = _format_tool_confirmation(name, args)
+                                resp = await respond(msg, used_provider="openai", engine=os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
+                                resp["meta"] = {"tool": {"name": name, "args": args, "source": "harmony", "executed": bool(res.get("ok")), "latency_ms": dt_tool}}
+                                return resp
                     text = _extract_final(raw_text) if USE_HARMONY else raw_text
                     if USE_HARMONY:
                         try:
@@ -405,9 +571,9 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
         # Router-först: snabba intents exekveras direkt utan LLM om high-confidence
         plan = await _router_first_try(body.prompt)
         if plan and USE_TOOLS:
-            name = str(plan.get("tool") or plan.get("name") or "")
-            args = plan.get("params") or plan.get("args") or {}
-            if not _is_tool_enabled(name):
+            name = str(plan.get("tool") or "")
+            args = plan.get("params") or {}
+            if not is_tool_enabled(name):
                 logger.info("router tool disabled name=%s", name)
                 raise RuntimeError("router_tool_disabled")
             t_tool = time.time()
@@ -415,10 +581,26 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
             if res.get("ok"):
                 metrics.record_router_hit()
                 metrics.record_tool_call_attempted()
-                metrics.record_tool_call_latency((time.time() - t_tool) * 1000)
+                dt_tool = (time.time() - t_tool) * 1000
+                metrics.record_tool_call_latency(dt_tool)
                 metrics.record_final_latency((time.time() - t_request) * 1000)
                 msg = _format_tool_confirmation(name, args)
-                return {"ok": True, "text": msg, "memory_id": None, "provider": "router", "engine": None}
+                return {
+                    "ok": True,
+                    "text": msg,
+                    "memory_id": None,
+                    "provider": "router",
+                    "engine": None,
+                    "meta": {
+                        "tool": {
+                            "name": (name or "").upper(),
+                            "args": args,
+                            "source": "router",
+                            "executed": True,
+                            "latency_ms": dt_tool,
+                        }
+                    },
+                }
             # vid valideringsfel → fall-through till LLM
             metrics.record_tool_validation_failed()
 
@@ -530,6 +712,7 @@ async def chat_stream(body: ChatBody):
                         return
                     nonlocal final_text, used_provider, emitted
                     used_provider = "openai"
+                    harmony_tool_handled = False
                     async for line in r.aiter_lines():
                         if not line:
                             continue
@@ -545,6 +728,50 @@ async def chat_stream(body: ChatBody):
                                 if USE_HARMONY:
                                     nonlocal final_started, final_ended, buffer_text
                                     buffer_text += raw_delta
+                                    # Försök upptäcka Harmony-tool innan FINAL
+                                    if USE_TOOLS and not harmony_tool_handled:
+                                        if "[TOOL_CALL]" in buffer_text and "}" in buffer_text:
+                                            call = _maybe_parse_tool_call(buffer_text)
+                                            if call:
+                                                name = str(call.get("tool") or "").upper()
+                                                args = call.get("args") or {}
+                                                if is_tool_enabled(name):
+                                                    t_tool = time.time()
+                                                    res = validate_and_execute_tool(name, args, memory)
+                                                    dt_tool = (time.time() - t_tool) * 1000
+                                                    meta = {"tool": {"name": name, "args": args, "source": "harmony", "executed": bool(res.get("ok")), "latency_ms": dt_tool}}
+                                                    async for out in sse_send({"type": "meta", "meta": meta}):
+                                                        yield out
+                                                    if res.get("ok"):
+                                                        emitted = True
+                                                        if len(final_text) == 0:
+                                                            try:
+                                                                from metrics import metrics as _metrics
+                                                                _metrics.record_first_token((time.time() - t_request) * 1000)
+                                                            except Exception:
+                                                                pass
+                                                        confirm = _format_tool_confirmation(name, args)
+                                                        final_text += confirm
+                                                        async for out in sse_send({"type": "chunk", "text": confirm}):
+                                                            yield out
+                                                        # done och mem
+                                                        mem_id = None
+                                                        try:
+                                                            tags = {"source": "chat", "provider": "openai"}
+                                                            mem_id = memory.upsert_text_memory(confirm, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
+                                                        except Exception:
+                                                            pass
+                                                        try:
+                                                            from metrics import metrics as _metrics
+                                                            _metrics.record_tool_call_attempted()
+                                                            _metrics.record_tool_call_latency(dt_tool)
+                                                            _metrics.record_final_latency((time.time() - t_request) * 1000)
+                                                        except Exception:
+                                                            pass
+                                                        async for out in sse_send({"type": "done", "provider": "openai", "memory_id": mem_id}):
+                                                            yield out
+                                                        return
+                                                    harmony_tool_handled = True
                                     out_chunk = ""
                                     if not final_started:
                                         si = buffer_text.find("[FINAL]")
@@ -573,7 +800,7 @@ async def chat_stream(body: ChatBody):
                                         if len(final_text) == 0:
                                             # first token latency
                                             try:
-                                                from .metrics import metrics as _metrics
+                                                from metrics import metrics as _metrics
                                                 _metrics.record_first_token((time.time() - t_request) * 1000)
                                             except Exception:
                                                 pass
@@ -584,7 +811,7 @@ async def chat_stream(body: ChatBody):
                                     emitted = True
                                     if len(final_text) == 0:
                                         try:
-                                            from .metrics import metrics as _metrics
+                                            from metrics import metrics as _metrics
                                             _metrics.record_first_token((time.time() - t_request) * 1000)
                                         except Exception:
                                             pass
@@ -612,6 +839,7 @@ async def chat_stream(body: ChatBody):
                         return
                     nonlocal final_text, used_provider, emitted
                     used_provider = "local"
+                    harmony_tool_handled = False
                     async for line in r.aiter_lines():
                         if not line:
                             continue
@@ -625,6 +853,49 @@ async def chat_stream(body: ChatBody):
                             if USE_HARMONY:
                                 nonlocal final_started, final_ended, buffer_text
                                 buffer_text += raw_delta
+                                # Försök upptäcka Harmony-tool innan FINAL
+                                if USE_TOOLS and not harmony_tool_handled:
+                                    if "[TOOL_CALL]" in buffer_text and "}" in buffer_text:
+                                        call = _maybe_parse_tool_call(buffer_text)
+                                        if call:
+                                            name = str(call.get("tool") or "").upper()
+                                            args = call.get("args") or {}
+                                            if is_tool_enabled(name):
+                                                t_tool = time.time()
+                                                res = validate_and_execute_tool(name, args, memory)
+                                                dt_tool = (time.time() - t_tool) * 1000
+                                                meta = {"tool": {"name": name, "args": args, "source": "harmony", "executed": bool(res.get("ok")), "latency_ms": dt_tool}}
+                                                async for out in sse_send({"type": "meta", "meta": meta}):
+                                                    yield out
+                                                if res.get("ok"):
+                                                    emitted = True
+                                                    if len(final_text) == 0:
+                                                        try:
+                                                            from metrics import metrics as _metrics
+                                                            _metrics.record_first_token((time.time() - t_request) * 1000)
+                                                        except Exception:
+                                                            pass
+                                                    confirm = _format_tool_confirmation(name, args)
+                                                    final_text += confirm
+                                                    async for out in sse_send({"type": "chunk", "text": confirm}):
+                                                        yield out
+                                                    mem_id = None
+                                                    try:
+                                                        tags = {"source": "chat", "provider": "local"}
+                                                        mem_id = memory.upsert_text_memory(confirm, score=0.0, tags_json=json.dumps(tags, ensure_ascii=False))
+                                                    except Exception:
+                                                        pass
+                                                    try:
+                                                        from metrics import metrics as _metrics
+                                                        _metrics.record_tool_call_attempted()
+                                                        _metrics.record_tool_call_latency(dt_tool)
+                                                        _metrics.record_final_latency((time.time() - t_request) * 1000)
+                                                    except Exception:
+                                                        pass
+                                                    async for out in sse_send({"type": "done", "provider": "local", "memory_id": mem_id}):
+                                                        yield out
+                                                    return
+                                                harmony_tool_handled = True
                                 out_chunk = ""
                                 if not final_started:
                                     si = buffer_text.find("[FINAL]")
@@ -652,7 +923,7 @@ async def chat_stream(body: ChatBody):
                                     emitted = True
                                     if len(final_text) == 0:
                                         try:
-                                            from .metrics import metrics as _metrics
+                                            from metrics import metrics as _metrics
                                             _metrics.record_first_token((time.time() - t_request) * 1000)
                                         except Exception:
                                             pass
@@ -663,7 +934,7 @@ async def chat_stream(body: ChatBody):
                                 emitted = True
                                 if len(final_text) == 0:
                                     try:
-                                        from .metrics import metrics as _metrics
+                                        from metrics import metrics as _metrics
                                         _metrics.record_first_token((time.time() - t_request) * 1000)
                                     except Exception:
                                         pass
@@ -683,18 +954,27 @@ async def chat_stream(body: ChatBody):
         if USE_TOOLS:
             plan = await _router_first_try(body.prompt)
             if plan:
-                name = str(plan.get("tool") or plan.get("name") or "")
-                args = plan.get("params") or plan.get("args") or {}
-                if not _is_tool_enabled(name):
+                name = str(plan.get("tool") or "")
+                args = plan.get("params") or {}
+                if not is_tool_enabled(name):
                     async for out in sse_send({"type": "tool_called", "name": name, "args": args, "disabled": True}):
                         yield out
                     # Fortsätt till LLM-stream
                 else:
-                    async for out in sse_send({"type": "tool_called", "name": name, "args": args}):
+                    # Skicka standardiserat meta-event före final
+                    meta = {
+                        "tool": {
+                            "name": (name or "").upper(),
+                            "args": args,
+                            "source": "router",
+                            "executed": bool(res.get("ok")),
+                        }
+                    }
+                    async for out in sse_send({"type": "meta", "meta": meta}):
                         yield out
                     t_tool = time.time()
                     res = validate_and_execute_tool(name, args, memory)
-                    async for out in sse_send({"type": "tool_result", "ok": bool(res.get("ok")), "result": res}):
+                    async for out in sse_send({"type": "tool_result", "ok": bool(res.get("ok")), "result": res, "tool": (name or "").upper(), "args": args}):
                         yield out
                     if res.get("ok"):
                         confirm = _format_tool_confirmation(name, args)
@@ -715,11 +995,10 @@ async def chat_stream(body: ChatBody):
                         async for out in sse_send({"type": "done", "provider": "router", "memory_id": mem_id}):
                             yield out
                         return
-                async for out in sse_send({"type": "tool_called", "name": name, "args": args}):
+                async for out in sse_send({"type": "meta", "meta": {"tool": {"name": (name or "").upper(), "args": args, "source": "router", "executed": False}}}):
                     yield out
                 res = validate_and_execute_tool(name, args, memory)
-                async for out in sse_send({"type": "tool_result", "ok": bool(res.get("ok")), "result": res}):
-                    yield out
+                # Efter exekvering uppdateras executed=true via final/done, chunk nedan räcker för UI
                 if res.get("ok"):
                     confirm = _format_tool_confirmation(name, args)
                     emitted = True
@@ -759,7 +1038,7 @@ async def chat_stream(body: ChatBody):
         except Exception:
             pass
         try:
-            from .metrics import metrics as _metrics
+            from metrics import metrics as _metrics
             _metrics.record_final_latency((time.time() - t_request) * 1000)
         except Exception:
             pass

@@ -7,15 +7,20 @@ This script:
 4. Uses OpenAI to analyze results and suggest improvements
 """
 import os
+import sys
 import json
 import asyncio
 import httpx
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pathlib import Path
+from dotenv import load_dotenv
 
 import openai
 from openai import AsyncOpenAI
+
+# Load environment variables
+load_dotenv()
 
 # Load test cases
 def load_test_cases() -> List[Dict[str, Any]]:

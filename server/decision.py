@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from typing import Dict, List, Optional
 
-from .memory import MemoryStore
+from memory import MemoryStore
 
 
 class EpsilonGreedyBandit:

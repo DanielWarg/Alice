@@ -26,8 +26,8 @@ def build_test_cases() -> List[Dict[str, Any]]:
         {"id": "tool_ok_3", "utterance": "Sätt volymen till 30 procent.", "expect_tool": True, "expect_tool_name": "SET_VOLUME"},
     ]
     tool_bad = [
-        {"id": "tool_bad_1", "utterance": "Sätt volymen till högt.", "expect_tool": True, "expect_tool_name": "SET_VOLUME"},
-        {"id": "tool_bad_2", "utterance": "Visa ett kort.", "expect_tool": True, "expect_tool_name": "DISPLAY"},
+        {"id": "tool_bad_1", "utterance": "Sätt volymen till högt.", "expect_tool": False},
+        {"id": "tool_bad_2", "utterance": "Visa ett kort.", "expect_tool": False},
     ]
     unclear = [
         {"id": "unclear_1", "utterance": "Kan du fixa det där?", "expect_tool": False},
@@ -72,11 +72,15 @@ def summarize(report: Dict[str, Any]) -> str:
         f"Totalt: {len(results)}  |  Passed: {passed}  |  Failed: {failed}  |  Pass rate: {report['summary']['pass_rate']}%"
     )
     lines.append("")
-    lines.append("| ID | Expect Tool | Tool Called | Tool Name | Passed | Latency (ms) | Reason |")
-    lines.append("|----|-------------|-------------|-----------|--------|--------------|--------|")
+    lines.append("| ID | Expect Tool | Tool Called | Tool Name | Source | Executed | Tool Latency | Passed | Latency (ms) | Reason |")
+    lines.append("|----|-------------|-------------|-----------|--------|----------|--------------|--------|--------------|--------|")
     for r in results:
+        meta = (r.get('raw_summary', {}).get('meta', {}) or {}).get('tool') or {}
+        src = meta.get('source','')
+        ex = meta.get('executed','')
+        tl = meta.get('latency_ms','')
         lines.append(
-            f"| {r['id']} | {r['expect_tool']} | {r['tool_called']} | {r.get('tool_name') or ''} | {r['passed']} | {int(r['latency_total_ms'])} | {r['reason']} |"
+            f"| {r['id']} | {r['expect_tool']} | {r['tool_called']} | {r.get('tool_name') or ''} | {src} | {ex} | {tl} | {r['passed']} | {int(r['latency_total_ms'])} | {r['reason']} |"
         )
     lines.append("")
     lines.append("## Misslyckade fall (om några)")

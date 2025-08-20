@@ -1,0 +1,168 @@
+{
+  "shortTerm": [
+    {
+      "ts": "2025-08-14T22:40:31.382Z",
+      "text": "sluta gilla",
+      "plan": {
+        "name": "UNLIKE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:31.256Z",
+      "text": "ta bort från favoriter",
+      "plan": {
+        "name": "UNLIKE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:31.121Z",
+      "text": "tumme ner",
+      "plan": {
+        "name": "UNLIKE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:30.994Z",
+      "text": "unlike",
+      "plan": {
+        "name": "UNLIKE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:30.868Z",
+      "text": "ogilla",
+      "plan": {
+        "name": "UNLIKE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:30.752Z",
+      "text": "lägg till i favoriter",
+      "plan": {
+        "name": "LIKE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:30.637Z",
+      "text": "spara låt",
+      "plan": {
+        "name": "LIKE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:30.513Z",
+      "text": "tumme upp",
+      "plan": {
+        "name": "LIKE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:30.381Z",
+      "text": "like",
+      "plan": {
+        "name": "LIKE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:30.254Z",
+      "text": "gilla",
+      "plan": {
+        "name": "LIKE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:30.125Z",
+      "text": "slumpvis",
+      "plan": {
+        "name": "SHUFFLE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:29.997Z",
+      "text": "random",
+      "plan": {
+        "name": "SHUFFLE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:29.871Z",
+      "text": "spela blandat",
+      "plan": {
+        "name": "SHUFFLE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:29.745Z",
+      "text": "blanda låtar",
+      "plan": {
+        "name": "SHUFFLE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:29.608Z",
+      "text": "shuffle",
+      "plan": {
+        "name": "SHUFFLE",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:29.481Z",
+      "text": "loop",
+      "plan": {
+        "name": "REPEAT",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:29.353Z",
+      "text": "repeat",
+      "plan": {
+        "name": "REPEAT",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:29.227Z",
+      "text": "spela om",
+      "plan": {
+        "name": "REPEAT",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:29.110Z",
+      "text": "upprepa låten",
+      "plan": {
+        "name": "REPEAT",
+        "args": {}
+      }
+    },
+    {
+      "ts": "2025-08-14T22:40:28.996Z",
+      "text": "repetera",
+      "plan": {
+        "name": "REPEAT",
+        "args": {}
+      }
+    }
+  ],
+  "prefs": {
+    "deviceAliases": {},
+    "favoriteArtists": []
+  }
+}

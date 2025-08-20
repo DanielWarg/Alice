@@ -1,175 +1,380 @@
+# Alice - AI Assistant Platform
 
+Alice är en avancerad, lokal AI-assistent som kombinerar naturlig språkförståelse, röstsyntes, och intelligenta verktyg i en modern HUD-baserad gränssnittsdesign. Systemet är designat för att köras helt lokalt med fokus på integritet, prestanda och modulärhet.
+
+## Översikt
+
+Alice kombinerar flera teknologier för att leverera en kraftfull AI-assistent:
+
+- **Frontend**: Next.js 15-baserat HUD (Heads-Up Display) med real-time uppdateringar
+- **Backend**: FastAPI-server med modulär arkitektur  
+- **AI-kärna**: Lokal LLM-integration via Ollama (gpt-oss:20B)
+- **NLU**: Naturlig språkförståelse med svensk språkstöd
+- **TTS/STT**: Piper för text-till-tal, Whisper för tal-till-text
+- **Verktygsystem**: Modulärt verktygsregister med Spotify-integration
+
+## Projektstruktur
 
 ```
-      ██╗ █████╗ ██████╗ ██╗   ██╗██╗███████╗
-      ██║██╔══██╗██╔══██╗██║   ██║██║██╔════╝
-      ██║███████║██████╔╝██║   ██║██║███████╗
- ██   ██║██╔══██║██╔══██╗██║   ██║██║╚════██║
- ╚█████╔╝██║  ██║██║  ██║╚██████╔╝██║███████║
-  ╚════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝╚══════╝
-             The Ultimate AI Assistant
+alice/
+├── server/                 # FastAPI backend
+│   ├── app.py             # Huvudapplikation 
+│   ├── core/              # Kärnmoduler
+│   │   ├── router.py      # Intent-klassificering
+│   │   ├── tool_registry.py # Verktygshantering
+│   │   └── tool_specs.py  # Verktygsspecifikationer
+│   ├── prompts/           # AI-prompts
+│   ├── tests/             # Enhetstester
+│   └── requirements.txt   # Python-dependencies
+├── web/                   # Next.js frontend
+│   ├── app/               # Next.js 13+ app directory
+│   ├── components/        # React-komponenter
+│   ├── lib/               # Hjälpbibliotek och API-klienter
+│   └── package.json       # Node.js dependencies
+├── alice-tools/          # Verktygsmodul (TypeScript)
+├── nlu-agent/             # NLU-agent för språkförståelse
+└── tests/                 # Integrationstester
 ```
 
+## Snabbstart
 
-──────────────────────────────
+### Förkunskaper
 
-# 🚀 JARVIS HUD — Local AI with Voice, Vision & Memory
+- Python 3.9+
+- Node.js 18+
+- Ollama (för lokal LLM)
 
-*"Your personal AI. Local. Private. Limitless."*
+### Installation
 
----
+1. **Klona repository**
+   ```bash
+   git clone <repository-url>
+   cd alice
+   ```
 
-🌌 Vision
-Jarvis HUD is a self-hosted AI powerhouse.
-It listens, speaks, understands Swedish commands with precision, remembers context, and controls your world — from media to email, calendars, IoT, and beyond — all inside a sleek, futuristic heads-up display.
+2. **Backend Setup**
+   ```bash
+   # Skapa och aktivera virtuell miljö
+   python3 -m venv .venv
+   source .venv/bin/activate  # På Windows: .venv\Scripts\activate
+   
+   # Installera dependencies
+   cd server
+   pip install -r requirements.txt
+   ```
 
-Built for speed, privacy, and total control — no cloud lock-in, no compromises.
+3. **Frontend Setup**
+   ```bash
+   cd web
+   npm install
+   ```
 
-<div style="background-color:#0d1117;padding:20px;border-radius:10px;text-align:center;"> <img src="docs/image.png" alt="Jarvis HUD — Local AI with Voice, Vision & Memory in a Futuristic Interface" style="max-width:100%;border-radius:8px;"> <p style="color:#8b949e;font-style:italic;">Preview of the Jarvis HUD interface</p> </div>
+4. **Environment Configuration**
+   
+   Skapa `.env` i projektets rot:
+   ```env
+   # AI Konfiguration
+   USE_HARMONY=false
+   USE_TOOLS=true
+   HARMONY_TEMPERATURE_COMMANDS=0.2
+   NLU_CONFIDENCE_THRESHOLD=0.85
+   ENABLED_TOOLS=PLAY,PAUSE,SET_VOLUME,NEXT,PREV
+   
+   # Spotify Integration (valfritt)
+   SPOTIFY_CLIENT_ID=your_client_id
+   SPOTIFY_CLIENT_SECRET=your_client_secret
+   SPOTIFY_REDIRECT_URI=http://127.0.0.1:3100/spotify/callback
+   
+   # API Konfiguration
+   JARVIS_MINIMAL=0
+   NLU_AGENT_URL=http://127.0.0.1:7071
+   ```
 
----
+### Starta Systemet
 
-## ✨ Features
+1. **Starta Backend** (Terminal 1)
+   ```bash
+   source .venv/bin/activate
+   uvicorn server.app:app --host 127.0.0.1 --port 8000 --reload
+   ```
 
-* **Futuristic HUD Panels** — System stats, weather, to-do, diagnostics, journal, and media.
-* **Overlay Modules** — Calendar, email, finance, reminders, wallet, video feeds.
-* **Spotify Control** — OAuth login, playback, queue, search, playlists, auto device sync.
-* **Smart Intent Routing** — Natural language → NLU → Agent → Tool.
-* **Safe Boot Mode** — Kill camera/mic instantly.
-* **Extensible Tools** — Ready for API, IoT, and custom agent integration.
+2. **Starta NLU Agent** (Terminal 2)
+   ```bash
+   cd nlu-agent
+   npm run dev
+   ```
 
----
+3. **Starta Frontend** (Terminal 3)
+   ```bash
+   cd web
+   npm run dev -- -p 3100
+   ```
 
-## 🛠 Tech Stack
+4. **Öppna Applikationen**
+   
+   Navigera till: http://localhost:3100
 
-**Frontend:** Next.js 15, React 19, Tailwind CSS v4, next-pwa
-**Backend:** FastAPI, httpx, orjson, python-dotenv, SQLite memory store
-**AI Core:** `gpt-oss:20B` (Ollama), RAG retrieval, Whisper STT, Piper TTS
+## Utvecklingsworkflow
 
-*Chosen for modern rendering, real-time capabilities, local-first AI execution, and minimal latency.*
+### Kodstandard
 
----
+- **Python**: Följer PEP 8, använder type hints
+- **TypeScript/JavaScript**: ESLint + Prettier konfiguration
+- **Git**: Conventional commits (feat, fix, docs, refactor, test)
 
-## ⚡ Quick Start
+### Testing
 
-### Backend
+```bash
+# Backend-tester
+cd server
+python -m pytest tests/ -v
 
-python3 -m venv .venv
-source .venv/bin/activate
-pip install fastapi "uvicorn\[standard]" httpx orjson python-dotenv
-uvicorn server.app\:app --host 127.0.0.1 --port 8000
-
-### Frontend
-
+# Frontend-tester  
 cd web
+npm test
+
+# Integrationstester
+cd tests
+python harmony_e2e_test.py
+```
+
+### Byggprocess
+
+```bash
+# Produktionsbygge
+cd web
+npm run build
+
+# Starta i produktionsläge
+npm start
+```
+
+## Systemarkitektur
+
+### Komponenter
+
+1. **Frontend (Next.js HUD)**
+   - React-baserat användargränssnitt
+   - Real-time kommunikation via WebSocket
+   - Modulär overlay-arkitektur
+   - PWA-stöd med offline-funktionalitet
+
+2. **Backend API (FastAPI)**
+   - RESTful API med automatisk dokumentation
+   - WebSocket för real-time kommunikation
+   - Modulär verktygsarkitektur
+   - Integrerad AI-router
+
+3. **NLU System**
+   - Regex-baserad intent-klassificering
+   - Slot-extraction för parametrar
+   - Fallback till LLM vid osäkerhet
+   - Svenskspråkigt stöd
+
+4. **Verktygsystem**
+   - Pluggbar arkitektur
+   - Validering via Pydantic-scheman
+   - Configurable activation
+   - Built-in Spotify-integration
+
+### Dataflöde
+
+```
+Användare Input → NLU Agent → Intent Klassificering → Verktygsexekvering → Respons → HUD
+```
+
+## API-dokumentation
+
+### Kärnändpunkter
+
+#### Chat API
+```http
+POST /api/chat
+Content-Type: application/json
+
+{
+  "prompt": "spela musik",
+  "provider": "auto"
+}
+```
+
+#### Tool Execution
+```http
+POST /api/tools/exec
+Content-Type: application/json
+
+{
+  "tool": "PLAY",
+  "args": {}
+}
+```
+
+#### TTS Synthesis  
+```http
+POST /api/tts/synthesize
+Content-Type: application/json
+
+{
+  "text": "Hej, jag är Alice",
+  "voice": "sv_SE-nst-medium",
+  "speed": 1.0
+}
+```
+
+#### WebSocket
+```javascript
+const ws = new WebSocket('ws://localhost:8000/ws/alice');
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Received:', data);
+};
+```
+
+### Autogenererad API-dokumentation
+
+Fullständig API-dokumentation finns tillgänglig på:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+## Konfiguration
+
+### Environment Variables
+
+| Variable | Default | Beskrivning |
+|----------|---------|-------------|
+| `USE_HARMONY` | `false` | Aktivera Harmony AI-system |
+| `USE_TOOLS` | `true` | Aktivera verktygsexekvering |
+| `ENABLED_TOOLS` | `PLAY,PAUSE,SET_VOLUME` | Kommaseparerad lista av aktiva verktyg |
+| `NLU_CONFIDENCE_THRESHOLD` | `0.85` | Konfidensminimum för NLU-beslut |
+| `JARVIS_MINIMAL` | `0` | Minimalt läge (1 = aktivera) |
+
+### Verktyg Konfiguration
+
+Aktivera/inaktivera verktyg genom `ENABLED_TOOLS`:
+
+```env
+ENABLED_TOOLS=PLAY,PAUSE,STOP,NEXT,PREV,SET_VOLUME,MUTE,UNMUTE,SHUFFLE,REPEAT
+```
+
+Tillgängliga verktyg:
+- **Mediauppspelning**: PLAY, PAUSE, STOP, NEXT, PREV
+- **Volymkontroll**: SET_VOLUME, MUTE, UNMUTE  
+- **Uppspelningslägen**: SHUFFLE, REPEAT
+- **Interaktion**: LIKE, UNLIKE
+
+## Spotify Integration
+
+### Setup
+
+1. Skapa Spotify App på [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+
+2. Konfigurera redirect URI:
+   ```
+   http://127.0.0.1:3100/spotify/callback
+   ```
+
+3. Lägg till credentials i `.env`:
+   ```env
+   SPOTIFY_CLIENT_ID=your_app_client_id
+   SPOTIFY_CLIENT_SECRET=your_app_client_secret  
+   SPOTIFY_REDIRECT_URI=http://127.0.0.1:3100/spotify/callback
+   ```
+
+4. Auktorisera via HUD:
+   - Öppna Alice HUD
+   - Klicka på Spotify-integration
+   - Följ OAuth-flödet
+
+### Funktioner
+
+- Uppspelningskontroll (play/pause/next/previous)
+- Volymjustering och mute/unmute
+- Sök efter musik, artister, spellistor
+- Köhantering 
+- Enhetsvälkoppling
+- Real-time uppspelningsstatus
+
+## Felsökning
+
+### Vanliga Problem
+
+**Backend startar inte**
+```bash
+# Kontrollera portar
+lsof -i :8000
+# Kontrollera dependencies
+pip install -r requirements.txt
+```
+
+**Frontend bygg misslyckas**
+```bash
+# Rensa cache och installera om
+rm -rf node_modules package-lock.json
 npm install
-npm run dev -- -p 3100
-
-Then open: [http://localhost:3100](http://localhost:3100)
-
-### Harmony feature flags
-
-Create `.env` in repo root (see `.env.example`):
-
-```
-USE_HARMONY=false
-USE_TOOLS=false
-HARMONY_TEMPERATURE_COMMANDS=0.2
-NLU_CONFIDENCE_THRESHOLD=0.85
 ```
 
-Toggle Harmony adapter:
-
-```
-export USE_HARMONY=true
-export USE_TOOLS=false
-uvicorn server.app:app --host 127.0.0.1 --port 8000
+**NLU Agent otillgänglig**
+```bash
+# Kontrollera NLU Agent status
+curl http://localhost:7071/nlu/classify -X POST -d '{"text":"test"}'
 ```
 
+**Spotify inte ansluten**
+- Verifiera CLIENT_ID och CLIENT_SECRET
+- Kontrollera redirect URI matchar exakt
+- Kontrollera nätverksanslutning
+
+### Loggar
+
+**Backend loggar**
+```bash
+# Visa real-time loggar
+tail -f server/logs/app.log
+```
+
+**Frontend loggar**
+- Browser Developer Tools Console
+- Network tab för API-anrop
+
+### Debug Mode
+
+```bash
+# Starta backend med debug
+export DEBUG=1
+uvicorn server.app:app --host 127.0.0.1 --port 8000 --reload --log-level debug
+```
+
+## Bidrag
+
+Vi välkomnar bidrag! Se [DEVELOPMENT.md](DEVELOPMENT.md) för detaljerade utvecklingsriktlinjer.
+
+### Pull Request Process
+
+1. Forka repositoryet
+2. Skapa feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit ändringar (`git commit -m 'Add amazing feature'`)  
+4. Push till branch (`git push origin feature/amazing-feature`)
+5. Öppna Pull Request
+
+## Säkerhet
+
+Alice är designad för lokal hosting och inkluderar:
+
+- Ingen data lämnar din maskin (utan explicit konfiguration)
+- Safe Boot-läge för att inaktivera kamera/mikrofon
+- Modulär aktivering av verktyg
+- Environment-baserad konfiguration
+
+## Licens
+
+Se [LICENSE](LICENSE) fil för detaljer.
+
+## Support
+
+- **Issues**: [GitHub Issues](../../issues)
+- **Discussions**: [GitHub Discussions](../../discussions)
+- **Wiki**: [Project Wiki](../../wiki)
 
 ---
 
-## 🎵 Spotify Setup
-
-1. Create an app in [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/).
-2. Add redirect URI:
-   [http://127.0.0.1:3100/spotify/callback](http://127.0.0.1:3100/spotify/callback)
-3. Create `.env` in project root:
-
-SPOTIFY\_CLIENT\_ID=xxxx
-SPOTIFY\_CLIENT\_SECRET=xxxx
-SPOTIFY\_REDIRECT\_URI=[http://127.0.0.1:3100/spotify/callback](http://127.0.0.1:3100/spotify/callback)
-
-4. Start backend, open HUD → Connect Spotify.
-
----
-
-## 📂 Structure
-
-Jarvis/
-├─ README.md
-├─ server/         # FastAPI backend
-├─ web/            # Next.js frontend
-├─ project\_plan.md
-├─ requirements.md
-
----
-
-## 🧠 Master Build Checklist
-
-### Phase 1 — NLU Finalization (in progress)
-
-* Slot extractors for room/device/time/volume
-* Router mapping + alias & prefs in agent
-* Unit tests (≥10 time, ≥6 volume, ≥6 room/device)
-* RAG retrieval for LLM fallback
-* Eval: Slot-F1 ≥ 0.9, latency p50 < 120ms, 95% refuse when unsure
-
-### Phase 2 — LiveKit & Voice (planned)
-
-* Local LiveKit server (<100ms RTT)
-* Whisper STT, Piper TTS
-* Wake-word + barge-in
-* Multi-turn with memory
-
-### Phase 3 — Core Tools (upcoming)
-
-* Calendar, email, finance, reminders, video
-
-### Phase 4 — Long-term Memory (upcoming)
-
-* Profiles, contextual retrieval, doc integration
-
-### Phase 5 — Optimization & UX (upcoming)
-
-* Latency/stress tests, SQLite tuning, accessibility, HUD polish
-
----
-
-## 🛡 Fallback
-
-**Latest stable Spotify auto-start:**
-git reset --hard fallback-spotify-autostart-2025-08-12 && git clean -fd
-
-**Previous stable Spotify version:**
-git reset --hard fallback-spotify-stable-2025-08-12 && git clean -fd
-
----
-
-## 🤝 Contributing
-
-We welcome pull requests, bug reports, and feature suggestions.
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📜 License
-
-TBD
-
----
+**Alice - Din personliga AI-assistent. Lokal. Privat. Kraftfull.**

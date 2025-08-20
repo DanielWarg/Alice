@@ -1,0 +1,59 @@
+name: Verify Tool Surface
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'server/tools/**'
+      - 'server/harmony_adapter.py'
+      - 'server/app.py'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'server/tools/**'
+      - 'server/harmony_adapter.py'
+      - 'server/app.py'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r server/requirements.txt
+        pip install requests rich
+    
+    - name: Start backend server
+      run: |
+        ENABLED_TOOLS=PLAY,PAUSE,SET_VOLUME,NEXT,PREV,MUTE,UNMUTE,REPEAT,SHUFFLE,LIKE,UNLIKE,STOP \
+        USE_HARMONY=true \
+        USE_TOOLS=true \
+        PYTHONPATH=/Users/evil/Desktop/EVIL/PROJECT/Jarvis-clean \
+        python -m uvicorn server.app:app --host 127.0.0.1 --port 8000 &
+        sleep 5  # Vänta på att servern startar
+    
+    - name: Verify tool surface
+      run: python server/tests/verify_tool_surface.py
+      
+    - name: Run Harmony tool tests
+      run: python server/tests/debug_harmony_tools.py
+      
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          server/tests/results/
+          server/tests/harmony_debug_*.jsonl
+        retention-days: 14

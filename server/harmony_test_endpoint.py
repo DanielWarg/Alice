@@ -59,9 +59,11 @@ async def run_harmony_test_case(case: HarmonyTestCase, _cfg: HarmonyTestBatchReq
     except Exception:
         data = {"ok": False}
 
-    tool_called = (data.get("provider") == "router")
-    tool_name = data.get("tool") if tool_called else None
-    tool_executed = tool_called and data.get("ok") is True
+    # Standardiserad meta.tool
+    meta_tool = ((data.get("meta") or {}).get("tool") if isinstance(data.get("meta"), dict) else None)
+    tool_called = bool(meta_tool)
+    tool_name = (meta_tool or {}).get("name") if tool_called else None
+    tool_executed = tool_called and bool((meta_tool or {}).get("executed"))
     # Analysis-leakage är inte möjligt i vårt final-only-gränssnitt; markera endast vid tom final
     final_text = str(data.get("text") or "")
     analysis_leak = False
@@ -96,7 +98,11 @@ async def run_harmony_test_case(case: HarmonyTestCase, _cfg: HarmonyTestBatchReq
         latency_first_final_ms=(t1 - t0) * 1000.0,
         latency_total_ms=(t1 - t0) * 1000.0,
         final_text=final_text,
-        raw_summary={"provider": data.get("provider"), "engine": data.get("engine")},
+        raw_summary={
+            "provider": data.get("provider"),
+            "engine": data.get("engine"),
+            "meta": {"tool": meta_tool} if meta_tool else {},
+        },
     )
 
 

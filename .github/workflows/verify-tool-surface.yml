@@ -1,0 +1,50 @@
+name: Verify Tool Surface
+
+on:
+  push:
+    branches: [ main, feature/harmony ]
+    paths:
+      - 'server/tools/**'
+      - 'server/app.py'
+      - 'server/prompts/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'server/tools/**'
+      - 'server/app.py'
+      - 'server/prompts/**'
+
+jobs:
+  verify-tool-surface:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        cd server
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Start server
+      run: |
+        cd server
+        python -m uvicorn app:app --host 127.0.0.1 --port 8000 &
+        sleep 10  # Vänta på att servern ska starta
+        
+    - name: Verify tool surface
+      run: |
+        cd server
+        python tests/verify_tool_surface.py
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        pkill -f "uvicorn app:app" || true

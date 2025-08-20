@@ -1,0 +1,89 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch: {}
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('server/requirements.txt') }}
+      - name: Install deps
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -U pip
+          pip install -r requirements.txt
+      - name: Run unit tests (fast)
+        env:
+          USE_HARMONY: "true"
+          USE_TOOLS: "true"
+          LOG_LEVEL: "INFO"
+        run: |
+          source .venv/bin/activate
+          pytest -q
+
+  e2e:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.E2E_ENABLE == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('server/requirements.txt') }}
+      - name: Install deps (server + tests)
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -U pip
+          pip install -r server/requirements.txt
+          pip install httpx pytest jq
+      - name: Start server (background)
+        env:
+          USE_HARMONY: "true"
+          USE_TOOLS: "true"
+          LOG_LEVEL: "INFO"
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          source .venv/bin/activate
+          nohup uvicorn server.app:app --host 127.0.0.1 --port 8000 --log-level info > uvicorn.log 2>&1 &
+          sleep 2
+          curl -sf http://127.0.0.1:8000/api/health
+      - name: Run Harmony E2E
+        env:
+          SERVER_URL: "http://127.0.0.1:8000"
+          HARMONY_TEMPERATURE_COMMANDS: "0.2"
+          HARMONY_REASONING_LEVEL: "low"
+          HARMONY_MAX_TOKENS: "256"
+          HARMONY_REPORT_DIR: "tests/reports"
+        run: |
+          source .venv/bin/activate
+          python tests/harmony_e2e_test.py
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: harmony-reports
+          path: tests/reports
+      - name: Enforce pass rate
+        run: |
+          jq -r '.summary.pass_rate' tests/reports/*.json | awk '{ if ($1+0 < 95) exit 1 }'

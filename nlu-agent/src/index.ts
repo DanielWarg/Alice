@@ -42,10 +42,35 @@ app.post("/nlu/classify", (req, res) => {
 
 app.post("/agent/route", async (req, res) => {
   const text: string = String(req.body?.text ?? "");
+  log.info({ text, normalized: normalizeSv(text) }, "agent.route input");
   // 1) Försök regel-först router
   let r = ruleFirstRoute(text) as any;
   if (r && r.name==='TRANSFER' && r.args && typeof r.args.device==='string') { r.args = { device: resolveAlias(r.args.device), alias: r.args.device }; }
-  if (r) { pushShort(text, r); return res.json({ ok: true, plan: { tool: r.name, params: r.args }, confidence: 0.9, needs_confirmation: true }); }
+  if (r) { 
+    // Högre confidence för exakta matchningar, lägre för naturligt språk
+    const m = ruleFirstClassify(text);
+    let confidence = 0.85;  // default
+    
+    // Exakta matchningar
+    if (m && m.score >= 1.0) {
+      confidence = 1.0;  // exakt match
+    }
+    // Volymkommandon med exakta nivåer
+    else if (m && (m.intent === "SET_VOL" || m.intent === "VOL_UP" || m.intent === "VOL_DOWN")) {
+      const slots = extractVolumeSlots(text);
+      if (typeof slots.level === "number") {
+        confidence = 1.0;  // exakt volymnivå
+      }
+    }
+    // Övriga matchningar
+    else if (m && m.score >= 0.95) confidence = 0.95;  // fras innehåller input
+    else if (m && m.score >= 0.85) confidence = 0.85;  // input innehåller fras
+    else confidence = 0.8;  // ordöverlappning
+    
+    log.info({ text, match: m, confidence }, "agent.route match");
+    pushShort(text, r); 
+    return res.json({ ok: true, plan: { tool: r.name, params: r.args }, confidence, needs_confirmation: true }); 
+  }
   // 2) Minimal fallback för volym/mute om klassificering missar
   const slots = extractVolumeSlots(text) as any;
   const t = normalizeSv(text);

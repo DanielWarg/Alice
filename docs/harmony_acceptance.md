@@ -7,3 +7,12 @@
 - [ ] Telemetri: ≥95% korrekt vägval på evals; 0% `analysis`-läckage till UI; p50 under mål för snabba intents
 
 
+### Meta.tool standard
+
+- [ ] `meta.tool` måste finnas när ett verktyg körts, både för router och Harmony
+- [ ] `meta.tool.source ∈ {"router","harmony"}`
+- [ ] `meta.tool.executed` och `meta.tool.latency_ms` loggas när verktyg körs
+- [ ] Stream skickar `{"type":"meta","meta":{"tool":…}}` före `final`
+- [ ] E2E pass rate ≥95% (vår batch: 12/12)
+
+
