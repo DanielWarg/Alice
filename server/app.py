@@ -242,16 +242,16 @@ memory = MemoryStore(MEMORY_PATH)
 bandit = EpsilonGreedyBandit(memory)
 
 
-class JarvisCommand(BaseModel):
+class AliceCommand(BaseModel):
     type: str = Field(..., description="Command type, e.g., SHOW_MODULE, HIDE_OVERLAY, OPEN_VIDEO")
     payload: Optional[Dict[str, Any]] = None
 
 
-class JarvisResponse(BaseModel):
+class AliceResponse(BaseModel):
     ok: bool
     message: str
     ts: str = Field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
-    command: Optional[JarvisCommand] = None
+    command: Optional[AliceCommand] = None
 
 
 class TTSRequest(BaseModel):
@@ -322,8 +322,8 @@ async def text_to_speech(request: TTSRequest):
         return {"error": "TTS synthesis failed", "details": str(e)}
 
 
-@app.post("/api/jarvis/command", response_model=JarvisResponse)
-async def jarvis_command(cmd: JarvisCommand) -> JarvisResponse:
+@app.post("/api/alice/command", response_model=AliceResponse)
+async def alice_command(cmd: AliceCommand) -> AliceResponse:
     # Persist basic interaction for future learning
     memory.append_event("command", json.dumps(cmd.dict(), ensure_ascii=False))
     # Extra: spara USER_QUERY som textminne
@@ -338,7 +338,7 @@ async def jarvis_command(cmd: JarvisCommand) -> JarvisResponse:
     scores = simulate_first(cmd.dict())
     logger.info("/api/jarvis/command type=%s risk=%.3f", cmd.type, scores.get("risk", 1.0))
     if scores.get("risk", 1.0) > 0.8:
-        return JarvisResponse(ok=False, message="Command blocked by safety", command=cmd)
+        return AliceResponse(ok=False, message="Command blocked by safety", command=cmd)
     # Optional WS broadcast for HUD when receiving explicit dispatch commands
     try:
         ctype = (cmd.type or "").lower()
@@ -347,7 +347,7 @@ async def jarvis_command(cmd: JarvisCommand) -> JarvisResponse:
             await hub.broadcast({"type": "hud_command", "command": cmd.payload})
     except Exception:
         logger.exception("ws broadcast failed")
-    return JarvisResponse(ok=True, message="Command received", command=cmd)
+    return AliceResponse(ok=True, message="Command received", command=cmd)
 
 
 class ToolPickBody(BaseModel):
@@ -386,17 +386,19 @@ async def tools_exec(body: ExecToolBody) -> Dict[str, Any]:
 @app.get("/api/tools/spec")
 async def tools_spec() -> Dict[str, Any]:
     """Hämta verktygsspecifikationer för Harmony"""
-    return {"ok": True, "specs": build_tool_specs_for_harmony()}
+    from core.tool_specs import build_harmony_tool_specs
+    return {"ok": True, "specs": build_harmony_tool_specs()}
 
 @app.get("/api/tools/registry")
 async def tools_registry() -> Dict[str, Any]:
     """Hämta registrerade verktyg från registry"""
-    from tools.registry import EXECUTORS
+    from core.tool_registry import EXECUTORS
     return {"ok": True, "executors": sorted(list(EXECUTORS.keys()))}
 
 @app.get("/api/tools/enabled")
 async def tools_enabled() -> Dict[str, Any]:
     """Hämta aktiverade verktyg från miljövariabeln"""
+    from core.tool_specs import enabled_tools
     return {"ok": True, "enabled": enabled_tools()}
 
 
@@ -521,7 +523,7 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
                                 {"role": "developer", "content": _harmony_developer_prompt()},
                                 {"role": "user", "content": full_prompt},
                             ] if USE_HARMONY else [
-                                {"role": "system", "content": "Du är Jarvis. Svara på svenska och använd 'Relevanta minnen' om de hjälper."},
+                                {"role": "system", "content": "Du är Alice. Svara på svenska och använd 'Relevanta minnen' om de hjälper."},
                                 {"role": "user", "content": full_prompt},
                             ]
                         ),
@@ -699,7 +701,7 @@ async def chat_stream(body: ChatBody):
                                     {"role": "developer", "content": _harmony_developer_prompt()},
                                     {"role": "user", "content": full_prompt},
                                 ] if USE_HARMONY else [
-                                    {"role": "system", "content": "Du är Jarvis. Svara på svenska och använd 'Relevanta minnen' om de hjälper."},
+                                    {"role": "system", "content": "Du är Alice. Svara på svenska och använd 'Relevanta minnen' om de hjälper."},
                                     {"role": "user", "content": full_prompt},
                                 ]
                             ),
@@ -1559,8 +1561,8 @@ class Hub:
 hub = Hub()
 
 
-@app.websocket("/ws/jarvis")
-async def ws_jarvis(ws: WebSocket) -> None:
+@app.websocket("/ws/alice")
+async def ws_alice(ws: WebSocket) -> None:
     await hub.connect(ws)
     try:
         await ws.send_text(json.dumps({"type": "hello", "ts": datetime.utcnow().isoformat() + "Z"}))
