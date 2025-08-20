@@ -6,6 +6,7 @@ Använder core.tool_specs som enda sanningskälla.
 from typing import Dict, Any, Optional
 from .tool_specs import TOOL_SPECS, enabled_tools, is_tool_enabled
 from .gmail_service import gmail_service
+from .calendar_service import calendar_service
 
 # Dummy-implementationer för demo
 def play() -> str:
@@ -59,6 +60,24 @@ def read_emails(max_results: int = 10, query: str = None) -> str:
 def search_emails(query: str, max_results: int = 20) -> str:
     return gmail_service.search_emails(query, max_results)
 
+# Calendar-funktioner
+def create_calendar_event(title: str, start_time: str, end_time: str = None, 
+                         description: str = None, attendees: list = None) -> str:
+    return calendar_service.create_event(title, start_time, end_time, description, attendees)
+
+def list_calendar_events(max_results: int = 10, time_min: str = None, time_max: str = None) -> str:
+    return calendar_service.list_events(max_results, time_min, time_max)
+
+def search_calendar_events(query: str, max_results: int = 20) -> str:
+    return calendar_service.search_events(query, max_results)
+
+def delete_calendar_event(event_id: str) -> str:
+    return calendar_service.delete_event(event_id)
+
+def update_calendar_event(event_id: str, title: str = None, start_time: str = None, 
+                         end_time: str = None, description: str = None) -> str:
+    return calendar_service.update_event(event_id, title, start_time, end_time, description)
+
 # Verktygsexekverare som matchar TOOL_SPECS exakt - SAMMA NAMN!
 EXECUTORS = {
     "PLAY": lambda _args: play(),
@@ -76,6 +95,11 @@ EXECUTORS = {
     "SEND_EMAIL": lambda args: send_email(args.to, args.subject, args.body, args.cc, args.bcc),
     "READ_EMAILS": lambda args: read_emails(args.max_results, args.query),
     "SEARCH_EMAILS": lambda args: search_emails(args.query, args.max_results),
+    "CREATE_CALENDAR_EVENT": lambda args: create_calendar_event(args.title, args.start_time, args.end_time, args.description, args.attendees),
+    "LIST_CALENDAR_EVENTS": lambda args: list_calendar_events(args.max_results, args.time_min, args.time_max),
+    "SEARCH_CALENDAR_EVENTS": lambda args: search_calendar_events(args.query, args.max_results),
+    "DELETE_CALENDAR_EVENT": lambda args: delete_calendar_event(args.event_id),
+    "UPDATE_CALENDAR_EVENT": lambda args: update_calendar_event(args.event_id, args.title, args.start_time, args.end_time, args.description),
 }
 
 def list_tool_specs() -> list[Dict[str, Any]]:

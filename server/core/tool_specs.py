@@ -33,6 +33,32 @@ class SearchEmailArgs(BaseModel):
     query: str = Field(description="Gmail-sökfråga (t.ex. 'subject:meeting', 'from:boss@company.com')")
     max_results: int = Field(20, ge=1, le=100, description="Max antal resultat (1-100)")
 
+class CreateCalendarEventArgs(BaseModel):
+    title: str = Field(description="Händelsens titel/ämne")
+    start_time: str = Field(description="Starttid (t.ex. 'imorgon kl 14:00', '2024-01-15 09:00')")
+    end_time: str = Field(None, description="Sluttid (valfritt, standard 1 timme)")
+    description: str = Field(None, description="Beskrivning av händelsen (valfritt)")
+    attendees: List[str] = Field(None, description="Lista med e-postadresser till deltagare (valfritt)")
+
+class ListCalendarEventsArgs(BaseModel):
+    max_results: int = Field(10, ge=1, le=50, description="Antal händelser att hämta (1-50)")
+    time_min: str = Field(None, description="Tidigaste tid att visa händelser från (valfritt)")
+    time_max: str = Field(None, description="Senaste tid att visa händelser till (valfritt)")
+
+class SearchCalendarEventsArgs(BaseModel):
+    query: str = Field(description="Söktext för att hitta händelser (t.ex. 'möte', 'Jonas')")
+    max_results: int = Field(20, ge=1, le=100, description="Max antal resultat (1-100)")
+
+class DeleteCalendarEventArgs(BaseModel):
+    event_id: str = Field(description="ID för händelsen som ska tas bort")
+
+class UpdateCalendarEventArgs(BaseModel):
+    event_id: str = Field(description="ID för händelsen som ska uppdateras")
+    title: str = Field(None, description="Ny titel (valfritt)")
+    start_time: str = Field(None, description="Ny starttid (valfritt)")
+    end_time: str = Field(None, description="Ny sluttid (valfritt)")
+    description: str = Field(None, description="Ny beskrivning (valfritt)")
+
 class NoArgs(BaseModel):
     """Inga argument behövs för detta verktyg"""
     pass
@@ -141,6 +167,55 @@ TOOL_SPECS: Dict[str, Dict[str, Any]] = {
             "hitta mail om projekt",
             "search emails from last week",
             "sök mail med ämne möte"
+        ]
+    },
+    "CREATE_CALENDAR_EVENT": {
+        "args_model": CreateCalendarEventArgs,
+        "desc": "Skapa en ny kalenderhändelse/möte.",
+        "examples": [
+            "skapa möte imorgon kl 14:00",
+            "boka tid för tandläkare på fredag kl 10:30",
+            "lägg till lunch med Jonas imorgon 12:00",
+            "skapa möte 'Projektstatus' nästa måndag kl 09:00"
+        ]
+    },
+    "LIST_CALENDAR_EVENTS": {
+        "args_model": ListCalendarEventsArgs,
+        "desc": "Visa kommande kalenderhändelser.",
+        "examples": [
+            "visa mina möten denna vecka",
+            "lista kalenderhändelser",
+            "vad har jag för möten imorgon",
+            "visa 5 kommande händelser"
+        ]
+    },
+    "SEARCH_CALENDAR_EVENTS": {
+        "args_model": SearchCalendarEventsArgs,
+        "desc": "Sök efter specifika kalenderhändelser.",
+        "examples": [
+            "sök efter möte med Jonas",
+            "hitta tandläkartid",
+            "sök kalenderhändelse om projekt",
+            "leta efter lunch möten"
+        ]
+    },
+    "DELETE_CALENDAR_EVENT": {
+        "args_model": DeleteCalendarEventArgs,
+        "desc": "Ta bort en kalenderhändelse.",
+        "examples": [
+            "ta bort mötet på fredag",
+            "radera kalenderhändelse",
+            "avboka möte med event_id abc123"
+        ]
+    },
+    "UPDATE_CALENDAR_EVENT": {
+        "args_model": UpdateCalendarEventArgs,
+        "desc": "Uppdatera en befintlig kalenderhändelse.",
+        "examples": [
+            "ändra mötet till kl 15:00",
+            "uppdatera titel på möte",
+            "flytta mötet till imorgon",
+            "ändra beskrivning på kalenderhändelse"
         ]
     },
 }

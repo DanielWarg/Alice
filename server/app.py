@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, Optional, Set, List
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -30,6 +30,7 @@ from core import (
     log_preflight_results
 )
 from harmony_test_endpoint import HarmonyTestBatchRequest, HarmonyTestBatchResponse, run_harmony_test_case
+from voice_stream import get_voice_manager
 
 
 load_dotenv()
@@ -1064,6 +1065,14 @@ async def chat_stream(body: ChatBody):
             yield out
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+# WebSocket endpoint for real-time voice conversation
+@app.websocket("/ws/voice/{session_id}")
+async def voice_websocket(websocket: WebSocket, session_id: str):
+    """Real-time voice conversation with Alice using hybrid API/local approach"""
+    voice_mgr = get_voice_manager(memory)
+    await voice_mgr.handle_voice_session(websocket, session_id)
 
 
 class ActBody(BaseModel):

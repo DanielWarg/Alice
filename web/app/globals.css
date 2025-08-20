@@ -2,10 +2,222 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ────────────────────────────────────────────────────────────────────────────────
+   Global styles for Alice HUD - Critical CSS Foundation
+   ──────────────────────────────────────────────────────────────────────────────── */
+
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #030b10;
+  color: #e0f2fe;
+  overflow-x: hidden;
 }
+
+/* ────────────────────────────────────────────────────────────────────────────────
+   Complex background patterns and gradients
+   ──────────────────────────────────────────────────────────────────────────────── */
+
+.hud-bg-pattern {
+  background: 
+    radial-gradient(ellipse at top, rgba(13,148,136,.15), transparent 60%),
+    radial-gradient(ellipse at bottom, rgba(3,105,161,.12), transparent 60%);
+}
+
+.hud-grid-pattern {
+  background: 
+    linear-gradient(#0e7490 1px, transparent 1px),
+    linear-gradient(90deg, #0e7490 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.1;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────
+   Glow effects and shadows
+   ──────────────────────────────────────────────────────────────────────────────── */
+
+.hud-glow-cyan {
+  box-shadow: 0 0 60px -20px rgba(34, 211, 238, 0.5);
+}
+
+.hud-glow-dot {
+  position: relative;
+  display: inline-block;
+}
+
+.hud-glow-dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #22d3ee;
+  filter: blur(6px);
+  opacity: 0.4;
+  z-index: -1;
+}
+
+.hud-glow-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #22d3ee;
+  filter: blur(14px);
+  opacity: 0.2;
+  z-index: -2;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────
+   Button and interactive elements
+   ──────────────────────────────────────────────────────────────────────────────── */
+
+.hud-button {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 12px;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  background: rgba(13, 148, 136, 0.3);
+  color: #a5f3fc;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.hud-button:hover {
+  background: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.5);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────
+   Ring gauge animations and SVG effects
+   ──────────────────────────────────────────────────────────────────────────────── */
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.ring-pulse {
+  animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────
+   Audio visualization bars
+   ──────────────────────────────────────────────────────────────────────────────── */
+
+.audio-bar {
+  background: linear-gradient(
+    to bottom,
+    rgba(34, 211, 238, 0.8) 0%,
+    rgba(56, 189, 248, 0.4) 50%,
+    rgba(34, 211, 238, 0.8) 100%
+  );
+  border-radius: 2px;
+  transition: height 0.1s ease;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────
+   Footer status indicators
+   ──────────────────────────────────────────────────────────────────────────────── */
+
+.footer-indicator {
+  position: relative;
+  overflow: hidden;
+  background: rgba(13, 148, 136, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+}
+
+.footer-indicator::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 20% 20%,
+    rgba(34, 211, 238, 0.15),
+    transparent 50%
+  );
+}
+
+.footer-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    rgba(34, 211, 238, 0) 0%,
+    rgba(34, 211, 238, 0.6) 50%,
+    rgba(34, 211, 238, 0) 100%
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────
+   Particle animation system
+   ──────────────────────────────────────────────────────────────────────────────── */
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  background: #22d3ee;
+  pointer-events: none;
+}
+
+@keyframes float-particle {
+  0% {
+    transform: translateY(100vh) scale(0.5);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.3;
+  }
+  90% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(-10vh) scale(1);
+    opacity: 0;
+  }
+}
+
+.particle-animated {
+  animation: float-particle 20s linear infinite;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────
+   Custom scrollbars
+   ──────────────────────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(13, 148, 136, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.5);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────
+   Legacy support for existing components
+   ──────────────────────────────────────────────────────────────────────────────── */
 
 button {
   padding: 5px 10px;
@@ -17,4 +229,19 @@ button {
   padding: 10px;
   margin-top: 10px;
   min-height: 100px;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────
+   Responsive design utilities
+   ──────────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .hud-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .hud-button {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
 }

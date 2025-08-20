@@ -70,6 +70,10 @@ VOLUME_PATTERNS = [
     # Generella volymkommandon
     (r"höj volym(?:en)?$", "delta"),
     (r"sänk volym(?:en)?$", "delta"),
+    (r"höj volym(?:en)? lite", "delta"),
+    (r"sänk volym(?:en)? lite", "delta"),
+    (r"höj volym(?:en)? något", "delta"),
+    (r"sänk volym(?:en)? något", "delta"),
     (r"volym(?:en)? (?:höj|sänk)", "delta"),
     (r"justera volym", "delta"),
 ]

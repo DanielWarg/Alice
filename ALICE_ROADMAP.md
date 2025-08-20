@@ -117,6 +117,16 @@
 - [ ] Energy usage monitoring
 - [ ] Home automation scenarios
 
+### Alice Probe Network (Raspberry Pi Sensors)
+- [ ] **Pi 5 + Camera probe för YOLO object detection**
+- [ ] **Pi Zero + Camera för multi-angle vision**
+- [ ] **Pi 3 + PyHat 2mic för environmental audio**
+- [ ] Process learning från video observation
+- [ ] Activity recognition och behavioral analysis
+- [ ] Smart automation baserat på rörelsemönster
+- [ ] Real-time probe network via WebSocket
+- [ ] Ambient intelligence med 360° förståelse
+
 ### External Service Integrations
 - [ ] **Slack/Teams för team communication**
 - [ ] Notion/Obsidian för knowledge management

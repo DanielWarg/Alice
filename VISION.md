@@ -44,9 +44,10 @@ Built for speed, privacy, and total control — no cloud lock-in, no compromises
 ### 🎨 **Futuristic Interface**
 * **HUD Panels** — System stats, weather, tasks, diagnostics, insights
 * **Overlay Modules** — Calendar, email, finance, reminders, analytics
-* **Voice Control** — Natural Swedish commands with TTS/STT pipeline
+* **Voice Control** — Natural Swedish commands with hybrid API/local processing
 * **Safe Boot Mode** — Privacy controls, instant disable
 * **PWA Ready** — Installable desktop experience
+* **Sensor Network** — Raspberry Pi probes för vision och audio
 
 ---
 
