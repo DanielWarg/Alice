@@ -312,4 +312,4 @@ tail -f server/logs/app.log
 
 **🎉 Nu borde Alice-projektet köra perfekt!**
 
-För hjälp, se [DEVELOPMENT.md](DEVELOPMENT.md), [STATUS.md](STATUS.md) eller [README.md](README.md).
+För hjälp, se [DEVELOPMENT.md](DEVELOPMENT.md), [README.md](README.md) eller [ALICE_ROADMAP.md](ALICE_ROADMAP.md).

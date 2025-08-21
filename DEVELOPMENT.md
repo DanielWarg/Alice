@@ -464,8 +464,17 @@ ollama run gpt-oss:20b "test"
 - **Dokumentation** - Uppdaterad
 - **Performance** - Ingen regression
 
+## 📚 **Dokumentation**
+
+- **[STARTUP.md](STARTUP.md)** - Exakt startup-guide
+- **[README.md](README.md)** - Projektöversikt och status
+- **[VISION.md](VISION.md)** - Projektvision och framtida funktioner
+- **[ALICE_ROADMAP.md](ALICE_ROADMAP.md)** - Detaljerad utvecklingsplan
+- **[API.md](API.md)** - Komplett API-dokumentation
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment och production-guide
+
 ---
 
 **Alice Development** - Bygg framtidens AI-assistent! 🚀
 
-*För ytterligare hjälp, se [API.md](API.md) och [VISION.md](VISION.md).*
+*För ytterligare hjälp, se dokumentationen ovan.*
