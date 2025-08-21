@@ -12,8 +12,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Alice HUD",
-  description: "Installationsbar PWA för Alice HUD",
+  title: "Jarvis HUD",
+  description: "Installationsbar PWA för Jarvis HUD",
 };
 
 export default function RootLayout({ children }) {
