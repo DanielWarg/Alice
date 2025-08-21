@@ -223,10 +223,10 @@ Lista aktiverade verktyg.
 }
 ```
 
-### Text-till-Tal (TTS)
+### Enhanced Text-till-Tal (TTS)
 
 #### POST /api/tts/synthesize
-Generera röstsyntes från text.
+Förbättrad röstsyntes med emotioner, personlighet och caching.
 
 **Request:**
 ```http
@@ -235,9 +235,13 @@ Content-Type: application/json
 
 {
   "text": "Hej! Jag är Alice, din AI-assistent.",
-  "voice": "sv_SE-nst-medium",
+  "voice": "sv_SE-nst-high",
   "speed": 1.0,
-  "format": "wav"
+  "emotion": "friendly",
+  "personality": "alice",
+  "pitch": 1.0,
+  "volume": 1.0,
+  "cache": true
 }
 ```
 
@@ -247,12 +251,28 @@ Content-Type: application/json
 | `text` | string | - | Text att syntetisera |
 | `voice` | string | "sv_SE-nst-medium" | Röstmodell |
 | `speed` | float | 1.0 | Talhastighet (0.5-2.0) |
-| `format` | string | "wav" | Ljudformat ("wav", "mp3") |
+| `emotion` | string | null | Emotionell ton |
+| `personality` | string | "alice" | Personlighet |
+| `pitch` | float | 1.0 | Rösttonhöjd (0.8-1.2) |
+| `volume` | float | 1.0 | Ljudvolym (0.1-1.0) |
+| `cache` | boolean | true | Använd cache |
 
 **Available Voices:**
-- `sv_SE-nst-medium` - Svensk kvinnlig röst (medium kvalitet)
-- `sv_SE-nst-high` - Svensk kvinnlig röst (hög kvalitet)
-- `en_US-ljspeech-medium` - Engelsk kvinnlig röst
+- `sv_SE-nst-medium` - Svensk kvinnlig röst (medium kvalitet, naturalness: 7/10)
+- `sv_SE-nst-high` - Svensk kvinnlig röst (hög kvalitet, naturalness: 8/10)
+- `sv_SE-lisa-medium` - Svensk kvinnlig röst (medium kvalitet, naturalness: 8/10)
+
+**Available Emotions:**
+- `neutral` - Neutral ton
+- `happy` - Glad och energisk
+- `calm` - Lugn och avslappnad
+- `confident` - Självsäker och bestämd
+- `friendly` - Vänlig och tillgänglig
+
+**Available Personalities:**
+- `alice` - Energisk AI-assistent (speed: 1.05, pitch: 1.02)
+- `formal` - Professionell och auktoritativ (speed: 0.95, pitch: 0.98)
+- `casual` - Avslappnad och konversationell (speed: 1.1, pitch: 1.05)
 
 **Response:**
 ```json
@@ -260,10 +280,65 @@ Content-Type: application/json
   "success": true,
   "audio_data": "UklGRjY3AgBXQVZFZm10IBAAAAABAAEA...", 
   "format": "wav",
-  "duration_ms": 2340,
-  "sample_rate": 22050,
-  "voice_used": "sv_SE-nst-medium",
-  "text_length": 42
+  "voice": "sv_SE-nst-high",
+  "text": "Hej! Jag är Alice, din AI-assistent.",
+  "emotion": "friendly",
+  "personality": "alice",
+  "cached": false,
+  "settings": {
+    "speed": 1.05,
+    "pitch": 1.02,
+    "emotion": "friendly",
+    "confidence": 0.85
+  },
+  "quality_score": 8
+}
+```
+
+#### GET /api/tts/voices
+Hämta tillgängliga röstmodeller och deras egenskaper.
+
+**Response:**
+```json
+{
+  "voices": [
+    {
+      "id": "sv_SE-nst-high",
+      "name": "Sv SE Nst High",
+      "language": "Swedish",
+      "quality": "high",
+      "gender": "female",
+      "naturalness": 8,
+      "supported_emotions": ["neutral", "happy", "calm", "confident", "friendly"],
+      "supported_personalities": ["alice", "formal", "casual"]
+    }
+  ],
+  "default_voice": "sv_SE-nst-medium",
+  "emotions": ["neutral", "happy", "calm", "confident", "friendly"],
+  "personalities": ["alice", "formal", "casual"]
+}
+```
+
+#### POST /api/tts/stream
+Streaming TTS för snabbare responstider.
+
+**Request:** Samma som `/api/tts/synthesize`
+**Response:** Streaming audio/wav data
+
+#### GET /api/tts/personality/{personality}
+Hämta personlighetsspecifika röstinställningar.
+
+**Response:**
+```json
+{
+  "personality": "alice",
+  "settings": {
+    "speed": 1.05,
+    "pitch": 1.02,
+    "emotion_bias": "friendly",
+    "confidence": 0.85
+  },
+  "description": "Energisk, vänlig AI-assistent med naturlig svenska"
 }
 ```
 

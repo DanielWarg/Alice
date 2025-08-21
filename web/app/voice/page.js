@@ -1,7 +1,5 @@
 "use client";
 
-import VoiceInterface from '../../components/VoiceInterface';
-
 export default function VoicePage() {
     return (
         <div className="min-h-screen bg-black p-8">
@@ -10,10 +8,13 @@ export default function VoicePage() {
                     🎤 Alice Röst Interface
                 </h1>
                 <p className="text-center text-zinc-400 mb-8">
-                    Testa Alice's avancerade röst-system med real-time audio visualisering
+                    Röstgränssnittet har flyttats till Alice Core huvudsida
                 </p>
-                
-                <VoiceInterface />
+                <div className="text-center">
+                    <a href="/" className="inline-block px-6 py-3 bg-cyan-500 text-black rounded-lg hover:bg-cyan-400 transition">
+                        Gå till Alice Core
+                    </a>
+                </div>
             </div>
         </div>
     );

@@ -65,34 +65,77 @@ class VoiceStreamManager:
             await self.api_client.aclose()
             logger.info(f"Voice session ended: {session_id}")
     
-    async def _process_voice_input(self, websocket: WebSocket, session_id: str, text: str):
-        """Process voice input with multi-tier response system"""
+    async def _process_voice_input(self, websocket: WebSocket, session_id: str, text: str, source: str = "browser_api"):
+        """Process voice input with enhanced multi-tier response system"""
         
         # 1. INSTANT acknowledgment (send immediately)
         await websocket.send_json({
             "type": "heard",
             "text": text,
+            "source": source,  # browser_api eller whisper
             "timestamp": time.time()
         })
         
-        # Store user input in conversation context
+        # Store user input in conversation context with source info
         session_context = self.active_sessions[session_id]["conversation_context"]
-        session_context.append({"role": "user", "content": text, "timestamp": time.time()})
+        session_context.append({
+            "role": "user", 
+            "content": text, 
+            "timestamp": time.time(),
+            "source": source,
+            "processing_method": "fast" if source == "browser_api" else "quality"
+        })
         
-        # 2. FAST intent classification (50-100ms)
+        # 2. ENHANCED processing baserat på source och quality
+        if source == "browser_api":
+            # Snabb browser API - prioritera hastighet
+            await self._handle_browser_api_input(websocket, session_id, text, session_context)
+        elif source == "whisper":
+            # Whisper transcription - prioritera kvalitet och lång text
+            await self._handle_whisper_input(websocket, session_id, text, session_context)
+        else:
+            # Fallback till standard processing
+            await self._handle_standard_input(websocket, session_id, text, session_context)
+    
+    async def _handle_browser_api_input(self, websocket: WebSocket, session_id: str, text: str, context: list):
+        """Handle browser API input - optimerad för snabba kommandon"""
+        
+        # Snabb intent classification för kommandon
         intent_result = await self._classify_intent_fast(text)
         
         if intent_result and intent_result.get("is_tool_command"):
             # Tool command - execute locally with privacy
             await self._handle_tool_command(websocket, session_id, intent_result, text)
         else:
-            # Natural conversation - use API for speed
-            await self._handle_conversation(websocket, session_id, text, session_context)
+            # Kort konversation - browser API är bra för snabba svar
+            await self._handle_conversation(websocket, session_id, text, context, response_style="quick")
+    
+    async def _handle_whisper_input(self, websocket: WebSocket, session_id: str, text: str, context: list):
+        """Handle Whisper transcription - optimerad för kvalitet och långa texter"""
+        
+        # Whisper ger högkvalitativ text, använd för komplexa analyser
+        
+        # 1. Först kolla om det är en tool command
+        intent_result = await self._classify_intent_detailed(text)  # Mer detaljerad analys
+        
+        if intent_result and intent_result.get("is_tool_command"):
+            await self._handle_tool_command(websocket, session_id, intent_result, text)
+        else:
+            # Längre konversation - Whisper är perfekt för djupare dialog
+            await self._handle_conversation(websocket, session_id, text, context, response_style="detailed")
+    
+    async def _handle_standard_input(self, websocket: WebSocket, session_id: str, text: str, context: list):
+        """Fallback standard input handling"""
+        intent_result = await self._classify_intent_fast(text)
+        
+        if intent_result and intent_result.get("is_tool_command"):
+            await self._handle_tool_command(websocket, session_id, intent_result, text)
+        else:
+            await self._handle_conversation(websocket, session_id, text, context)
     
     async def _classify_intent_fast(self, text: str) -> Optional[Dict[str, Any]]:
-        """Fast local intent classification"""
+        """Snabb lokal intent classification"""
         try:
-            # Use Alice's local NLU system
             router_result = classify(text)
             
             if router_result and router_result.get("confidence", 0) >= 0.7:
@@ -100,13 +143,35 @@ class VoiceStreamManager:
                     "is_tool_command": True,
                     "tool": router_result["tool"],
                     "args": router_result["args"],
-                    "confidence": router_result["confidence"]
+                    "confidence": router_result["confidence"],
+                    "method": "fast"
                 }
             
             return {"is_tool_command": False}
             
         except Exception as e:
             logger.error(f"Intent classification error: {e}")
+            return {"is_tool_command": False}
+    
+    async def _classify_intent_detailed(self, text: str) -> Optional[Dict[str, Any]]:
+        """Detaljerad intent classification för Whisper text"""
+        try:
+            # Använd samma system men med lägre threshold för Whisper
+            router_result = classify(text)
+            
+            if router_result and router_result.get("confidence", 0) >= 0.5:  # Lägre threshold
+                return {
+                    "is_tool_command": True,
+                    "tool": router_result["tool"],
+                    "args": router_result["args"],
+                    "confidence": router_result["confidence"],
+                    "method": "detailed"
+                }
+            
+            return {"is_tool_command": False}
+            
+        except Exception as e:
+            logger.error(f"Detailed intent classification error: {e}")
             return {"is_tool_command": False}
     
     async def _handle_tool_command(self, websocket: WebSocket, session_id: str, intent: Dict, original_text: str):
@@ -176,8 +241,8 @@ class VoiceStreamManager:
                 "message": "Ett oväntat fel uppstod"
             })
     
-    async def _handle_conversation(self, websocket: WebSocket, session_id: str, text: str, context: list):
-        """Handle natural conversation using API for speed"""
+    async def _handle_conversation(self, websocket: WebSocket, session_id: str, text: str, context: list, response_style: str = "balanced"):
+        """Handle natural conversation with adaptive response style"""
         
         try:
             # Use OpenAI API for fast conversational responses
@@ -205,8 +270,8 @@ class VoiceStreamManager:
                     "content": f"Relevant context from previous conversations:\\n{context_text}"
                 })
             
-            # Stream response from API
-            await self._stream_api_response(websocket, messages)
+            # Stream response from API med style-anpassning
+            await self._stream_api_response(websocket, messages, response_style)
             
         except Exception as e:
             logger.error(f"Conversation error: {e}")
@@ -274,3 +339,35 @@ def get_voice_manager(memory_store: MemoryStore) -> VoiceStreamManager:
     if voice_manager is None:
         voice_manager = VoiceStreamManager(memory_store)
     return voice_manager
+
+
+async def process_whisper_transcription(websocket: WebSocket, session_id: str, transcription_data: dict, memory_store: MemoryStore):
+    """Process Whisper transcription with enhanced quality handling"""
+    voice_manager = get_voice_manager(memory_store)
+    
+    # Extract high-quality text from Whisper result
+    text = transcription_data.get('text', '').strip()
+    confidence = transcription_data.get('language_probability', 1.0)
+    duration = transcription_data.get('duration', 0)
+    
+    if not text:
+        await websocket.send_json({
+            "type": "error",
+            "message": "Tom transkription mottagen"
+        })
+        return
+    
+    # Enhanced processing för Whisper med kvalitetsinfo
+    await websocket.send_json({
+        "type": "whisper_received",
+        "text": text,
+        "confidence": confidence,
+        "duration": duration,
+        "quality": transcription_data.get('audio_quality', {}),
+        "timestamp": time.time()
+    })
+    
+    # Process med Whisper-specifik hantering
+    await voice_manager._process_voice_input(websocket, session_id, text, source="whisper")
+    
+    logger.info(f"Whisper transcription processed: {len(text)} chars, confidence: {confidence:.2f}")

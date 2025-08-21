@@ -401,10 +401,123 @@ function ThreeBGAdvanced() {
   }
   return (<div className="absolute inset-0 -z-10"><div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-blue-900/10" /><div className="absolute inset-0 overflow-hidden">{particles.map(p => (<div key={p.id} className="absolute rounded-full bg-cyan-400" style={{ left: `${p.x}%`, top: `${p.y}%`, width: `${p.size}px`, height: `${p.size}px`, opacity: 0.1 + (p.z / 100) * 0.2, transform: `scale(${0.5 + (p.z / 100) * 0.5})`, boxShadow: `0 0 ${p.size * 2}px rgba(34, 211, 238, ${0.1 + (p.z / 100) * 0.2})` }} />))}</div></div>);
 }
-function AliceCore() {
-  const [pulse, setPulse] = useState(0); const [activity, setActivity] = useState(0.3);
-  useEffect(() => { if (SAFE_BOOT) return; const interval = setInterval(() => { setPulse(prev => (prev + 1) % 100); setActivity(0.2 + Math.random() * 0.6); }, 100); return () => clearInterval(interval); }, []);
-  return (<div className="relative h-64 w-64"><div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500/10 via-cyan-400/5 to-cyan-500/10 animate-pulse" /><div className="absolute inset-0 rounded-full border-2 border-cyan-400/20" /><div className="absolute inset-4 rounded-full border border-cyan-400/15" /><div className="absolute inset-8 rounded-full border border-cyan-400/10" />{!SAFE_BOOT && (<div className="absolute inset-0 rounded-full animate-spin" style={{ background: `conic-gradient(from ${pulse * 3.6}deg, transparent, rgba(34,211,238,${activity * 0.8}), transparent)`, animationDuration: '6s' }} />)}<div className="absolute inset-12">{Array.from({ length: 8 }).map((_, i) => (<div key={i} className="absolute h-1 w-1 rounded-full bg-cyan-300" style={{ top: '50%', left: '50%', transform: `translate(-50%, -50%) rotate(${i * 45 + pulse * 2}deg) translateX(${15 + Math.sin(pulse * 0.1 + i) * 5}px)`, opacity: 0.4 + Math.sin(pulse * 0.05 + i) * 0.4, boxShadow: '0 0 4px rgba(34, 211, 238, 0.6)' }} />))}</div><div className="absolute inset-0 grid place-items-center"><div className="relative h-8 w-8 rounded-full bg-gradient-to-r from-cyan-400 to-blue-400" style={{ boxShadow: `0 0 ${15 + activity * 20}px rgba(34, 211, 238, ${0.4 + activity * 0.3})`, transform: `scale(${0.8 + activity * 0.3})` }}><div className="absolute inset-1 rounded-full bg-gradient-to-br from-white/20 to-transparent" /></div></div></div>);
+function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net, provider = 'local' }) {
+  const [voiceInput, setVoiceInput] = useState('');
+  
+  const handleVoiceInput = async (text) => {
+    console.log('Alice Core received voice input:', text);
+    setVoiceInput(text);
+    
+    if (UI_ONLY) return;
+    
+    const q = text.trim();
+    if (!q) return;
+    
+    // Add user message to journal
+    setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`You: ${q}`}, ...J].slice(0,100));
+    
+    try {
+      // Media-intent handling (same as text input)
+      const low = q.toLowerCase();
+      if (low.startsWith('spela') || low.includes(' spela ')){
+        const access = localStorage.getItem('spotify_access_token')||'';
+        if (access){
+          // Handle Spotify playback
+          const r = await fetch('http://127.0.0.1:8000/api/ai/media_act',{ 
+            method:'POST', 
+            headers:{'Content-Type':'application/json'}, 
+            body: JSON.stringify({ prompt: q, access_token: access, provider })
+          });
+          const mj = await r.json().catch(()=>null);
+          if (mj && mj.ok){ 
+            setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Alice: Spelade ${mj.played?.kind||'musik'}`}, ...J].slice(0,100)); 
+            return; 
+          }
+        }
+      }
+      
+      // Send to Alice backend
+      const body = { type: "USER_QUERY", payload: { query: q } };
+      await fetch("http://127.0.0.1:8000/api/jarvis/command", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify(body) 
+      });
+      
+      // Prepare context data
+      const contextData = {
+        weather: currentWeather ? `${currentWeather.temp}°C, ${currentWeather.description}` : null,
+        location: geoCity,
+        time: new Date().toLocaleString('sv-SE'),
+        systemMetrics: { cpu, mem, net }
+      };
+      
+      const chatPayload = { 
+        prompt: q, 
+        model: 'gpt-oss:20b', 
+        stream: false, 
+        provider,
+        context: contextData 
+      };
+      
+      // Create streaming message entry
+      const messageId = safeUUID();
+      const messageTs = new Date().toISOString();
+      setJournal((J)=>[{ id: messageId, ts: messageTs, text: `Alice: `, streaming: true }, ...J].slice(0,100));
+      
+      // Get Alice response
+      const res = await fetch('http://127.0.0.1:8000/api/chat', { 
+        method:'POST', 
+        headers:{'Content-Type':'application/json'}, 
+        body: JSON.stringify(chatPayload)
+      });
+      
+      const j = await res.json().catch(()=>null);
+      
+      if (j && j.text) {
+        // Update journal with final response
+        setJournal((J) => J.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, text: `Alice: ${j.text}`, streaming: false }
+            : msg
+        ));
+      } else {
+        // Error response
+        setJournal((J) => J.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, text: `Alice: Ursäkta, jag hade problem att svara just nu.`, streaming: false }
+            : msg
+        ));
+      }
+      
+    } catch (error) {
+      console.error('Voice input processing error:', error);
+      setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Alice: Ett fel uppstod vid bearbetning av röstkommandot.`}, ...J].slice(0,100));
+    }
+  };
+
+  return (
+    <div className="relative w-full max-w-4xl mx-auto">
+      {/* VoiceBox positioned directly under Alice Core title */}
+      <VoiceBox 
+        bars={7}
+        smoothing={0.15}
+        minScale={0.1}
+        allowDemo={true}
+        allowPseudo={true}
+        onVoiceInput={handleVoiceInput}
+      />
+      
+      {/* Voice Input Display */}
+      {voiceInput && (
+        <div className="mt-4 p-3 bg-cyan-900/20 border border-cyan-400/20 rounded-lg">
+          <div className="text-sm text-cyan-300/80">Senaste röst-input:</div>
+          <div className="text-cyan-100">"{voiceInput}"</div>
+          <div className="text-xs text-cyan-400/70 mt-1">Skickat till Alice för bearbetning...</div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -618,26 +731,6 @@ function HUDInner() {
             </div>
           </Pane>
 
-          <Pane title="Voice" actions={<IconMic className={`h-4 w-4 ${isListening ? "text-cyan-300" : "text-cyan-300/70"}`} />}>
-            <div className="rounded-xl border border-cyan-500/20 p-3 bg-cyan-900/20">
-              {/* Ersätter gammal röst-funktion med VoiceBox */}
-              <div className="text-xs text-cyan-300/70 mb-3">Alice Röst Interface</div>
-              <VoiceBox 
-                bars={5}
-                label="ALICE RÖST"
-                allowDemo={true}
-                allowPseudo={true}
-                onVoiceInput={(text) => {
-                  setTranscript(text);
-                  // Lägg till i journal
-                  setJournal((J) => [{ id: safeUUID(), ts: new Date().toISOString(), text: `You: ${text}` }, ...J].slice(0, 100));
-                }}
-              />
-              <div className="mt-3 flex gap-2">
-                <button aria-label="Lägg till i todo" onClick={()=>{ if(transcript.trim()) { add(transcript.trim()); } }} className="ml-auto rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Add to To‑do</button>
-              </div>
-            </div>
-          </Pane>
 
           <Diagnostics />
 
@@ -665,7 +758,16 @@ function HUDInner() {
 
         <div className="md:col-span-6 space-y-6">
           <Pane title="Alice Core">
-            <div className="flex justify-center py-6"><AliceCore /></div>
+            <AliceCore 
+              journal={journal}
+              setJournal={setJournal}
+              currentWeather={currentWeather}
+              geoCity={geoCity}
+              cpu={cpu}
+              mem={mem}
+              net={net}
+              provider={provider}
+            />
             
             {/* Chat Window */}
             <div className="mt-4 mb-4 h-64 border border-cyan-400/20 rounded-xl bg-gradient-to-b from-cyan-950/20 to-slate-950/20 overflow-hidden">

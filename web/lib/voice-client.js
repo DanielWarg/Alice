@@ -35,6 +35,14 @@ class AliceVoiceClient {
         this.recognition.lang = 'sv-SE';
         this.recognition.maxAlternatives = 1;
         
+        // Real-time optimeringar
+        if (this.recognition.webkitSpeechRecognition) {
+            this.recognition.serviceURI = 'wss://www.google.com/speech-api/v2/recognize';
+        }
+        
+        // Svensk-specifika inställningar
+        this.recognition.grammars = null;  // Använd inte grammatikbegränsningar
+        
         this.recognition.onstart = () => {
             this.isListening = true;
             this.emit('listening_started');
@@ -52,15 +60,21 @@ class AliceVoiceClient {
         
         this.recognition.onresult = (event) => {
             const result = event.results[event.results.length - 1];
-            const transcript = result[0].transcript;
+            let transcript = result[0].transcript;
+            const confidence = result[0].confidence || 0;
             const isFinal = result.isFinal;
             
+            // Post-processing för svensk text (matchar VoiceBox)
             if (isFinal) {
-                console.log('Voice input (final):', transcript);
-                this.sendVoiceInput(transcript);
-                this.emit('voice_input', { text: transcript, final: true });
+                transcript = this.postProcessSwedishSpeech(transcript.trim());
+                if (transcript) {
+                    console.log('Voice input (final):', transcript, 'confidence:', confidence);
+                    this.sendVoiceInput(transcript);
+                    this.emit('voice_input', { text: transcript, final: true, confidence });
+                }
             } else {
-                this.emit('voice_input', { text: transcript, final: false });
+                // Interim results för real-time feedback
+                this.emit('voice_input', { text: transcript, final: false, confidence });
             }
         };
     }
@@ -203,13 +217,93 @@ class AliceVoiceClient {
         }));
     }
     
-    speak(text) {
-        if (!text || !this.synthesis) {
+    async speak(text, options = {}) {
+        if (!text) {
             return;
         }
         
         // Cancel any ongoing speech
-        this.synthesis.cancel();
+        if (this.synthesis) {
+            this.synthesis.cancel();
+        }
+        
+        try {
+            // Try Alice's enhanced TTS first
+            const ttsResponse = await this.synthesizeWithAlice(text, options);
+            if (ttsResponse && ttsResponse.success) {
+                await this.playAudioData(ttsResponse.audio_data);
+                return;
+            }
+        } catch (error) {
+            console.warn('Alice TTS failed, falling back to browser synthesis:', error);
+        }
+        
+        // Fallback to browser synthesis
+        this.fallbackSpeak(text);
+    }
+    
+    async synthesizeWithAlice(text, options = {}) {
+        const requestData = {
+            text: text,
+            voice: options.voice || 'sv_SE-nst-medium',
+            speed: options.speed || 1.0,
+            emotion: options.emotion || 'friendly',
+            personality: options.personality || 'alice',
+            pitch: options.pitch || 1.0,
+            volume: options.volume || 1.0,
+            cache: options.cache !== false
+        };
+        
+        const response = await fetch('/api/tts/synthesize', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(requestData)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`TTS request failed: ${response.status}`);
+        }
+        
+        return await response.json();
+    }
+    
+    async playAudioData(audioBase64) {
+        return new Promise((resolve, reject) => {
+            try {
+                const audioBuffer = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
+                const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(blob);
+                const audio = new Audio(audioUrl);
+                
+                audio.onloadeddata = () => {
+                    this.emit('speaking_started');
+                };
+                
+                audio.onended = () => {
+                    URL.revokeObjectURL(audioUrl);
+                    this.emit('speaking_ended');
+                    resolve();
+                };
+                
+                audio.onerror = (error) => {
+                    URL.revokeObjectURL(audioUrl);
+                    this.emit('speech_error', error);
+                    reject(error);
+                };
+                
+                audio.play().catch(reject);
+                
+            } catch (error) {
+                this.emit('speech_error', error);
+                reject(error);
+            }
+        });
+    }
+    
+    fallbackSpeak(text) {
+        if (!this.synthesis) {
+            return;
+        }
         
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.voice = this.voice;
@@ -231,6 +325,30 @@ class AliceVoiceClient {
         };
         
         this.synthesis.speak(utterance);
+    }
+    
+    async getAvailableVoices() {
+        try {
+            const response = await fetch('/api/tts/voices');
+            if (response.ok) {
+                return await response.json();
+            }
+        } catch (error) {
+            console.error('Failed to get available voices:', error);
+        }
+        return null;
+    }
+    
+    async getPersonalitySettings(personality) {
+        try {
+            const response = await fetch(`/api/tts/personality/${personality}`);
+            if (response.ok) {
+                return await response.json();
+            }
+        } catch (error) {
+            console.error('Failed to get personality settings:', error);
+        }
+        return null;
     }
     
     startListening() {
@@ -313,6 +431,57 @@ class AliceVoiceClient {
         });
     }
     
+    postProcessSwedishSpeech(text) {
+        if (!text) return text;
+        
+        // Samma korrigeringar som i VoiceBox för konsistens
+        const corrections = {
+            // Engelska -> Svenska
+            'okay': 'okej',
+            'ok': 'okej',
+            'hello': 'hej',
+            'hi': 'hej', 
+            'bye': 'hej då',
+            'yes': 'ja',
+            'no': 'nej',
+            'please': 'tack',
+            'thank you': 'tack',
+            'sorry': 'förlåt',
+            
+            // AI-kommandon
+            'allis': 'Alice',
+            'alis': 'Alice', 
+            'play music': 'spela musik',
+            'stop music': 'stoppa musik',
+            'pause music': 'pausa musik',
+            'send email': 'skicka mejl',
+            'read email': 'läs mejl',
+            'what time': 'vad är klockan',
+            "what's the time": 'vad är klockan',
+            
+            // Vanliga mishörningar
+            'alice s': 'Alice',
+            'alice,': 'Alice', 
+            'alice.': 'Alice',
+        };
+        
+        let corrected = text.toLowerCase();
+        
+        // Applicera korrigeringar
+        Object.entries(corrections).forEach(([wrong, right]) => {
+            const regex = new RegExp(`\\b${wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+            corrected = corrected.replace(regex, right);
+        });
+        
+        // Alice ska alltid ha stor bokstav
+        corrected = corrected.replace(/\balice\b/gi, 'Alice');
+        
+        // Kapitaliera första bokstaven
+        corrected = corrected.charAt(0).toUpperCase() + corrected.slice(1);
+        
+        return corrected.trim();
+    }
+    
     // Utility methods
     isSupported() {
         return !!(
@@ -327,7 +496,13 @@ class AliceVoiceClient {
             connected: this.isConnected,
             listening: this.isListening,
             speaking: this.synthesis?.speaking || false,
-            voice: this.voice?.name || 'Unknown'
+            voice: this.voice?.name || 'Unknown',
+            features: {
+                swedish_optimization: true,
+                real_time_processing: true,
+                post_processing: true,
+                interim_results: this.recognition?.interimResults || false
+            }
         };
     }
 }

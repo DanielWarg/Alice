@@ -4,6 +4,10 @@ import asyncio
 import time
 import json
 import os
+import subprocess
+import tempfile
+import base64
+import hashlib
 from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, Optional, Set, List
 
@@ -32,11 +36,225 @@ from core import (
 from harmony_test_endpoint import HarmonyTestBatchRequest, HarmonyTestBatchResponse, run_harmony_test_case
 from voice_stream import get_voice_manager
 from voice_stt import transcribe_audio_file, get_stt_status
+from audio_processor import audio_processor
 
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("alice")
+
+# Advanced TTS Handler
+class EnhancedTTSHandler:
+    """Enhanced TTS system with emotion, personality, caching, and quality improvements"""
+    
+    def __init__(self):
+        self.cache_dir = "data/tts_cache"
+        os.makedirs(self.cache_dir, exist_ok=True)
+        
+        # Available voice models with quality ratings
+        self.voice_models = {
+            "sv_SE-nst-medium": {"quality": "medium", "gender": "female", "naturalness": 7},
+            "sv_SE-nst-high": {"quality": "high", "gender": "female", "naturalness": 8},
+            "sv_SE-lisa-medium": {"quality": "medium", "gender": "female", "naturalness": 8}
+        }
+        
+        # Alice's personality voice settings
+        self.personality_presets = {
+            "alice": {
+                "speed": 1.05,  # Slightly faster, more energetic
+                "pitch": 1.02,  # Slightly higher, friendlier
+                "emotion_bias": "friendly",
+                "confidence": 0.85
+            },
+            "formal": {
+                "speed": 0.95,  # Slower, more deliberate
+                "pitch": 0.98,  # Slightly lower, more authoritative
+                "emotion_bias": "neutral",
+                "confidence": 0.95
+            },
+            "casual": {
+                "speed": 1.1,   # Faster, more conversational
+                "pitch": 1.05,  # Higher, more expressive
+                "emotion_bias": "happy",
+                "confidence": 0.8
+            }
+        }
+        
+        # Emotional modulation parameters
+        self.emotion_settings = {
+            "neutral": {"noise_scale": 0.667, "length_scale": 1.0, "noise_w": 0.8},
+            "happy": {"noise_scale": 0.6, "length_scale": 0.95, "noise_w": 0.75},
+            "calm": {"noise_scale": 0.7, "length_scale": 1.05, "noise_w": 0.85},
+            "confident": {"noise_scale": 0.65, "length_scale": 0.98, "noise_w": 0.75},
+            "friendly": {"noise_scale": 0.63, "length_scale": 0.97, "noise_w": 0.78}
+        }
+    
+    def get_cache_key(self, text: str, voice: str, speed: float, emotion: str, personality: str, pitch: float) -> str:
+        """Generate cache key for TTS request"""
+        cache_data = f"{text}_{voice}_{speed}_{emotion}_{personality}_{pitch}"
+        return hashlib.md5(cache_data.encode()).hexdigest()
+    
+    def get_cached_audio(self, cache_key: str) -> Optional[bytes]:
+        """Retrieve cached audio if available"""
+        cache_path = os.path.join(self.cache_dir, f"{cache_key}.wav")
+        if os.path.exists(cache_path):
+            with open(cache_path, 'rb') as f:
+                return f.read()
+        return None
+    
+    def cache_audio(self, cache_key: str, audio_data: bytes) -> None:
+        """Cache audio data"""
+        cache_path = os.path.join(self.cache_dir, f"{cache_key}.wav")
+        with open(cache_path, 'wb') as f:
+            f.write(audio_data)
+    
+    def select_best_voice(self, requested_voice: str) -> str:
+        """Select the best available voice model"""
+        if requested_voice in self.voice_models:
+            return requested_voice
+        
+        # Fallback to best available Swedish voice
+        available_voices = [v for v in self.voice_models.keys() if os.path.exists(f"models/tts/{v}.onnx")]
+        if available_voices:
+            # Prioritize high quality voices
+            high_quality = [v for v in available_voices if self.voice_models[v]["quality"] == "high"]
+            return high_quality[0] if high_quality else available_voices[0]
+        
+        return "sv_SE-nst-medium"  # Final fallback
+    
+    def apply_personality_settings(self, request: 'TTSRequest') -> Dict[str, Any]:
+        """Apply personality-based voice modifications"""
+        preset = self.personality_presets.get(request.personality, self.personality_presets["alice"])
+        
+        # Combine request parameters with personality preset
+        final_speed = request.speed * preset["speed"]
+        final_pitch = request.pitch * preset["pitch"]
+        
+        # Select emotion based on personality bias if none specified
+        final_emotion = request.emotion or preset["emotion_bias"]
+        
+        return {
+            "speed": max(0.5, min(2.0, final_speed)),
+            "pitch": max(0.8, min(1.2, final_pitch)),
+            "emotion": final_emotion,
+            "confidence": preset["confidence"]
+        }
+    
+    async def synthesize_enhanced(self, request: 'TTSRequest') -> Dict[str, Any]:
+        """Enhanced TTS synthesis with emotion, personality, and caching"""
+        try:
+            # Apply personality settings
+            settings = self.apply_personality_settings(request)
+            
+            # Select best voice
+            selected_voice = self.select_best_voice(request.voice)
+            
+            # Generate cache key
+            cache_key = self.get_cache_key(
+                request.text, selected_voice, settings["speed"], 
+                settings["emotion"], request.personality, settings["pitch"]
+            )
+            
+            # Check cache first
+            if request.cache:
+                cached_audio = self.get_cached_audio(cache_key)
+                if cached_audio:
+                    logger.info(f"TTS cache hit for key: {cache_key[:8]}...")
+                    audio_b64 = base64.b64encode(cached_audio).decode('utf-8')
+                    return {
+                        "success": True,
+                        "audio_data": audio_b64,
+                        "format": "wav",
+                        "voice": selected_voice,
+                        "text": request.text,
+                        "emotion": settings["emotion"],
+                        "personality": request.personality,
+                        "cached": True,
+                        "settings": settings
+                    }
+            
+            # Generate audio with enhanced parameters
+            audio_data = await self._generate_audio(request.text, selected_voice, settings)
+            
+            # Cache the result
+            if request.cache:
+                self.cache_audio(cache_key, audio_data)
+            
+            # Return enhanced response
+            audio_b64 = base64.b64encode(audio_data).decode('utf-8')
+            return {
+                "success": True,
+                "audio_data": audio_b64,
+                "format": "wav",
+                "voice": selected_voice,
+                "text": request.text,
+                "emotion": settings["emotion"],
+                "personality": request.personality,
+                "cached": False,
+                "settings": settings,
+                "quality_score": self.voice_models[selected_voice]["naturalness"]
+            }
+            
+        except Exception as e:
+            logger.error(f"Enhanced TTS synthesis failed: {str(e)}")
+            raise e
+    
+    async def _generate_audio(self, text: str, voice: str, settings: Dict[str, Any]) -> bytes:
+        """Generate audio using Piper with enhanced parameters"""
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+            temp_path = temp_file.name
+        
+        try:
+            model_path = f"models/tts/{voice}.onnx"
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"Voice model {voice} not found")
+            
+            # Get emotion-specific inference parameters
+            emotion_params = self.emotion_settings.get(settings["emotion"], self.emotion_settings["neutral"])
+            
+            # Build enhanced Piper command
+            cmd = [
+                "python", "-m", "piper",
+                "--model", model_path,
+                "--output_file", temp_path,
+                "--noise_scale", str(emotion_params["noise_scale"]),
+                "--length_scale", str(emotion_params["length_scale"] * (1/settings["speed"])),
+                "--noise_w", str(emotion_params["noise_w"])
+            ]
+            
+            # Run Piper synthesis
+            process = subprocess.run(
+                cmd,
+                input=text,
+                text=True,
+                capture_output=True,
+                cwd=os.path.dirname(os.path.abspath(__file__))
+            )
+            
+            if process.returncode != 0:
+                logger.error(f"Piper TTS failed: {process.stderr}")
+                raise RuntimeError(f"TTS synthesis failed: {process.stderr}")
+            
+            # Read generated audio
+            with open(temp_path, 'rb') as f:
+                raw_audio_data = f.read()
+            
+            # Apply audio post-processing and enhancement
+            try:
+                enhanced_audio = audio_processor.enhance_audio(raw_audio_data, settings)
+                logger.info("Audio enhancement applied to TTS output")
+                return enhanced_audio
+            except Exception as e:
+                logger.warning(f"Audio enhancement failed, using raw audio: {e}")
+                return raw_audio_data
+            
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+# Initialize enhanced TTS handler
+enhanced_tts = EnhancedTTSHandler()
 
 app = FastAPI(title="Alice 2.0 Backend", version="0.1.0", default_response_class=ORJSONResponse)
 MINIMAL_MODE = os.getenv("ALICE_MINIMAL", "0") == "1"
@@ -259,7 +477,12 @@ class AliceResponse(BaseModel):
 class TTSRequest(BaseModel):
     text: str = Field(..., description="Text to synthesize to speech")
     voice: str = Field(default="sv_SE-nst-medium", description="Voice model to use")
-    speed: float = Field(default=1.0, description="Speech speed multiplier")
+    speed: float = Field(default=1.0, description="Speech speed multiplier", ge=0.5, le=2.0)
+    emotion: Optional[str] = Field(default=None, description="Emotional tone: neutral, happy, calm, confident, friendly")
+    personality: Optional[str] = Field(default="alice", description="Personality preset: alice, formal, casual")
+    pitch: float = Field(default=1.0, description="Voice pitch multiplier", ge=0.8, le=1.2)
+    volume: float = Field(default=1.0, description="Audio volume", ge=0.1, le=1.0)
+    cache: bool = Field(default=True, description="Use cached audio if available")
 
 
 @app.get("/api/health")
@@ -269,18 +492,28 @@ async def health() -> Dict[str, Any]:
 
 @app.post("/api/tts/synthesize")
 async def text_to_speech(request: TTSRequest):
-    """Synthesize Swedish text to speech using Piper TTS"""
+    """Enhanced Swedish text-to-speech with emotion, personality, and caching"""
     try:
-        # Create temporary file for output
+        # Use enhanced TTS handler
+        result = await enhanced_tts.synthesize_enhanced(request)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Enhanced TTS error: {str(e)}")
+        # Fallback to basic TTS if enhanced fails
+        return await _fallback_basic_tts(request)
+
+async def _fallback_basic_tts(request: TTSRequest):
+    """Fallback basic TTS implementation"""
+    try:
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
             temp_path = temp_file.name
         
-        # Build Piper command
         model_path = f"models/tts/{request.voice}.onnx"
         if not os.path.exists(model_path):
-            return {"error": f"Voice model {request.voice} not found", "available": ["sv_SE-nst-medium"]}
+            available_voices = ["sv_SE-nst-medium", "sv_SE-nst-high", "sv_SE-lisa-medium"]
+            return {"error": f"Voice model {request.voice} not found", "available": available_voices}
         
-        # Run Piper TTS
         cmd = [
             "python", "-m", "piper",
             "--model", model_path,
@@ -299,29 +532,125 @@ async def text_to_speech(request: TTSRequest):
         )
         
         if process.returncode != 0:
-            logger.error(f"Piper TTS failed: {process.stderr}")
+            logger.error(f"Fallback Piper TTS failed: {process.stderr}")
             return {"error": "TTS synthesis failed", "details": process.stderr}
         
-        # Read and encode the audio file
         with open(temp_path, 'rb') as f:
             audio_data = f.read()
         
-        # Clean up temp file
         os.unlink(temp_path)
         
-        # Return base64 encoded audio
         audio_b64 = base64.b64encode(audio_data).decode('utf-8')
         return {
             "success": True,
             "audio_data": audio_b64,
             "format": "wav",
             "voice": request.voice,
-            "text": request.text
+            "text": request.text,
+            "fallback": True
         }
         
     except Exception as e:
-        logger.error(f"TTS error: {str(e)}")
+        logger.error(f"Fallback TTS error: {str(e)}")
         return {"error": "TTS synthesis failed", "details": str(e)}
+
+
+@app.get("/api/tts/voices")
+async def get_available_voices():
+    """Get available TTS voices with their capabilities"""
+    available_voices = []
+    
+    for voice_id, voice_info in enhanced_tts.voice_models.items():
+        model_path = f"models/tts/{voice_id}.onnx"
+        is_available = os.path.exists(model_path)
+        
+        if is_available:
+            available_voices.append({
+                "id": voice_id,
+                "name": voice_id.replace("_", " ").replace("-", " ").title(),
+                "language": "Swedish",
+                "quality": voice_info["quality"],
+                "gender": voice_info["gender"],
+                "naturalness": voice_info["naturalness"],
+                "supported_emotions": list(enhanced_tts.emotion_settings.keys()),
+                "supported_personalities": list(enhanced_tts.personality_presets.keys())
+            })
+    
+    return {
+        "voices": available_voices,
+        "default_voice": "sv_SE-nst-medium",
+        "emotions": list(enhanced_tts.emotion_settings.keys()),
+        "personalities": list(enhanced_tts.personality_presets.keys())
+    }
+
+
+@app.get("/api/tts/personality/{personality}")
+async def get_personality_settings(personality: str):
+    """Get personality-specific voice settings"""
+    if personality not in enhanced_tts.personality_presets:
+        raise HTTPException(status_code=404, detail=f"Personality '{personality}' not found")
+    
+    preset = enhanced_tts.personality_presets[personality]
+    return {
+        "personality": personality,
+        "settings": preset,
+        "description": {
+            "alice": "Energisk, vänlig AI-assistent med naturlig svenska",
+            "formal": "Professionell, tydlig och auktoritativ ton",
+            "casual": "Avslappnad, uttrycksfull och konversationell"
+        }.get(personality, "Anpassad personlighet")
+    }
+
+
+@app.post("/api/tts/stream")
+async def stream_tts(request: TTSRequest):
+    """Streaming TTS for faster response times"""
+    async def generate_audio_stream():
+        try:
+            # Apply personality settings
+            settings = enhanced_tts.apply_personality_settings(request)
+            selected_voice = enhanced_tts.select_best_voice(request.voice)
+            
+            # Check cache first for instant response
+            cache_key = enhanced_tts.get_cache_key(
+                request.text, selected_voice, settings["speed"], 
+                settings["emotion"], request.personality, settings["pitch"]
+            )
+            
+            if request.cache:
+                cached_audio = enhanced_tts.get_cached_audio(cache_key)
+                if cached_audio:
+                    # Stream cached audio immediately
+                    yield cached_audio
+                    return
+            
+            # Generate new audio
+            audio_data = await enhanced_tts._generate_audio(request.text, selected_voice, settings)
+            
+            # Apply quick normalization (faster than full enhancement)
+            normalized_audio = audio_processor.normalize_audio_levels(audio_data)
+            
+            # Cache for future use
+            if request.cache:
+                enhanced_tts.cache_audio(cache_key, normalized_audio)
+            
+            yield normalized_audio
+            
+        except Exception as e:
+            logger.error(f"Streaming TTS failed: {e}")
+            # Return error as audio metadata (client should handle)
+            yield b''
+    
+    return StreamingResponse(
+        generate_audio_stream(),
+        media_type="audio/wav",
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "X-Voice-Model": request.voice,
+            "X-Personality": request.personality,
+            "X-Emotion": request.emotion or "friendly"
+        }
+    )
 
 
 @app.post("/api/alice/command", response_model=AliceResponse)
