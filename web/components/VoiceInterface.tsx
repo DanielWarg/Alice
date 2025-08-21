@@ -28,9 +28,8 @@ export default function VoiceInterface() {
 
     const connectToAlice = () => {
         try {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-            const host = window.location.host.replace(':3000', ':8000') // Frontend port -> Backend port
-            const wsUrl = `${protocol}//${host}/ws/voice/${sessionId.current}`
+            // För utveckling, använd hårdkodad URL
+            const wsUrl = 'ws://localhost:8000/ws/voice/' + sessionId.current
             
             console.log('Ansluter till Alice:', wsUrl)
             wsRef.current = new WebSocket(wsUrl)

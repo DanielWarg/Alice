@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    <button onclick="testConnection()">Test WebSocket</button>
+    <div id="status"></div>
+    <div id="messages"></div>
+
+    <script>
+        function testConnection() {
+            const statusDiv = document.getElementById('status');
+            const messagesDiv = document.getElementById('messages');
+            
+            statusDiv.innerHTML = 'Ansluter...';
+            
+            try {
+                const wsUrl = 'ws://localhost:8000/ws/voice/test_session';
+                console.log('Connecting to:', wsUrl);
+                
+                const ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    statusDiv.innerHTML = '✅ Ansluten!';
+                    console.log('WebSocket connected');
+                    
+                    // Skicka ping
+                    ws.send(JSON.stringify({type: 'ping'}));
+                };
+                
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    messagesDiv.innerHTML += '<p>✅ Meddelande: ' + JSON.stringify(data) + '</p>';
+                    console.log('Message received:', data);
+                };
+                
+                ws.onerror = function(error) {
+                    statusDiv.innerHTML = '❌ Anslutningsfel: ' + error;
+                    console.error('WebSocket error:', error);
+                };
+                
+                ws.onclose = function() {
+                    statusDiv.innerHTML = '🔌 Frånkopplad';
+                    console.log('WebSocket closed');
+                };
+                
+            } catch (error) {
+                statusDiv.innerHTML = '❌ Fel: ' + error.message;
+                console.error('Connection error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
