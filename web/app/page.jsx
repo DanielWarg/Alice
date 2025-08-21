@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useRef, useState, useContext, createContext, useId } from "react";
 
 const SAFE_BOOT = true; // <-- slå PÅ för att garantera uppstart i sandbox. Kan sättas till false när allt funkar.
-const UI_ONLY = true; // UI‑endast: ingen backend/WS/Spotify – bara grafik
+const UI_ONLY = false; // Backend integration enabled - full functionality
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Ikoner (inline SVG)
@@ -412,16 +412,30 @@ function HUDInner() {
   const [geoCity, setGeoCity] = useState(null);
   const [intents, setIntents] = useState([]);
   const [historyItems, setHistoryItems] = useState([]);
-  const [provider, setProvider] = useState('openai'); // default Online
+  const [provider, setProvider] = useState('local'); // default Local gpt-oss
   useEffect(()=>{ try{ const saved=localStorage.getItem('jarvis_provider'); if(saved) setProvider(saved); }catch(_){ } },[]);
   useEffect(()=>{ try{ localStorage.setItem('jarvis_provider', provider); }catch(_){ } },[provider]);
+  
   const [toolStats, setToolStats] = useState([]);
   const [journal, setJournal] = useState([]);
   const [search, setSearch] = useState(null);
   const [playlists, setPlaylists] = useState({ items: [] });
   const wsRef = useRef(null);
   const dispatchRef = useRef(dispatch);
+  const chatContainerRef = useRef(null);
   useEffect(() => { dispatchRef.current = dispatch; }, [dispatch]);
+  
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      // Use requestAnimationFrame for smooth scrolling
+      requestAnimationFrame(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      });
+    }
+  }, [journal]);
   const formatHudCommand = (cmd)=>{
     if (!cmd || typeof cmd !== 'object') return '';
     const t = (cmd.type||'').toUpperCase();
@@ -598,7 +612,7 @@ function HUDInner() {
             
             {/* Chat Window */}
             <div className="mt-4 mb-4 h-64 border border-cyan-400/20 rounded-xl bg-gradient-to-b from-cyan-950/20 to-slate-950/20 overflow-hidden">
-              <div className="h-full overflow-y-auto p-4 space-y-3">
+              <div ref={chatContainerRef} className="h-full overflow-y-auto p-4 space-y-3">
                 {journal.slice().reverse().map((message) => {
                   const isUser = message.text?.startsWith('You:');
                   const isAlice = message.text?.startsWith('Alice:') || message.text?.startsWith('GPT:');
@@ -628,6 +642,7 @@ function HUDInner() {
               <IconSearch className="h-4 w-4 text-cyan-300/70" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={async (e) => {
                 if (e.key === "Enter" && query.trim()) {
+                  console.log('Enter pressed, query:', query); // Debug logging
                   if (UI_ONLY) { setQuery(""); return; }
                   const q = query.trim();
                   setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`You: ${q}`}, ...J].slice(0,100));
@@ -652,6 +667,7 @@ function HUDInner() {
                     // Chat mot backend för svar
                     const res = await fetch('http://127.0.0.1:8000/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: q, model: 'gpt-oss:20b', stream:false, provider })});
                     const j = await res.json().catch(()=>null);
+                    console.log('Chat API response:', j); // Debug logging
                     if (j && j.text) {
                       const mid = j.memory_id || null;
                       const who = j.provider === 'openai' ? 'GPT' : 'Alice';
@@ -667,6 +683,7 @@ function HUDInner() {
                 }
               }} placeholder="Fråga Alice…" className="w-full bg-transparent text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none" />
               <button aria-label="Sök" onClick={async ()=> {
+                console.log('Send button clicked, query:', query); // Debug logging
                 if (!query.trim()) return;
                 if (UI_ONLY) { setQuery(""); return; }
                 const q = query.trim();

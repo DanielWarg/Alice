@@ -476,7 +476,7 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
                     "http://127.0.0.1:11434/api/generate",
                     json={
                         "model": body.model or os.getenv("LOCAL_MODEL", "gpt-oss:20b"),
-                        "prompt": (f"System: {_harmony_system_prompt()}\nDeveloper: {_harmony_developer_prompt()}\nUser: {full_prompt}\nSvar: ") if USE_HARMONY else full_prompt,
+                        "prompt": (f"System: {_harmony_system_prompt()}\nDeveloper: {_harmony_developer_prompt()}\nUser: {full_prompt}\nSvar: ") if USE_HARMONY else f"System: Du heter Alice och är en svensk AI-assistent. Du är INTE ChatGPT. Presentera dig alltid som Alice. Svara på svenska.\n\nUser: {full_prompt}\nAlice:",
                         "stream": False,
                         "options": {"num_predict": 512, "temperature": HARMONY_TEMPERATURE_COMMANDS if USE_HARMONY else 0.3},
                     },
@@ -849,7 +849,7 @@ async def chat_stream(body: ChatBody):
                         "http://127.0.0.1:11434/api/generate",
                         json={
                             "model": body.model or os.getenv("LOCAL_MODEL", "gpt-oss:20b"),
-                            "prompt": (f"System: {_harmony_system_prompt()}\nDeveloper: {_harmony_developer_prompt()}\nUser: {full_prompt}\nSvar: ") if USE_HARMONY else full_prompt,
+                            "prompt": (f"System: {_harmony_system_prompt()}\nDeveloper: {_harmony_developer_prompt()}\nUser: {full_prompt}\nSvar: ") if USE_HARMONY else f"System: Du heter Alice och är en svensk AI-assistent. Du är INTE ChatGPT. Presentera dig alltid som Alice. Svara på svenska.\n\nUser: {full_prompt}\nAlice:",
                             "stream": True,
                             "options": {"num_predict": 256, "temperature": HARMONY_TEMPERATURE_COMMANDS if USE_HARMONY else 0.3},
                         },
