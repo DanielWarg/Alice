@@ -81,6 +81,18 @@ Alice/
 
 ## 🔧 **Utvecklingskommandon**
 
+### Git & Repository
+```bash
+# Kontrollera remote
+git remote -v
+
+# Pusha till Alice-repositoryt
+git push origin feature/harmony
+
+# Hämta från Alice-repositoryt
+git pull origin feature/harmony
+```
+
 ### Backend Utveckling
 ```bash
 # Starta backend med hot-reload
