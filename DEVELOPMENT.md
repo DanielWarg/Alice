@@ -243,7 +243,9 @@ test: add voice system tests
 
 ## 🚀 **Deployment**
 
-### Lokal Production
+För detaljerad deployment-information, se **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+### Snabbstart för lokal production
 ```bash
 # Backend
 cd server
@@ -254,26 +256,6 @@ python run.py --production
 cd web
 npm run build
 npm start
-```
-
-### Docker Deployment
-```bash
-# Bygg image
-docker build -t alice:latest .
-
-# Kör container
-docker run -p 8000:8000 -p 3000:3000 alice:latest
-```
-
-### Environment Variables
-```bash
-# .env
-USE_HARMONY=true
-USE_TOOLS=true
-LOG_LEVEL=INFO
-OLLAMA_BASE_URL=http://localhost:11434
-SPOTIFY_CLIENT_ID=your_client_id
-SPOTIFY_CLIENT_SECRET=your_client_secret
 ```
 
 ## 🔧 **Verktyg och Utilities**

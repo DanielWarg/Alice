@@ -113,6 +113,7 @@ ollama serve
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Utvecklingsguide
 - **[STATUS.md](STATUS.md)** - Status och utvecklingsplan
 - **[API.md](API.md)** - Komplett API-dokumentation
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment och production-guide
 - **[VISION.md](VISION.md)** - Projektvision och roadmap
 - **[ALICE_ROADMAP.md](ALICE_ROADMAP.md)** - Detaljerad utvecklingsplan
 
