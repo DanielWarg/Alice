@@ -40,6 +40,7 @@ Alice HUD är byggt som den ultimata AI-assistenten med fokus på intelligens, m
 
 ### 🚀 **Teknisk Excellence**
 - **Frontend**: Next.js 15 HUD med real-time uppdateringar och futuristisk design
+- **Chat Interface**: Integrerad ChatGPT-liknande konversationsgränssnitt med scrollbar
 - **Backend**: FastAPI med Harmony Response Format och streaming capabilities
 - **AI-kärna**: Lokal `gpt-oss:20B` via Ollama med RAG-förstärkt minne
 - **NLU System**: Avancerad svensk språkförståelse med context-aware routing
@@ -187,10 +188,12 @@ npm start
 ### Komponenter
 
 1. **Frontend (Next.js HUD)**
-   - React-baserat användargränssnitt
+   - React-baserat användargränssnitt med modern chattinterface
+   - Integrerad konversationshistorik med scrollbar och chatbubblar
    - Real-time kommunikation via WebSocket
-   - Modulär overlay-arkitektur
+   - Modulär overlay-arkitektur med streamlinad design
    - PWA-stöd med offline-funktionalitet
+   - Responsiv layout med optimerad kolumnlayout
 
 2. **Backend API (FastAPI)**
    - RESTful API med automatisk dokumentation

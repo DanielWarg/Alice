@@ -197,7 +197,7 @@ function useSpotify() {
     const create = () => {
       try {
         const p = new window.Spotify.Player({
-          name: 'Jarvis HUD',
+          name: 'Alice HUD',
           getOAuthToken: (cb) => { tokenProvider(cb); },
           volume: 0.5,
         });
@@ -312,7 +312,7 @@ function MiniLine({ data }) { const max = Math.max(...data, 1); const pts = data
 function FinanceView() { const prices = Array.from({length:32},()=> 80+Math.round(Math.random()*40)); return (<div><div className="mb-3 flex items-center gap-2 text-cyan-200"><IconDollar className="h-4 w-4" /><h3 className="text-sm uppercase tracking-widest">Finans</h3></div><div className="rounded-xl border border-cyan-400/20 p-3 text-cyan-100"><div className="text-xs text-cyan-300/80">Demo-kurva (dummy)</div><MiniLine data={prices} /><div className="mt-2 text-xs text-cyan-300/80">Senast: {prices[prices.length-1]}</div></div></div>); }
 function RemindersView() { const [items, setItems] = useState([{ id: safeUUID(), text: "Ring Alex 15:00", done: false }]); const [text, setText] = useState(""); return (<div><div className="mb-3 flex items-center gap-2 text-cyan-200"><IconAlarm className="h-4 w-4" /><h3 className="text-sm uppercase tracking-widest">Påminnelser</h3></div><div className="mb-2 flex gap-2"><input value={text} onChange={(e)=>setText(e.target.value)} onKeyDown={(e)=>{ if(e.key==='Enter' && text.trim()){ setItems([{id:safeUUID(), text, done:false}, ...items]); setText(''); } }} placeholder="Lägg till påminnelse…" className="w-full bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none"/><button onClick={()=>{ if(text.trim()){ setItems([{id:safeUUID(), text, done:false}, ...items]); setText(''); } }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Lägg till</button></div><ul className="space-y-2">{items.map(it=> (<li key={it.id} className="group flex items-center gap-2 rounded-lg border border-cyan-500/10 bg-cyan-900/10 p-2"><button aria-label="Växla status" onClick={()=> setItems(items.map(x=> x.id===it.id ? {...x, done:!x.done}:x))} className={`grid h-5 w-5 place-items-center rounded-md border ${it.done? 'border-cyan-300 bg-cyan-300/20':'border-cyan-400/30'}`}>{it.done && <IconCheck className="h-3 w-3"/>}</button><span className={`flex-1 text-sm ${it.done? 'line-through text-cyan-300/50':'text-cyan-100'}`}>{it.text}</span><button aria-label="Ta bort" onClick={()=> setItems(items.filter(x=> x.id!==it.id))} className="opacity-0 group-hover:opacity-100 transition-opacity"><IconX className="h-4 w-4 text-cyan-300/60"/></button></li>))}</ul></div>); }
 
-// Video / JarvisCore / Bakgrund (Safe Boot aware)
+// Video / AliceCore / Bakgrund (Safe Boot aware)
 function VideoView({ source }) { return (<div><div className="mb-3 flex items-center gap-2 text-cyan-200"><IconCamera className="h-4 w-4" /><h3 className="text-sm uppercase tracking-widest">Video</h3></div><VideoFeed source={source} /></div>); }
 function VideoFeed({ source }) {
   const videoRef = useRef(null);
@@ -373,7 +373,7 @@ function ThreeBGAdvanced() {
   }
   return (<div className="absolute inset-0 -z-10"><div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-blue-900/10" /><div className="absolute inset-0 overflow-hidden">{particles.map(p => (<div key={p.id} className="absolute rounded-full bg-cyan-400" style={{ left: `${p.x}%`, top: `${p.y}%`, width: `${p.size}px`, height: `${p.size}px`, opacity: 0.1 + (p.z / 100) * 0.2, transform: `scale(${0.5 + (p.z / 100) * 0.5})`, boxShadow: `0 0 ${p.size * 2}px rgba(34, 211, 238, ${0.1 + (p.z / 100) * 0.2})` }} />))}</div></div>);
 }
-function JarvisCore() {
+function AliceCore() {
   const [pulse, setPulse] = useState(0); const [activity, setActivity] = useState(0.3);
   useEffect(() => { if (SAFE_BOOT) return; const interval = setInterval(() => { setPulse(prev => (prev + 1) % 100); setActivity(0.2 + Math.random() * 0.6); }, 100); return () => clearInterval(interval); }, []);
   return (<div className="relative h-64 w-64"><div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500/10 via-cyan-400/5 to-cyan-500/10 animate-pulse" /><div className="absolute inset-0 rounded-full border-2 border-cyan-400/20" /><div className="absolute inset-4 rounded-full border border-cyan-400/15" /><div className="absolute inset-8 rounded-full border border-cyan-400/10" />{!SAFE_BOOT && (<div className="absolute inset-0 rounded-full animate-spin" style={{ background: `conic-gradient(from ${pulse * 3.6}deg, transparent, rgba(34,211,238,${activity * 0.8}), transparent)`, animationDuration: '6s' }} />)}<div className="absolute inset-12">{Array.from({ length: 8 }).map((_, i) => (<div key={i} className="absolute h-1 w-1 rounded-full bg-cyan-300" style={{ top: '50%', left: '50%', transform: `translate(-50%, -50%) rotate(${i * 45 + pulse * 2}deg) translateX(${15 + Math.sin(pulse * 0.1 + i) * 5}px)`, opacity: 0.4 + Math.sin(pulse * 0.05 + i) * 0.4, boxShadow: '0 0 4px rgba(34, 211, 238, 0.6)' }} />))}</div><div className="absolute inset-0 grid place-items-center"><div className="relative h-8 w-8 rounded-full bg-gradient-to-r from-cyan-400 to-blue-400" style={{ boxShadow: `0 0 ${15 + activity * 20}px rgba(34, 211, 238, ${0.4 + activity * 0.3})`, transform: `scale(${0.8 + activity * 0.3})` }}><div className="absolute inset-1 rounded-full bg-gradient-to-br from-white/20 to-transparent" /></div></div></div>);
@@ -394,7 +394,7 @@ function WalletView() {
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Diagnostics
-function Diagnostics() { const [results, setResults] = useState([]); const { dispatch } = useHUD(); const run = () => { const out = []; try { out.push(clampPercent(-5) === 0 ? "PASS clamp <0" : "FAIL clamp <0"); out.push(clampPercent(150) === 100 ? "PASS clamp >100" : "FAIL clamp >100"); const a = safeUUID(); const b = safeUUID(); out.push(a !== b ? "PASS uuid unique" : "FAIL uuid unique"); if (typeof window !== 'undefined' && window.HUD) { window.HUD.showModule('calendar'); out.push('PASS HUD.showModule'); window.HUD.hideOverlay(); out.push('PASS HUD.hideOverlay'); } if (SAFE_BOOT) { out.push('SAFE_BOOT on'); } } catch (e) { out.push("Diagnostics error: " + (e && e.message ? e.message : String(e))); } setResults(out); }; return (<Pane title="Diagnostics"><button onClick={run} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Run tests</button><ul className="mt-3 space-y-1 text-xs text-cyan-300/80">{results.map((r, i) => (<li key={i}>{r}</li>))}</ul></Pane>); }
+function Diagnostics() { const [results, setResults] = useState([]); const { dispatch } = useHUD(); const run = () => { const out = []; try { out.push(clampPercent(-5) === 0 ? "PASS clamp <0" : "FAIL clamp <0"); out.push(clampPercent(150) === 100 ? "PASS clamp >100" : "FAIL clamp >100"); const a = safeUUID(); const b = safeUUID(); out.push(a !== b ? "PASS uuid unique" : "FAIL uuid unique"); if (typeof window !== 'undefined' && window.HUD) { window.HUD.showModule('calendar'); out.push('PASS HUD.showModule'); window.HUD.hideOverlay(); out.push('PASS HUD.hideOverlay'); } if (SAFE_BOOT) { out.push('SAFE_BOOT on'); } } catch (e) { out.push("Diagnostics error: " + (e && e.message ? e.message : String(e))); } setResults(out); }; return (<Pane title="Diagnostics"><ul className="space-y-1 text-xs text-cyan-300/80">{results.map((r, i) => (<li key={i}>{r}</li>))}</ul></Pane>); }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // TodoList
@@ -405,7 +405,7 @@ function TodoList({ todos, onToggle, onRemove, onAdd }) {
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Main HUD
-export default function JarvisHUD() { return (<ErrorBoundary><HUDProvider><HUDInner /></HUDProvider></ErrorBoundary>); }
+export default function AliceHUD() { return (<ErrorBoundary><HUDProvider><HUDInner /></HUDProvider></ErrorBoundary>); }
 function HUDInner() {
   const { cpu, mem, net } = useSystemMetrics(); const weather = useWeatherStub(); const { todos, add, toggle, remove } = useTodos(); const { transcript, isListening, start, stop } = useVoiceInput(); const [query, setQuery] = useState(""); const { globalError } = useGlobalErrorCatcher(); const { dispatch } = useHUD();
   const [currentWeather, setCurrentWeather] = useState(null);
@@ -569,12 +569,62 @@ function HUDInner() {
           </Pane>
 
           <Diagnostics />
+
+          <Pane title="Sensors">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-cyan-400/20 p-3 overflow-hidden">
+                <div className="text-xs text-cyan-300/80 mb-2">Send telemetry</div>
+                <form onSubmit={async (e)=>{ e.preventDefault(); const fd=new FormData(e.currentTarget); const sensor=fd.get('sensor'); const value=parseFloat(fd.get('value')); if(!sensor||Number.isNaN(value)) return; try{ await fetch('http://127.0.0.1:8000/api/sensor/telemetry',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sensor, value })}); setJournal((j)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`telemetry sent: ${sensor}=${value}`}, ...j].slice(0,100)); }catch(_){ } }} className="flex flex-wrap gap-2 items-center">
+                  <input name="sensor" placeholder="sensor name" className="flex-1 min-w-0 bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1" />
+                  <input name="value" type="number" step="any" placeholder="value" className="w-28 bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1" />
+                  <button className="shrink-0 rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Send</button>
+                </form>
+              </div>
+              <div className="rounded-xl border border-cyan-400/20 p-3 overflow-hidden">
+                <div className="text-xs text-cyan-300/80 mb-2">CV ingest (meta JSON)</div>
+                <form onSubmit={async (e)=>{ e.preventDefault(); const fd=new FormData(e.currentTarget); const source=fd.get('source'); const meta=fd.get('meta'); try{ const parsed=meta?JSON.parse(meta):undefined; await fetch('http://127.0.0.1:8000/api/cv/ingest',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ source, meta: parsed })}); setJournal((j)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`cv.ingest: ${source}`}, ...j].slice(0,100)); }catch(err){ setJournal((j)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`cv.ingest error`}, ...j].slice(0,100)); } }} className="flex flex-wrap gap-2 items-center">
+                  <input name="source" placeholder="source id" className="flex-1 min-w-0 bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1" />
+                  <input name="meta" placeholder='{"objects":[{"name":"person","conf":0.9}]}' className="flex-1 min-w-0 bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1" />
+                  <button className="shrink-0 rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Send</button>
+                </form>
+              </div>
+            </div>
+          </Pane>
         </div>
 
         <div className="md:col-span-6 space-y-6">
-          <Pane title="Jarvis Core">
-            <div className="flex justify-center py-10"><JarvisCore /></div>
-            <div className="mt-6 flex items-center gap-2">
+          <Pane title="Alice Core">
+            <div className="flex justify-center py-6"><AliceCore /></div>
+            
+            {/* Chat Window */}
+            <div className="mt-4 mb-4 h-64 border border-cyan-400/20 rounded-xl bg-gradient-to-b from-cyan-950/20 to-slate-950/20 overflow-hidden">
+              <div className="h-full overflow-y-auto p-4 space-y-3">
+                {journal.slice().reverse().map((message) => {
+                  const isUser = message.text?.startsWith('You:');
+                  const isAlice = message.text?.startsWith('Alice:') || message.text?.startsWith('GPT:');
+                  const displayText = message.text?.replace(/^(You|Alice|GPT):\s*/, '') || message.text;
+                  
+                  if (!isUser && !isAlice) return null;
+                  
+                  return (
+                    <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                        isUser 
+                          ? 'bg-cyan-500/20 border border-cyan-400/30 text-cyan-100' 
+                          : 'bg-slate-700/30 border border-slate-600/30 text-slate-200'
+                      }`}>
+                        <div className="text-sm break-words">{displayText}</div>
+                        <div className="text-xs opacity-60 mt-1">
+                          {new Date(message.ts).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
               <IconSearch className="h-4 w-4 text-cyan-300/70" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={async (e) => {
                 if (e.key === "Enter" && query.trim()) {
@@ -604,10 +654,10 @@ function HUDInner() {
                     const j = await res.json().catch(()=>null);
                     if (j && j.text) {
                       const mid = j.memory_id || null;
-                      const who = j.provider === 'openai' ? 'GPT' : 'Jarvis';
+                      const who = j.provider === 'openai' ? 'GPT' : 'Alice';
                       setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`${who}: ${j.text}`, memoryId: mid}, ...J].slice(0,100));
                     } else {
-                      setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Jarvis: [no response]`}, ...J].slice(0,100));
+                      setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Alice: [no response]`}, ...J].slice(0,100));
                     }
                   } catch (err) {
                     setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Error sending: ${String(err)}`}, ...J].slice(0,100));
@@ -615,7 +665,7 @@ function HUDInner() {
                     setQuery("");
                   }
                 }
-              }} placeholder="Fråga Jarvis…" className="w-full bg-transparent text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none" />
+              }} placeholder="Fråga Alice…" className="w-full bg-transparent text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none" />
               <button aria-label="Sök" onClick={async ()=> {
                 if (!query.trim()) return;
                 if (UI_ONLY) { setQuery(""); return; }
@@ -630,238 +680,21 @@ function HUDInner() {
                   const j = await res.json().catch(()=>null);
                   if (j && j.text) {
                     const mid = j.memory_id || null;
-                    const who = j.provider === 'openai' ? 'GPT' : 'Jarvis';
+                    const who = j.provider === 'openai' ? 'GPT' : 'Alice';
                     setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`${who}: ${j.text}`, memoryId: mid}, ...J].slice(0,100));
                   } else {
-                    setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Jarvis: [no response]`}, ...J].slice(0,100));
+                    setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Alice: [no response]`}, ...J].slice(0,100));
                   }
                 } catch (err) {
                   setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Error sending: ${String(err)}`}, ...J].slice(0,100));
                 } finally {
                   setQuery("");
                 }
-              }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Go</button>
-              <button aria-label="Stream" onClick={async ()=>{
-                if (!query.trim()) return;
-                if (UI_ONLY) { setQuery(""); return; }
-                const q=query.trim();
-                setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`You: ${q}`}, ...J].slice(0,100));
-                try{
-                  const res = await fetch('http://127.0.0.1:8000/api/chat/stream',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: q, provider })});
-                  if (!res.body) return;
-                  const reader = res.body.getReader();
-                  const dec = new TextDecoder();
-                  let acc=""; let currentId = safeUUID(); let providerMark = null; let memoryId=null; let gotChunk=false; let metaShown=false;
-                  // Smidig rendering: buffra text och pumpa ut teckenvis
-                  const renderQueue = [];
-                  let pumping = false;
-                  const startPump = () => {
-                    if (pumping) return; pumping = true;
-                    const tick = () => {
-                      if (renderQueue.length === 0) { pumping = false; return; }
-                      const ch = renderQueue.shift();
-                      setJournal((J)=> J.map(item=> item.id===currentId ? { ...item, text: (item.text||'') + ch } : item));
-                      setTimeout(tick, 15);
-                    };
-                    tick();
-                  };
-                  const enqueueText = (t) => { if (!t) return; for (let i=0;i<t.length;i++) renderQueue.push(t[i]); startPump(); };
-                  setJournal((J)=>[{ id: currentId, ts:new Date().toISOString(), text:`Jarvis: `}, ...J].slice(0,100));
-                  while(true){
-                    const {value, done} = await reader.read(); if (done) break;
-                    acc += dec.decode(value, { stream: true });
-                    const parts = acc.split("\n\n"); acc = parts.pop()||"";
-                    for (const p of parts){
-                      if (!p.startsWith('data: ')) continue;
-                      try{
-                        const obj = JSON.parse(p.slice(6));
-                        if (!metaShown && obj.type === 'meta' && Array.isArray(obj.contexts)){
-                          metaShown = true;
-                          const preview = obj.contexts.filter(Boolean).slice(0,3).map((t,i)=>`[${i+1}] ${t}`).join('  ');
-                          if (preview) setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Context: ${preview}`}, ...J].slice(0,100));
-                        }
-                        if (obj.type === 'chunk' && obj.text){
-                          gotChunk = true;
-                          enqueueText(obj.text);
-                        } else if (obj.type === 'done'){
-                          providerMark = obj.provider === 'openai' ? 'GPT' : 'Jarvis';
-                          memoryId = obj.memory_id || null;
-                          setJournal((J)=> J.map(item=> item.id===currentId ? { ...item, text: `${providerMark}: ${item.text.replace(/^Jarvis:\s*/,'')}`, memoryId } : item));
-                        }
-                      }catch(_){ }
-                    }
-                  }
-                  // Fallback om inga chunkar kom (t.ex. lokal modell buffrade/inget stream)
-                  if (!gotChunk){
-                    try{
-                      const fres = await fetch('http://127.0.0.1:8000/api/chat',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: q, model: 'gpt-oss:20b', stream:false, provider })});
-                      const fj = await fres.json().catch(()=>null);
-                      if (fj && fj.text){
-                        const who = fj.provider === 'openai' ? 'GPT' : 'Jarvis';
-                        // Om inget streamades: rendera ändå långsamt
-                        enqueueText(fj.text);
-                        setTimeout(()=>{
-                          setJournal((J)=> J.map(item=> item.id===currentId ? { ...item, text: `${who}: ${J.find(x=>x.id===currentId)?.text?.replace(/^Jarvis:\s*/,'')||''}`, memoryId: fj.memory_id||null } : item));
-                        }, Math.min(1000, fj.text.length * 15 + 50));
-                      } else {
-                        setJournal((J)=> J.map(item=> item.id===currentId ? { ...item, text: `Jarvis: [no response]` } : item));
-                      }
-                    }catch(_){
-                      setJournal((J)=> J.map(item=> item.id===currentId ? { ...item, text: `Jarvis: [no response]` } : item));
-                    }
-                  }
-                }catch(_){ }
-                finally{ setQuery(""); }
-              }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Stream</button>
-              <select aria-label="Provider" value={provider} onChange={(e)=> setProvider(e.target.value)} className="rounded-xl border border-cyan-400/30 bg-transparent px-2 py-1 text-xs">
-                <option value="auto">Auto</option>
-                <option value="local">Lokal</option>
-                <option value="openai">Online</option>
-              </select>
-              <button aria-label="Auto Decide" onClick={async ()=>{
-                try{
-                  const res = await fetch('http://127.0.0.1:8000/api/decision/pick_tool',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ candidates: ['SHOW_MODULE','OPEN_VIDEO','HIDE_OVERLAY'] })});
-                  const j = await res.json();
-                  const tool = (j && j.tool) || 'SHOW_MODULE';
-                  let cmd;
-                  if (tool === 'SHOW_MODULE') cmd = { type:'SHOW_MODULE', module:'calendar' };
-                  else if (tool === 'OPEN_VIDEO') cmd = { type:'OPEN_VIDEO', source:{ kind:'webcam' } };
-                  else cmd = { type:'HIDE_OVERLAY' };
-                  setIntents((q)=>[{ id:safeUUID(), ts:new Date().toISOString(), command: cmd }, ...q].slice(0,50));
-                  dispatchRef.current && dispatchRef.current(cmd);
-                }catch(_){ }
-              }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Auto</button>
-              <button aria-label="AI Act" onClick={async ()=>{
-                try{
-                  // Dry-run först för att få riskvärde
-                  const dr = await fetch('http://127.0.0.1:8000/api/ai/act',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: query || 'visa kalender', allow: ['SHOW_MODULE','OPEN_VIDEO','HIDE_OVERLAY'], provider, dry_run: true })});
-                  const dj = await dr.json().catch(()=>null);
-                  if (!dj || !dj.ok || !dj.command){ setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`AI Act error: ${dj?.error||'unknown'}`}, ...J].slice(0,100)); return; }
-                  const risk = (dj.scores && typeof dj.scores.risk==='number') ? dj.scores.risk : 0.0;
-                  setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`AI Act (risk=${risk.toFixed(2)}): ${JSON.stringify(dj.command)}`}, ...J].slice(0,100));
-                  let proceed = true;
-                  if (risk > 0.5) {
-                    proceed = window.confirm('Åtgärden bedöms som riskfylld. Vill du fortsätta?');
-                    if (!proceed){ setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`AI Act avbruten av användare`}, ...J].slice(0,100)); return; }
-                  }
-                  const res = await fetch('http://127.0.0.1:8000/api/ai/act',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: query || 'visa kalender', allow: ['SHOW_MODULE','OPEN_VIDEO','HIDE_OVERLAY'], provider })});
-                  const j = await res.json();
-                  if (j && j.ok && j.command){
-                    setIntents((q)=>[{ id:safeUUID(), ts:new Date().toISOString(), command: j.command }, ...q].slice(0,50));
-                    dispatchRef.current && dispatchRef.current(j.command);
-                    const friendly = formatHudCommand(j.command);
-                    setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`${friendly} ${JSON.stringify(j.command)}`}, ...J].slice(0,100));
-                  } else {
-                    setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`AI Act error: ${j?.error||'unknown'}`}, ...J].slice(0,100));
-                  }
-                }catch(err){ setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`AI Act exception`}, ...J].slice(0,100)); }
-              }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">AI‑Act</button>
+              }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Send</button>
             </div>
           </Pane>
 
-          <Pane title="Intent Queue">
-            <ul className="space-y-2 text-xs text-cyan-300/80 max-h-56 overflow-auto">
-              {intents.map((it) => {
-                const cmd = it.command || {};
-                const isUserQuery = cmd.type === 'USER_QUERY' && cmd.payload?.query;
-                const label = isUserQuery ? `User: ${cmd.payload.query}` : (cmd.type ? `Cmd: ${cmd.type}` : 'Cmd');
-                const feedbackTool = isUserQuery ? 'chat' : (cmd.type || 'hud_control');
-                return (
-                  <li key={it.id} className="rounded border border-cyan-400/10 p-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-cyan-400/80">{new Date(it.ts).toLocaleTimeString()}</div>
-                      <div className="truncate text-cyan-200/90 max-w-[70%]" title={label}>{label}</div>
-                    </div>
-                    {!isUserQuery && (
-                      <pre className="mt-1 whitespace-pre-wrap break-words text-cyan-200/70">{JSON.stringify(cmd)}</pre>
-                    )}
-                    {!it.feedback && !isUserQuery && (
-                      <div className="mt-2 flex gap-2">
-                        <button aria-label="Feedback up" onClick={async ()=>{
-                          try { await fetch("http://127.0.0.1:8000/api/feedback", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ kind: "tool", tool: feedbackTool, up: true })}); } catch(_){ }
-                          // Markera som skickad feedback i listan
-                          setIntents((arr)=>arr.map(x=> x.id===it.id ? { ...x, feedback: 'up' } : x));
-                        }} className="rounded border border-cyan-400/30 px-2 py-0.5 text-[10px] hover:bg-cyan-400/10">👍</button>
-                        <button aria-label="Feedback down" onClick={async ()=>{
-                          try { await fetch("http://127.0.0.1:8000/api/feedback", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ kind: "tool", tool: feedbackTool, up: false })}); } catch(_){ }
-                          setIntents((arr)=>arr.map(x=> x.id===it.id ? { ...x, feedback: 'down' } : x));
-                        }} className="rounded border border-cyan-400/30 px-2 py-0.5 text-[10px] hover:bg-cyan-400/10">👎</button>
-                      </div>
-                    )}
-                    {isUserQuery && (
-                      <div className="mt-2 text-[10px] text-cyan-300/70">User query</div>
-                    )}
-                    {it.feedback && (
-                      <div className="mt-2 text-[10px] text-cyan-300/80">Tack! Sparat {it.feedback === 'up' ? '👍' : '👎'}</div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </Pane>
 
-          <Pane title="Journal">
-            <ul className="space-y-2 text-xs text-cyan-300/80 max-h-56 overflow-auto">
-              {journal.map((it) => {
-                const isJarvis = typeof it.text === 'string' && it.text.startsWith('Jarvis:');
-                return (
-                  <li key={it.id} className="rounded border border-cyan-400/10 p-2">
-                    <div className="text-cyan-400/80">{new Date(it.ts).toLocaleTimeString()}</div>
-                    <div className="text-cyan-200/90 break-words">{it.text}</div>
-                    {isJarvis && !it.feedback && (
-                      <div className="mt-2 flex gap-2">
-                        <button aria-label="Jarvis up" onClick={async ()=>{
-                          try {
-                            if (it.memoryId) {
-                              await fetch("http://127.0.0.1:8000/api/feedback", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ kind: "memory", id: it.memoryId, up: true })});
-                            } else {
-                              await fetch("http://127.0.0.1:8000/api/feedback", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ kind: "tool", tool: 'chat', up: true })});
-                            }
-                          } catch(_){ }
-                          // Markera som skickad feedback i journalen
-                          setJournal((arr)=>arr.map(x=> x.id===it.id ? { ...x, feedback: 'up' } : x));
-                        }} className="rounded border border-cyan-400/30 px-2 py-0.5 text-[10px] hover:bg-cyan-400/10">👍</button>
-                        <button aria-label="Jarvis down" onClick={async ()=>{
-                          try {
-                            if (it.memoryId) {
-                              await fetch("http://127.0.0.1:8000/api/feedback", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ kind: "memory", id: it.memoryId, up: false })});
-                            } else {
-                              await fetch("http://127.0.0.1:8000/api/feedback", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ kind: "tool", tool: 'chat', up: false })});
-                            }
-                          } catch(_){ }
-                          setJournal((arr)=>arr.map(x=> x.id===it.id ? { ...x, feedback: 'down' } : x));
-                        }} className="rounded border border-cyan-400/30 px-2 py-0.5 text-[10px] hover:bg-cyan-400/10">👎</button>
-                      </div>
-                    )}
-                    {isJarvis && it.feedback && (
-                      <div className="mt-2 text-[10px] text-cyan-300/80">Tack! Sparat {it.feedback === 'up' ? '👍' : '👎'}</div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </Pane>
-
-          <Pane title="Sensors">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-cyan-400/20 p-3 overflow-hidden">
-                <div className="text-xs text-cyan-300/80 mb-2">Send telemetry</div>
-                <form onSubmit={async (e)=>{ e.preventDefault(); const fd=new FormData(e.currentTarget); const sensor=fd.get('sensor'); const value=parseFloat(fd.get('value')); if(!sensor||Number.isNaN(value)) return; try{ await fetch('http://127.0.0.1:8000/api/sensor/telemetry',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sensor, value })}); setJournal((j)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`telemetry sent: ${sensor}=${value}`}, ...j].slice(0,100)); }catch(_){ } }} className="flex flex-wrap gap-2 items-center">
-                  <input name="sensor" placeholder="sensor name" className="flex-1 min-w-0 bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1" />
-                  <input name="value" type="number" step="any" placeholder="value" className="w-28 bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1" />
-                  <button className="shrink-0 rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Send</button>
-                </form>
-              </div>
-              <div className="rounded-xl border border-cyan-400/20 p-3 overflow-hidden">
-                <div className="text-xs text-cyan-300/80 mb-2">CV ingest (meta JSON)</div>
-                <form onSubmit={async (e)=>{ e.preventDefault(); const fd=new FormData(e.currentTarget); const source=fd.get('source'); const meta=fd.get('meta'); try{ const parsed=meta?JSON.parse(meta):undefined; await fetch('http://127.0.0.1:8000/api/cv/ingest',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ source, meta: parsed })}); setJournal((j)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`cv.ingest: ${source}`}, ...j].slice(0,100)); }catch(err){ setJournal((j)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`cv.ingest error`}, ...j].slice(0,100)); } }} className="flex flex-wrap gap-2 items-center">
-                  <input name="source" placeholder="source id" className="flex-1 min-w-0 bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1" />
-                  <input name="meta" placeholder='{"objects":[{"name":"person","conf":0.9}]}' className="flex-1 min-w-0 bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1" />
-                  <button className="shrink-0 rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Send</button>
-                </form>
-              </div>
-            </div>
-          </Pane>
 
           <Pane title="Media">
             <div className="flex items-center gap-4">
