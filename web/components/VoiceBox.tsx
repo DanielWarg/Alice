@@ -67,7 +67,7 @@ export default function VoiceBox({
 
   // Speech recognition
   const recognitionRef = useRef<any>(null)
-  const [SpeechRecognition, setSpeechRecognition] = useState<any>(null)
+  const speechRecognitionRef = useRef<any>(null)
 
   // DOM & smoothing state
   const barsWrapRef = useRef<HTMLDivElement | null>(null)
@@ -87,7 +87,7 @@ export default function VoiceBox({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
-      setSpeechRecognition(SpeechRec)
+      speechRecognitionRef.current = SpeechRec
     }
   }, [])
 
@@ -155,13 +155,13 @@ export default function VoiceBox({
   }
 
   function startSpeechRecognition() {
-    if (!SpeechRecognition) {
+    if (!speechRecognitionRef.current) {
       console.warn('Speech recognition not supported')
       return
     }
 
     try {
-      const recognition = new SpeechRecognition()
+      const recognition = new speechRecognitionRef.current()
       recognition.continuous = true
       recognition.interimResults = true
       recognition.lang = 'sv-SE'
