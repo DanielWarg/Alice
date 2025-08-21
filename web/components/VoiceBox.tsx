@@ -9,12 +9,13 @@ import React, { useEffect, useRef, useState } from 'react'
  */
 
 export type VoiceBoxProps = {
-  bars?: number        // hur många bars att rendera (default 5)
-  smoothing?: number   // 0..1 EMA smoothing (default 0.35)
-  minScale?: number    // minimum visuell skala (default 0)
+  bars?: number        // hur många bars att rendera (default 7)
+  smoothing?: number   // 0..1 EMA smoothing (default 0.15)
+  minScale?: number    // minimum visuell skala (default 0.1)
   label?: string       // top label text (default 'ALICE RÖST')
   allowDemo?: boolean  // försök WebAudio demo om mic blockeras (default true)
   allowPseudo?: boolean // visuell fallback utan ljud (default true)
+  onVoiceInput?: (text: string) => void  // callback för röst-input
 }
 
 /**
@@ -37,13 +38,22 @@ export function computeBandAverages(data: Uint8Array, bars: number): number[] {
 
 type Mode = 'idle' | 'mic' | 'demo' | 'pseudo'
 
+// SpeechRecognition types
+declare global {
+  interface Window {
+    SpeechRecognition: any
+    webkitSpeechRecognition: any
+  }
+}
+
 export default function VoiceBox({
-  bars = 5,
-  smoothing = 0.35,
-  minScale = 0,
+  bars = 7,
+  smoothing = 0.15,  // Minskad från 0.35 för snabbare respons
+  minScale = 0.1,    // Ökad från 0 för att bars alltid syns lite
   label = 'ALICE RÖST',
   allowDemo = true,
   allowPseudo = true,
+  onVoiceInput,
 }: VoiceBoxProps) {
   // Audio graph refs
   const modeRef = useRef<Mode>('idle')
@@ -55,6 +65,10 @@ export default function VoiceBox({
   const rafRef = useRef<number | null>(null)
   const oscRef = useRef<OscillatorNode[] | null>(null) // demo mode oscillators
 
+  // Speech recognition
+  const recognitionRef = useRef<any>(null)
+  const [SpeechRecognition, setSpeechRecognition] = useState<any>(null)
+
   // DOM & smoothing state
   const barsWrapRef = useRef<HTMLDivElement | null>(null)
   const prevValsRef = useRef<number[]>(Array(bars).fill(0))
@@ -62,11 +76,20 @@ export default function VoiceBox({
   // UI state
   const [error, setError] = useState<string | null>(null)
   const [live, setLive] = useState(false)
+  const [isListening, setIsListening] = useState(false)
 
   // Keep prev array in sync when props change
   useEffect(() => {
     prevValsRef.current = Array(bars).fill(0)
   }, [bars, minScale])
+
+  // Setup SpeechRecognition on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
+      setSpeechRecognition(SpeechRec)
+    }
+  }, [])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -90,8 +113,8 @@ export default function VoiceBox({
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
       ctxRef.current = ctx
       const analyser = ctx.createAnalyser()
-      analyser.fftSize = 1024
-      analyser.smoothingTimeConstant = 0.6
+      analyser.fftSize = 512  // Minskad från 1024 för snabbare respons
+      analyser.smoothingTimeConstant = 0.3  // Minskad från 0.6 för mindre smoothing
       analyserRef.current = analyser
 
       const source = ctx.createMediaStreamSource(stream)
@@ -110,6 +133,9 @@ export default function VoiceBox({
       setLive(true)
       startedRef.current = true
       modeRef.current = 'mic'
+      
+      // Starta speech recognition
+      startSpeechRecognition()
     } catch (e: any) {
       const name = e?.name
       if ((name === 'NotAllowedError' || name === 'SecurityError' || name === 'NotReadableError') && allowDemo) {
@@ -128,6 +154,51 @@ export default function VoiceBox({
     }
   }
 
+  function startSpeechRecognition() {
+    if (!SpeechRecognition) {
+      console.warn('Speech recognition not supported')
+      return
+    }
+
+    try {
+      const recognition = new SpeechRecognition()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = 'sv-SE'
+      recognition.maxAlternatives = 1
+
+      recognition.onstart = () => {
+        setIsListening(true)
+        console.log('Speech recognition started')
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+        console.log('Speech recognition ended')
+      }
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error)
+      }
+
+      recognition.onresult = (event: any) => {
+        const result = event.results[event.results.length - 1]
+        const transcript = result[0].transcript
+        const isFinal = result.isFinal
+
+        if (isFinal && onVoiceInput) {
+          console.log('Voice input (final):', transcript)
+          onVoiceInput(transcript)
+        }
+      }
+
+      recognition.start()
+      recognitionRef.current = recognition
+    } catch (error) {
+      console.error('Failed to start speech recognition:', error)
+    }
+  }
+
   function beginRenderLoop() {
     const analyser = analyserRef.current
     const host = barsWrapRef.current
@@ -143,11 +214,13 @@ export default function VoiceBox({
       if (analyser && analyserRef.current) {
         analyserRef.current.getByteFrequencyData(data!)
         bandVals = computeBandAverages(data!, bars)
+        // Öka känsligheten genom att förstärka värdena
+        bandVals = bandVals.map(val => Math.pow(val, 0.7)) // Minskad från 0.9 för mer utslag
       } else {
         // Pseudo values: smooth sin/noise mix so it looks audio-like
         bandVals = Array.from({ length: bars }, (_, i) => {
-          const base = 0.35 + 0.35 * Math.sin((t / 480) + i * 0.9)
-          const jitter = 0.1 * (Math.sin((t / 97) + i * 2.1) + 1) / 2
+          const base = 0.4 + 0.4 * Math.sin((t / 300) + i * 0.9)  // Snabbare från 480
+          const jitter = 0.15 * (Math.sin((t / 80) + i * 2.1) + 1) / 2  // Snabbare från 97
           return Math.min(1, Math.max(0, base + jitter))
         })
       }
@@ -164,13 +237,13 @@ export default function VoiceBox({
         const cell = children[i] as HTMLElement
         const barEl = cell.querySelector('.bar') as HTMLElement | null
         if (barEl) {
-          const pct = Math.max(minScale * 100, v * 100)
+          const pct = Math.max(minScale * 100, v * 120)  // Ökad från 100 för mer utslag
           if (pct < 1.2) {
             barEl.style.height = '0px'
             barEl.style.opacity = '0'
           } else {
             barEl.style.height = `${pct}%`
-            barEl.style.opacity = String(0.5 + v * 0.5)
+            barEl.style.opacity = String(0.6 + v * 0.4)  // Ökad från 0.5 för bättre synlighet
           }
         }
       }
@@ -187,8 +260,8 @@ export default function VoiceBox({
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
       ctxRef.current = ctx
       const analyser = ctx.createAnalyser()
-      analyser.fftSize = 1024
-      analyser.smoothingTimeConstant = 0.75
+      analyser.fftSize = 512  // Minskad från 1024 för snabbare respons
+      analyser.smoothingTimeConstant = 0.4  // Minskad från 0.75 för mindre smoothing
       analyserRef.current = analyser
 
       // Oscillator graph
@@ -258,9 +331,16 @@ export default function VoiceBox({
       streamRef.current = null
     }
 
+    // Stoppa speech recognition
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop() } catch {}
+      recognitionRef.current = null
+    }
+
     startedRef.current = false
     modeRef.current = 'idle'
     setLive(false)
+    setIsListening(false)
   }
 
   return (
@@ -281,7 +361,7 @@ export default function VoiceBox({
                 className="bar w-1/2 rounded-full"
                 style={{
                   height: '1px',
-                  transition: 'height 80ms linear, opacity 80ms linear',
+                  transition: 'height 40ms linear, opacity 40ms linear',  // Snabbare från 80ms
                   background: 'linear-gradient(180deg, #67e8f9 0%, #22d3ee 40%, #06b6d4 100%)',
                   boxShadow: '0 0 22px rgba(34, 211, 238, 0.55), inset 0 -10px 18px rgba(0,0,0,0.35)'
                 }}
