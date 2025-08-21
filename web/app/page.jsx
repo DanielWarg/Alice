@@ -39,6 +39,32 @@ const IconAlarm = (p) => (<Svg {...p}><circle cx="12" cy="13" r="7" /><path d="M
 const IconCamera = (p) => (<Svg {...p}><rect x="3" y="7" width="18" height="14" rx="2" /><circle cx="12" cy="14" r="4" /></Svg>);
 
 // ────────────────────────────────────────────────────────────────────────────────
+// Copy Button Component
+const CopyButton = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1000);
+    } catch (err) {
+      console.error('Copy failed:', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="opacity-60 group-hover:opacity-80 hover:opacity-100 transition-opacity duration-200 p-1 rounded hover:bg-slate-600/30"
+      title="Kopiera svar"
+    >
+      {copied ? <IconCheck className="h-3 w-3 text-green-400" /> : <IconCopy className="h-3 w-3" />}
+    </button>
+  );
+};
+
+// ────────────────────────────────────────────────────────────────────────────────
 // Utils
 const safeUUID = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `id-${Math.random().toString(36).slice(2)}-${Date.now()}`);
 const clampPercent = (v) => Math.max(0, Math.min(100, Number.isFinite(v) ? v : 0));
@@ -526,7 +552,24 @@ function HUDInner() {
     return () => { closed = true; try { wsRef.current && wsRef.current.close(); } catch (_) {} };
   }, []);
   useEffect(() => { if (UI_ONLY || SAFE_BOOT) return; const id = setInterval(() => { if (typeof window !== 'undefined' && Math.random() < 0.07) dispatch({ type: "OPEN_VIDEO", source: { kind: "webcam" } }); }, 4000); return () => clearInterval(id); }, [dispatch]);
-  const timeInit = useMemo(() => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), []); const [now, setNow] = useState(timeInit); useEffect(() => { const id = setInterval(() => setNow(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })), 1000); return () => clearInterval(id); }, []);
+  const timeInit = useMemo(() => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), []); 
+  const [now, setNow] = useState(timeInit); 
+  const [dateInfo, setDateInfo] = useState(''); 
+  
+  useEffect(() => { 
+    const updateTime = () => {
+      const date = new Date();
+      setNow(date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      
+      const weekNumber = Math.ceil(((date - new Date(date.getFullYear(), 0, 1)) / 86400000 + new Date(date.getFullYear(), 0, 1).getDay() + 1) / 7);
+      const dateStr = date.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' });
+      setDateInfo(`${dateStr} v${weekNumber}`);
+    };
+    
+    updateTime();
+    const id = setInterval(updateTime, 1000); 
+    return () => clearInterval(id); 
+  }, []);
   const spotify = useSpotify();
   useEffect(()=>{ /* no-op */ },[]);
   const fmtTime = (ms)=>{ if(!ms) return '0:00'; const s=Math.floor(ms/1000); const m=Math.floor(s/60); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; };
@@ -541,7 +584,11 @@ function HUDInner() {
       <div className="mx-auto max-w-7xl px-6 pt-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 opacity-80"><IconWifi className="h-4 w-4" /><IconBattery className="h-4 w-4" /><IconBell className="h-4 w-4" /></div>
-          <div className="flex items-center gap-2 text-cyan-300/80"><IconClock className="h-4 w-4" /><span className="tracking-widest text-xs uppercase" suppressHydrationWarning>{now}</span></div>
+          <div className="flex items-center gap-2 text-cyan-300/80">
+            <IconClock className="h-4 w-4" />
+            <span className="tracking-widest text-xs uppercase" suppressHydrationWarning>{now}</span>
+            <span className="tracking-widest text-xs uppercase" suppressHydrationWarning>{dateInfo}</span>
+          </div>
         </div>
         {globalError && (<div className="mt-3 rounded-xl border border-cyan-500/20 bg-cyan-900/20 p-3 text-xs text-cyan-300/90"><strong>Observerat globalt fel:</strong> {globalError}</div>)}
       </div>
@@ -634,25 +681,8 @@ function HUDInner() {
                           <div className="text-xs opacity-60">
                             {new Date(message.ts).toLocaleTimeString()}
                           </div>
-                          {isAlice && !message.streaming && (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await navigator.clipboard.writeText(displayText);
-                                  // Quick visual feedback
-                                  const btn = event.currentTarget;
-                                  const originalText = btn.innerHTML;
-                                  btn.innerHTML = '<span class="text-green-400">✓</span>';
-                                  setTimeout(() => btn.innerHTML = originalText, 1000);
-                                } catch (err) {
-                                  console.error('Copy failed:', err);
-                                }
-                              }}
-                              className="opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity duration-200 p-1 rounded hover:bg-slate-600/30"
-                              title="Kopiera svar"
-                            >
-                              <IconCopy className="h-3 w-3" />
-                            </button>
+                          {!isUser && !message.streaming && (
+                            <CopyButton text={displayText} />
                           )}
                         </div>
                       </div>

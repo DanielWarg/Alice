@@ -459,8 +459,8 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
             if body.context.get('time'):
                 context_parts.append(f"Tid: {body.context['time']}")
             if body.context.get('systemMetrics'):
-                metrics = body.context['systemMetrics']
-                context_parts.append(f"System: CPU {metrics.get('cpu', 0)}%, RAM {metrics.get('mem', 0)}%, Nätverk {metrics.get('net', 0)}%")
+                system_metrics = body.context['systemMetrics']
+                context_parts.append(f"System: CPU {system_metrics.get('cpu', 0)}%, RAM {system_metrics.get('mem', 0)}%, Nätverk {system_metrics.get('net', 0)}%")
             if context_parts:
                 hud_context = "Aktuell systeminfo:\n" + "\n".join(f"- {part}" for part in context_parts) + "\n\n"
         
@@ -716,8 +716,8 @@ async def chat_stream(body: ChatBody):
             if body.context.get('time'):
                 context_parts.append(f"Tid: {body.context['time']}")
             if body.context.get('systemMetrics'):
-                metrics = body.context['systemMetrics']
-                context_parts.append(f"System: CPU {metrics.get('cpu', 0)}%, RAM {metrics.get('mem', 0)}%, Nätverk {metrics.get('net', 0)}%")
+                system_metrics = body.context['systemMetrics']
+                context_parts.append(f"System: CPU {system_metrics.get('cpu', 0)}%, RAM {system_metrics.get('mem', 0)}%, Nätverk {system_metrics.get('net', 0)}%")
             if context_parts:
                 hud_context = "Aktuell systeminfo:\n" + "\n".join(f"- {part}" for part in context_parts) + "\n\n"
         
