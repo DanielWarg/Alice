@@ -1,6 +1,6 @@
 # 🚀 Alice Supersmart Assistant - Development Roadmap
 
-*Baserat på VISION.md och befintlig jarvis-clean grund*
+*Baserat på VISION.md och befintlig Alice-grund*
 
 ---
 
@@ -222,21 +222,58 @@
 
 ```bash
 # Start full Alice development environment
-./scripts/dev-start.sh
+cd Alice
+source .venv/bin/activate
+cd server && python run.py &  # Backend
+cd web && npm run dev &        # Frontend
+```
 
+```bash
 # Run comprehensive test suite
-./scripts/test-all.sh
+cd tests
+python -m pytest -v
+```
 
+```bash
 # Deploy to production
-./scripts/deploy.sh
+cd server
+python run.py --production
+```
 
+```bash
 # Backup database och settings
-./scripts/backup.sh
+cp server/data/alice.db server/data/alice.db.backup
+```
 
+```bash
 # Performance benchmark
-./scripts/benchmark.sh
+cd tests
+python stress_test_integrated.py
 ```
 
 ---
 
-*Updated: 2025-08-20 | Next Review: Weekly*
+## 🏗️ **Project Structure**
+
+```
+Alice/
+├── server/                 # FastAPI backend med AI-kärna
+│   ├── app.py             # Huvudapplikation
+│   ├── core/              # Kärnmoduler (router, tools, memory)
+│   ├── prompts/           # AI-prompts på svenska
+│   ├── tests/             # Backend-tester
+│   └── requirements.txt   # Python dependencies
+├── web/                    # Next.js HUD frontend
+│   ├── app/               # Next.js 13+ app directory
+│   ├── components/        # React-komponenter
+│   └── package.json       # Node.js dependencies
+├── alice-tools/            # NLU och router-system (TypeScript)
+├── nlu-agent/              # Naturlig språkförståelse
+├── tests/                  # Integrationstester
+├── docs/                   # Dokumentation
+└── tools/                  # Verktyg och utilities
+```
+
+---
+
+*Updated: 2025-01-20 | Next Review: Weekly*

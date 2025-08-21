@@ -10,199 +10,185 @@
 
 ──────────────────────────────
 
-# 🚀 ALICE HUD — Local AI with Voice, Vision & Memory
+# 🌟 Alice VISION - Framtidens AI-Assistent
 
-*"Your personal AI. Local. Private. Limitless."*
+## 🎯 **Vår Vision**
 
----
-
-🌌 Vision
-Alice HUD is a self-hosted AI powerhouse.
-It listens, speaks, understands Swedish commands with precision, remembers context, and controls your world — from media to email, calendars, IoT, and beyond — all inside a sleek, futuristic heads-up display.
-
-Built for speed, privacy, and total control — no cloud lock-in, no compromises.
-
-<div style="background-color:#0d1117;padding:20px;border-radius:10px;text-align:center;"> <img src="docs/image.png" alt="Alice HUD — Local AI with Voice, Vision & Memory in a Futuristic Interface" style="max-width:100%;border-radius:8px;"> <p style="color:#8b949e;font-style:italic;">Preview of the Alice HUD interface</p> </div>
+Alice ska vara **den ultimata svenska AI-assistenten** - en intelligent, empatisk och kraftfull partner som förstår dig på djupet, lär sig dina preferenser och hjälper dig att uppnå dina mål. Allt med fokus på **integritet, lokalt körande och svenska som primärt språk**.
 
 ---
 
-## ✨ Features
+## 🚀 **Kärnvärden**
 
-### 🧠 **Supersmart AI Core**
-* **Deep Understanding** — Natural svenska conversations with full context retention
-* **RAG Memory System** — Remembers everything, retrieves intelligently
-* **Predictive Analysis** — Learns patterns, suggests next steps
-* **Advanced Reasoning** — Complex multi-step problem solving
+### 🔒 **Privacy-First**
+- **Lokal AI-kraft** - Allt körs på din maskin
+- **Ingen telemetri** - Din data stannar hos dig
+- **Zero-trust arkitektur** - Säker från grunden
+- **Transparent kod** - Öppen källkod för full kontroll
 
-### 🎯 **Intelligent Tools**
-* **Email Intelligence** — Smart sorting, drafting, scheduling responses
-* **Calendar Master** — Automated scheduling, conflict resolution, meeting prep
-* **Project Planner** — Goal setting, milestone tracking, resource allocation
-* **Data Synthesizer** — Report generation, trend analysis, insights
-* **Predictive Assistant** — Anticipates needs, proactive suggestions
+### 🇸🇪 **Svenska-Native**
+- **Perfekt språkförståelse** - Svensk kontext och nyanser
+- **Kulturspecifik intelligens** - Förstår svenska värderingar
+- **Dialektstöd** - Hanterar olika svenska dialekter
+- **Svenska kommandon** - Naturlig interaktion på svenska
 
-### 🎨 **Futuristic Interface**
-* **HUD Panels** — System stats, weather, tasks, diagnostics, insights
-* **Overlay Modules** — Calendar, email, finance, reminders, analytics
-* **Voice Control** — Natural Swedish commands with hybrid API/local processing
-* **Safe Boot Mode** — Privacy controls, instant disable
-* **PWA Ready** — Installable desktop experience
-* **Sensor Network** — Raspberry Pi probes för vision och audio
+### 🧠 **Supersmart Intelligence**
+- **Lokal GPT-OSS:20B** - 20 miljarder parametrar lokalt
+- **Avancerad RAG** - Intelligent minneshantering
+- **Kontextförståelse** - Långa konversationer med minne
+- **Prediktiv intelligens** - Lär sig dina mönster
 
 ---
 
-## 🛠 Tech Stack
+## 🎨 **Användarupplevelse**
 
-**Frontend:** Next.js 15, React 19, Tailwind CSS v4, PWA-enabled
-**Backend:** FastAPI, Harmony Response Format, SQLite memory, streaming
-**AI Core:** `gpt-oss:20B` (Ollama), RAG retrieval, Whisper STT, Piper TTS
-**Intelligence:** NLU routing, tool calling, memory synthesis, predictive modeling
+### 🖥️ **Futuristisk HUD-Design**
+- **Cyan/Blue tema** - Modern, elegant design
+- **Real-time metrics** - CPU, RAM, nätverk live
+- **Modulära paneler** - Kalender, mail, finans, påminnelser
+- **Responsiv layout** - Fungerar på alla enheter
 
-*Chosen for cutting-edge AI capabilities, local-first execution, and zero-latency responsiveness.*
+### 🎭 **Naturlig Interaktion**
+- **Röststyrning** - Whisper STT + Piper TTS
+- **Chat-interface** - ChatGPT-liknande upplevelse
+- **Gesture control** - Framtida touch/gesture-stöd
+- **Adaptiv UI** - Lär sig dina preferenser
 
----
-
-## ⚡ Quick Start
-
-### Backend
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r server/requirements.txt
-uvicorn server.app:app --host 127.0.0.1 --port 8000
-```
-
-### Frontend
-```bash
-cd web
-npm install
-npm run dev -- -p 3100
-```
-
-Then open: [http://localhost:3100](http://localhost:3100)
-
-### AI Setup
-```bash
-# Install Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
-
-# Download Alice's brain
-ollama pull gpt-oss:20b
-
-# Start local AI
-ollama serve
-```
+### 🔧 **Smart Verktygsintegration**
+- **Spotify** - Musikuppspelning och kontroll
+- **Gmail** - E-posthantering och sökning
+- **Google Calendar** - Kalenderhantering
+- **IoT-kontroll** - Smart hem-integration (framtida)
 
 ---
 
-## 🎵 Spotify Setup
+## 🏗️ **Teknisk Arkitektur**
 
-1. Create an app in [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/).
-2. Add redirect URI: `http://127.0.0.1:3100/spotify/callback`
-3. Create `.env` in project root:
-```bash
-SPOTIFY_CLIENT_ID=xxxx
-SPOTIFY_CLIENT_SECRET=xxxx
-SPOTIFY_REDIRECT_URI=http://127.0.0.1:3100/spotify/callback
-```
-4. Start backend, open HUD → Connect Spotify.
+### 🐍 **Backend (FastAPI)**
+- **Modulär design** - Enkelt att utöka
+- **Real-time WebSocket** - Live uppdateringar
+- **AI-kärna** - Harmony-adapter med lokal LLM
+- **Verktygsregister** - Pydantic-validering
+- **Memory system** - SQLite med embeddings
 
----
+### ⚛️ **Frontend (Next.js)**
+- **React 18** - Modern komponentarkitektur
+- **TypeScript** - Typesäker utveckling
+- **Tailwind CSS** - Responsiv design
+- **PWA-stöd** - Offline-funktionalitet
 
-## 📂 Structure
-
-```
-alice/
-├─ VISION.md           # This file
-├─ README.md           # Technical documentation
-├─ API.md              # Complete API reference
-├─ DEPLOYMENT.md       # Production setup guide
-├─ DEVELOPMENT.md      # Developer handbook
-├─ server/             # FastAPI backend + AI core
-│  ├─ core/           # NLU, tools, memory system
-│  ├─ prompts/        # AI personality & instructions
-│  └─ models/         # Local AI models (TTS, etc.)
-├─ web/               # Next.js HUD frontend
-├─ alice-tools/       # Extensible tool library
-├─ nlu-agent/         # Natural language understanding
-└─ tests/             # Comprehensive test suite
-```
+### 🤖 **AI & NLU**
+- **Ollama integration** - Lokal gpt-oss:20B
+- **Svensk NLU** - 89% accuracy på kommandon
+- **Router-first** - Snabb intent-klassificering
+- **Fallback till LLM** - När router är osäker
 
 ---
 
-## 🧠 Master Development Roadmap
+## 🌟 **Framtida Funktioner**
 
-### Phase 1 — AI Core Completion ⚡
-* **Harmony Integration** — Complete local gpt-oss:20B setup
-* **Memory Enhancement** — Advanced RAG with semantic search
-* **Tool Expansion** — Email, calendar, planning, analytics tools
-* **Swedish NLU** — Perfect language understanding
-* **Evaluation Suite** — ≥95% accuracy on complex tasks
+### 🔮 **Phase 1: Core Intelligence**
+- [x] Lokal AI med Ollama
+- [x] Svenska NLU-system
+- [x] HUD-baserat gränssnitt
+- [x] Grundläggande verktyg
+- [ ] Avancerad minneshantering
+- [ ] Prediktiv intelligens
 
-### Phase 2 — Supersmart Features 🎯
-* **Predictive Engine** — Pattern recognition, proactive suggestions  
-* **Deep Planning** — Multi-step project management
-* **Synthesis Master** — Intelligent report generation
-* **Context Mastery** — Long-term conversation memory
-* **Learning System** — Continuous improvement from usage
+### 🚀 **Phase 2: Smart Integration**
+- [x] Spotify-integration
+- [x] Gmail-integration
+- [ ] Google Calendar
+- [ ] Smart hem-kontroll
+- [ ] Dokumentanalys
+- [ ] Workflow-automation
 
-### Phase 3 — Advanced Intelligence 🚀
-* **Multi-modal AI** — Vision, document analysis
-* **IoT Integration** — Smart home control
-* **Workflow Automation** — Complex task orchestration
-* **Collaborative AI** — Team assistance features
-* **External Integrations** — CRM, productivity tools
+### 🌍 **Phase 3: Multi-Modal**
+- [ ] Bild- och videoförståelse
+- [ ] Dokumentbehandling
+- [ ] Screen capture analysis
+- [ ] Voice emotion recognition
+- [ ] Multi-language support
+- [ ] IoT-sensor integration
 
-### Phase 4 — Optimization & Scale 📈
-* **Performance Tuning** — Sub-100ms response times
-* **Advanced UI/UX** — Immersive HUD experience
-* **Mobile Companion** — Cross-platform sync
-* **Enterprise Features** — Team deployments
-* **Plugin Ecosystem** — Community extensions
-
----
-
-## 🎯 Core Principles
-
-* **Local-First** — Your data never leaves your machine
-* **Privacy by Design** — No tracking, no telemetry, pure local AI
-* **Speed Above All** — Sub-second response times for everything
-* **Swedish-Native** — Perfect understanding of Swedish context and nuance
-* **Infinitely Extensible** — Plugin architecture for unlimited growth
-* **Production Ready** — Enterprise-grade reliability and security
+### 🎯 **Phase 4: Enterprise**
+- [ ] Multi-user support
+- [ ] Role-based access control
+- [ ] Team collaboration
+- [ ] Audit logging
+- [ ] Compliance features
+- [ ] Enterprise deployment
 
 ---
 
-## 🛡 Fallback Strategy
+## 🎯 **Success Metrics**
 
-**Latest stable Alice version:**
-```bash
-git reset --hard alice-stable-harmony && git clean -fd
-```
+### 📊 **Tekniska KPI:er**
+- **Response Time**: <500ms för 95% av queries
+- **Accuracy**: ≥95% på NLU intent classification
+- **Uptime**: ≥99.9% availability
+- **Memory Usage**: <2GB RAM
+- **Tool Success Rate**: ≥98%
 
-**Emergency rollback:**
-```bash
-git reset --hard alice-basic-working && git clean -fd
-```
-
----
-
-## 🤝 Contributing
-
-We welcome contributions to make Alice even smarter!
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/super-intelligence`)
-3. Commit your changes (`git commit -m 'Add mind-reading capability'`)
-4. Push to the branch (`git push origin feature/super-intelligence`)
-5. Open a Pull Request
+### 👥 **Användarupplevelse**
+- **Task Completion**: ≥90% av påbörjade tasks
+- **User Satisfaction**: ≥4.5/5 rating
+- **Learning Curve**: <15 minuter
+- **Voice Recognition**: ≥95% svenska accuracy
+- **Conversation Quality**: Natural dialog
 
 ---
 
-## 📜 License
+## 🛡️ **Säkerhet & Integritet**
 
-MIT License - Build amazing things with Alice!
+### 🔐 **Säkerhetsprinciper**
+- **Local-first** - Ingen data lämnar din maskin
+- **Zero-trust** - Verifierar allt
+- **Transparent** - Öppen källkod
+- **Auditable** - Full spårbarhet
+
+### 🚫 **Vad vi INTE gör**
+- **Ingen telemetri** - Spårar inte användare
+- **Ingen datainsamling** - Samlar inte in personlig data
+- **Ingen molnlagring** - Allt lokalt
+- **Ingen tredjepartstracking** - Ren lokal AI
 
 ---
 
-*Alice - Where artificial intelligence meets human potential. 🤖✨*
+## 🌍 **Community & Bidrag**
+
+### 🤝 **Öppet Projekt**
+- **MIT License** - Fri att använda och modifiera
+- **GitHub** - Öppen utveckling
+- **Community** - Välkomna bidrag
+- **Transparent** - All kod synlig
+
+### 🚀 **Bidra till Alice**
+- **Bug-rapporter** - Hjälp oss förbättra
+- **Feature-förslag** - Dela dina idéer
+- **Code contributions** - Pull requests välkomna
+- **Documentation** - Hjälp andra användare
+
+---
+
+## 🎯 **Slutmål**
+
+Alice ska vara **den bästa svenska AI-assistenten** - en intelligent, empatisk och kraftfull partner som:
+
+- 🧠 **Förstår dig** - Perfekt svenska, kontext och nyanser
+- 🔒 **Skyddar dig** - Lokal, privat, säker
+- 🚀 **Hjälper dig** - Smart verktyg, automation, insights
+- 🌟 **Lär sig** - Anpassar sig till dina behov
+- 🎨 **Inspirerar** - Vacker, modern design
+
+---
+
+## 🏁 **Vår Mission**
+
+> *"Att skapa världens bästa svenska AI-assistent - en intelligent, empatisk och kraftfull partner som hjälper dig att uppnå dina mål, allt med fokus på integritet, lokalt körande och svenska som primärt språk."*
+
+---
+
+**Alice** - Din supersmarta svenska AI-assistent för framtiden! 🚀
+
+*"Din personliga AI. Lokal. Privat. Obegränsad."*
