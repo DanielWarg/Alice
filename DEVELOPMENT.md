@@ -478,3 +478,100 @@ ollama run gpt-oss:20b "test"
 **Alice Development** - Bygg framtidens AI-assistent! 🚀
 
 *För ytterligare hjälp, se dokumentationen ovan.*
+
+# 🎤 VoiceBox Integration & Planering
+
+## Komponentöversikt
+
+**VoiceBox** är en avancerad röst-komponent som ersätter den gamla enkla röst-funktionen i Alice HUD. Komponenten är designad för att ge en visuell representation av audio-input med real-time bars och integrerad speech recognition.
+
+### Tekniska Specifikationer
+
+- **Bars**: Konfigurerbar (standard: 5-7 bars)
+- **Audio Processing**: WebAudio API med AnalyserNode
+- **Speech Recognition**: Web Speech API (svenska)
+- **Fallback-lägen**: Demo och pseudo-läge om mic inte är tillgänglig
+- **Styling**: Anpassad för Alice's HUD tema (cyan/blue)
+
+### Komponentstruktur
+
+```typescript
+interface VoiceBoxProps {
+  bars?: number                    // Antal bars (default: 7)
+  smoothing?: number              // EMA smoothing (0.15)
+  minScale?: number               // Minimum skala (0.1)
+  label?: string                  // Label text
+  allowDemo?: boolean             // Demo-läge
+  allowPseudo?: boolean           // Pseudo-läge
+  onVoiceInput?: (text: string) => void  // Callback
+}
+```
+
+## Integration Planer
+
+### 1. Referens-implementation (Aktuell)
+- **Placering**: VOICE-panelen (vänster kolumn)
+- **Status**: ✅ Fungerar korrekt
+- **Funktionalitet**: 
+  - 5 bars med audio visualisering
+  - "Starta mic" knapp
+  - Röst-input läggs till i journal
+  - "Add to To-do" funktionalitet
+
+### 2. ALICE CORE Integration (Planerad)
+- **Mål**: Ersätta spheren i ALICE CORE med VoiceBox
+- **Placering**: Centrerad i ALICE CORE-panelen
+- **Utmaningar identifierade**:
+  - ✅ Komponenten renderar korrekt med audio bars
+  - ❌ Placeringen är fel - inte där vi vill ha den
+  - ❌ Formen är fel - kanske för smal, för hög, eller fel position
+  - ❌ "Starta mic" knapp placerad fel
+
+### 3. Felsökning & Lösningar
+
+#### Problem 1: Fel placering
+- **Symptom**: VoiceBox ligger inte där vi vill ha den i ALICE CORE
+- **Möjliga orsaker**:
+  - CSS-positionering (top, left, transform)
+  - Container-struktur i ALICE CORE
+  - Z-index eller overflow-problem
+
+#### Problem 2: Fel form
+- **Symptom**: VoiceBox är för smal, för hög, eller har fel proportioner
+- **Lösning**: Kopiera exakt samma attribut som referens-komponenten
+
+#### Problem 3: Knapp-placering
+- **Symptom**: "Starta mic" knapp ligger fel
+- **Lösning**: Justera positionering inom VoiceBox-komponenten
+
+### 4. Rekommenderad Approach
+
+1. **Behåll referens-komponenten** i VOICE-panelen
+2. **Kopiera exakt samma attribut** till ALICE CORE-versionen
+3. **Testa stegvis** - först placering, sedan styling
+4. **Använd samma container-struktur** som fungerar i VOICE-panelen
+
+### 5. Framtida Förbättringar
+
+- **TTS Integration**: Låt Alice svara med röst
+- **WebSocket Integration**: Real-time kommunikation med backend
+- **Voice Commands**: Integrera med Alice's verktygssystem
+- **Custom Styling**: Anpassa för olika HUD-teman
+
+## Aktuell Status
+
+- ✅ **VoiceBox-komponent**: Fungerar korrekt
+- ✅ **Referens-implementation**: Synlig i VOICE-panelen
+- ❌ **ALICE CORE integration**: Kräver felsökning
+- 🔄 **Planering**: Under utveckling
+
+## Nästa Steg
+
+1. **Felsök ALICE CORE integration**
+2. **Kopiera fungerande attribut**
+3. **Testa placering och styling**
+4. **Integrera med Alice's röst-system**
+
+---
+
+*Senast uppdaterad: 21 Augusti 2024*
