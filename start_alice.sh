@@ -33,6 +33,19 @@ fi
 echo "✅ Förutsättningar kontrollerade"
 echo ""
 
+# Kontrollera verktygskonsistens
+echo "🔧 Checking tool consistency..."
+cd server
+source ../.venv/bin/activate
+TOOL_COUNT=$(python3 -c "from core.tool_specs import enabled_tools; print(len(enabled_tools()))" 2>/dev/null || echo "0")
+cd ..
+if [ "$TOOL_COUNT" -gt 10 ]; then
+    echo "✅ Tool consistency OK ($TOOL_COUNT tools enabled)"
+else
+    echo "❌ Tool consistency check failed"
+    exit 1
+fi
+
 # Starta Backend
 echo "🐍 Starting Backend (FastAPI)..."
 cd server

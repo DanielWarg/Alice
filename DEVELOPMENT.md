@@ -347,6 +347,66 @@ def new_tool_function(args: Dict) -> str:
     return "Tool executed successfully"
 ```
 
+### **Harmony Implementation Guide**
+
+#### **Fas 0 – Baseline och säkerhetslina**
+- [x] Skapa branch `feature/harmony`
+- [x] Lägg env-flaggor: `USE_HARMONY=false`, `USE_TOOLS=false`
+- [x] Sätt upp `.venv` i `server/` och frys beroenden
+
+#### **Fas 1 – Harmony-adapter i servern**
+- [x] Skapa adapter-lager i `server/app.py`
+- [x] Instruktioner till modellen: resonemang i `analysis`, tool-calls i `commentary`, endast svar i `final`
+- [x] Parsning: extrahera endast kanal `final` till klient
+- [x] Lägg debug-loggning i dev: roll + kanal
+
+#### **Fas 2 – Verktygsregister och validering**
+- [x] Skapa `server/tools/registry.py` med verktygsspecar
+- [x] Implementera exekvering med Pydantic-validering
+- [x] Första verktyg: `PLAY`, `PAUSE`, `SET_VOLUME`, `SAY`/`DISPLAY`
+
+#### **Fas 3 – Körsätt för gpt-oss lokalt**
+- [x] Välj körsätt: Ollama-adapter
+- [x] Dokumentera valet
+- [x] Smoke-test: modell svarar i rätt kanaler
+
+#### **Fas 4 – Prompts och policys**
+- [x] Skapa `server/prompts/system_prompts.py` (svenska)
+- [x] Skapa developer-prompt: följ Harmony; "no-tool-if-unsure"
+- [x] Länka in i adapter-lagret
+
+#### **Fas 5 – Router-först**
+- [x] Behåll existerande NLU/router som förstaval
+- [x] Lägg tröskel `NLU_CONFIDENCE_THRESHOLD` i env
+- [x] Lägre confidence → skicka via Harmony + verktygsspec
+
+#### **Fas 6 – Streaming och UI**
+- [x] Servern streamar endast `final` till klient
+- [x] Lägg lätt metadata till UI: `tool_called`, `tool_result`
+
+#### **Fas 7 – Telemetri och loggning**
+- [x] Logga p50/p95: tid till första `final`-token
+- [x] Logga: tid `tool_call` → `tool_result`, valideringsfel
+- [x] Logga: router-vs-LLM hit-rate
+
+#### **Fas 8 – Evals**
+- [x] Skapa 20 kommandon som kräver verktyg
+- [x] Skapa 20 rena chattfrågor
+- [x] Skapa 10 fall med saknade parametrar
+- [ ] Mål: ≥95% korrekt vägval, 0% `analysis`-läckage
+
+#### **Fas 9 – Utrullning i små PR:er**
+- [x] PR1: flaggor + Harmony-adapter
+- [x] PR2: tool-registry + validering
+- [x] PR3: aktivera `USE_TOOLS=true`
+- [x] PR4: router-först med tröskel
+- [x] PR5: telemetri + syntetiska evals
+
+#### **Fas 10 – Dokumentation och runbooks**
+- [ ] Uppdatera `README.md`/`ARCHITECTURE.md`
+- [ ] Runbook: lägga till nytt verktyg
+- [ ] Felsökning: kanalläckage, valideringsfel, latensspikar
+
 ### NLU-utveckling
 ```typescript
 // Lägg till nya intents i alice-tools

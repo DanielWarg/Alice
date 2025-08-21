@@ -224,8 +224,8 @@ def enabled_tools() -> List[str]:
     """Hämta lista över aktiverade verktyg från miljövariabel"""
     env = os.getenv("ENABLED_TOOLS", "")
     if not env:
-        # Default: aktivera enbart PLAY/PAUSE/SET_VOLUME i första steget
-        return ["PLAY", "PAUSE", "SET_VOLUME"]
+        # Default: aktivera alla verktyg för full funktionalitet
+        return list(TOOL_SPECS.keys())
     
     tools = [t.strip().upper() for t in env.split(",") if t.strip()]
     return sorted(tools)

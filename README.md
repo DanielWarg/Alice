@@ -109,8 +109,10 @@ ollama serve
 
 ## 📚 **Dokumentation**
 
-- **[API.md](API.md)** - Komplett API-dokumentation
+- **[STARTUP.md](STARTUP.md)** - Exakt startup-guide
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Utvecklingsguide
+- **[STATUS.md](STATUS.md)** - Status och utvecklingsplan
+- **[API.md](API.md)** - Komplett API-dokumentation
 - **[VISION.md](VISION.md)** - Projektvision och roadmap
 - **[ALICE_ROADMAP.md](ALICE_ROADMAP.md)** - Detaljerad utvecklingsplan
 

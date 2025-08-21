@@ -50,7 +50,16 @@ pip3 install python-multipart
 
 **Viktigt:** `python-multipart` krävs för filuppladdningar och måste installeras separat.
 
-### 2.3 Starta backend-servern
+### 2.3 Verifiera verktygskonsistens
+```bash
+# Kontrollera att alla verktyg är synkroniserade
+cd server
+python3 -c "from core.tool_specs import enabled_tools; print('Aktiverade verktyg:', enabled_tools())"
+```
+
+**Förväntad output:** Lista med alla verktyg (PLAY, PAUSE, STOP, NEXT, PREV, etc.)
+
+### 2.4 Starta backend-servern
 ```bash
 cd server
 python3 run.py
@@ -63,7 +72,7 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 INFO:     Started reloader process [XXXXX] using WatchFiles
 ```
 
-### 2.4 Verifiera backend (ny terminal)
+### 2.5 Verifiera backend (ny terminal)
 ```bash
 curl http://localhost:8000/api/tools/spec
 ```
@@ -303,4 +312,4 @@ tail -f server/logs/app.log
 
 **🎉 Nu borde Alice-projektet köra perfekt!**
 
-För hjälp, se [DEVELOPMENT.md](DEVELOPMENT.md) eller [README.md](README.md).
+För hjälp, se [DEVELOPMENT.md](DEVELOPMENT.md), [STATUS.md](STATUS.md) eller [README.md](README.md).
