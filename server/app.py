@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, Optional, Set, List
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException, File, UploadFile
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -31,6 +31,7 @@ from core import (
 )
 from harmony_test_endpoint import HarmonyTestBatchRequest, HarmonyTestBatchResponse, run_harmony_test_case
 from voice_stream import get_voice_manager
+from voice_stt import transcribe_audio_file, get_stt_status
 
 
 load_dotenv()
@@ -2305,4 +2306,35 @@ async def ai_route(body: RouteBody) -> Dict[str, Any]:
     except Exception:
         logger.exception("route->chat failed")
         return {"ok": False, "error": "route_chat_failed"}
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Voice STT API (Whisper Integration)
+# ────────────────────────────────────────────────────────────────────────────────
+
+@app.post("/api/voice/transcribe")
+async def api_transcribe_audio(audio: UploadFile = File(...)):
+    """
+    Transkribera ljudfil med Whisper
+    Hybrid voice system - högkvalitativ transkribering
+    """
+    try:
+        result = await transcribe_audio_file(audio)
+        return result
+    except Exception as e:
+        logger.error(f"Voice transcription API error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/voice/status")
+async def api_voice_status():
+    """
+    Kontrollera status för röststyrning
+    Visar både Browser API och Whisper status
+    """
+    try:
+        status = await get_stt_status()
+        return status
+    except Exception as e:
+        logger.error(f"Voice status API error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
