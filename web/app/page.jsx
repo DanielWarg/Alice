@@ -18,6 +18,7 @@ const IconSkipBack = (p) => (<Svg {...p}><polyline points="19 20 9 12 19 4" /><l
 const IconSkipForward = (p) => (<Svg {...p}><polyline points="5 4 15 12 5 20" /><line x1="19" y1="5" x2="19" y2="19" /></Svg>);
 const IconThermometer = (p) => (<Svg {...p}><path d="M14 14.76V3a2 2 0 0 0-4 0v11.76" /><path d="M8 15a4 4 0 1 0 8 0" /></Svg>);
 const IconCloudSun = (p) => (<Svg {...p}><circle cx="7" cy="7" r="3" /><path d="M12 3v2M12 19v2M4.22 4.22 5.64 5.64M18.36 18.36 19.78 19.78M1 12h2M21 12h2" /></Svg>);
+const IconCopy = (p) => (<Svg {...p}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></Svg>);
 const IconCpu = (p) => (<Svg {...p}><rect x="9" y="9" width="6" height="6" /><rect x="4" y="4" width="16" height="16" rx="2" /></Svg>);
 const IconDrive = (p) => (<Svg {...p}><rect x="2" y="7" width="20" height="10" rx="2" /><circle cx="6.5" cy="12" r="1" /><circle cx="17.5" cy="12" r="1" /></Svg>);
 const IconActivity = (p) => (<Svg {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></Svg>);
@@ -412,9 +413,7 @@ function HUDInner() {
   const [geoCity, setGeoCity] = useState(null);
   const [intents, setIntents] = useState([]);
   const [historyItems, setHistoryItems] = useState([]);
-  const [provider, setProvider] = useState('local'); // default Local gpt-oss
-  useEffect(()=>{ try{ const saved=localStorage.getItem('jarvis_provider'); if(saved) setProvider(saved); }catch(_){ } },[]);
-  useEffect(()=>{ try{ localStorage.setItem('jarvis_provider', provider); }catch(_){ } },[provider]);
+  const provider = 'local'; // ALWAYS use local gpt-oss:20b - no switching allowed
   
   const [toolStats, setToolStats] = useState([]);
   const [journal, setJournal] = useState([]);
@@ -622,14 +621,39 @@ function HUDInner() {
                   
                   return (
                     <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                      <div className={`max-w-[80%] rounded-lg px-4 py-2 relative group ${
                         isUser 
                           ? 'bg-cyan-500/20 border border-cyan-400/30 text-cyan-100' 
                           : 'bg-slate-700/30 border border-slate-600/30 text-slate-200'
                       }`}>
-                        <div className="text-sm break-words">{displayText}</div>
-                        <div className="text-xs opacity-60 mt-1">
-                          {new Date(message.ts).toLocaleTimeString()}
+                        <div className="text-sm break-words">
+                          {displayText}
+                          {message.streaming && <span className="animate-pulse ml-1">|</span>}
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <div className="text-xs opacity-60">
+                            {new Date(message.ts).toLocaleTimeString()}
+                          </div>
+                          {isAlice && !message.streaming && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(displayText);
+                                  // Quick visual feedback
+                                  const btn = event.currentTarget;
+                                  const originalText = btn.innerHTML;
+                                  btn.innerHTML = '<span class="text-green-400">✓</span>';
+                                  setTimeout(() => btn.innerHTML = originalText, 1000);
+                                } catch (err) {
+                                  console.error('Copy failed:', err);
+                                }
+                              }}
+                              className="opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity duration-200 p-1 rounded hover:bg-slate-600/30"
+                              title="Kopiera svar"
+                            >
+                              <IconCopy className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -664,16 +688,68 @@ function HUDInner() {
                   try {
                     await fetch("http://127.0.0.1:8000/api/jarvis/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
                     setIntents((q) => [{ id: safeUUID(), ts: new Date().toISOString(), command: body }, ...q].slice(0, 50));
-                    // Chat mot backend för svar
-                    const res = await fetch('http://127.0.0.1:8000/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: q, model: 'gpt-oss:20b', stream:false, provider })});
+                    // Chat mot backend för svar - inkluderar kontextdata
+                    const contextData = {
+                      weather: currentWeather ? `${currentWeather.temp}°C, ${currentWeather.description}` : null,
+                      location: geoCity,
+                      time: new Date().toLocaleString('sv-SE'),
+                      systemMetrics: { cpu, mem, net }
+                    };
+                    const chatPayload = { 
+                      prompt: q, 
+                      model: 'gpt-oss:20b', 
+                      stream: false, 
+                      provider,
+                      context: contextData 
+                    };
+                    console.log('Sending chat payload:', { provider, context: contextData });
+                    
+                    // Create streaming message entry with typewriter effect
+                    const messageId = safeUUID();
+                    const messageTs = new Date().toISOString();
+                    setJournal((J)=>[{ id: messageId, ts: messageTs, text: `Alice: `, streaming: true }, ...J].slice(0,100));
+                    
+                    // Get full response first
+                    const res = await fetch('http://127.0.0.1:8000/api/chat', { 
+                      method:'POST', 
+                      headers:{'Content-Type':'application/json'}, 
+                      body: JSON.stringify(chatPayload)
+                    });
+                    
                     const j = await res.json().catch(()=>null);
-                    console.log('Chat API response:', j); // Debug logging
+                    console.log('Chat API response:', j); 
+                    
                     if (j && j.text) {
-                      const mid = j.memory_id || null;
-                      const who = j.provider === 'openai' ? 'GPT' : 'Alice';
-                      setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`${who}: ${j.text}`, memoryId: mid}, ...J].slice(0,100));
+                      // Typewriter effect
+                      const fullText = j.text;
+                      let currentText = '';
+                      const words = fullText.split(' ');
+                      
+                      for (let i = 0; i < words.length; i++) {
+                        currentText += (i > 0 ? ' ' : '') + words[i];
+                        
+                        setJournal((J) => J.map(msg => 
+                          msg.id === messageId 
+                            ? { ...msg, text: `Alice: ${currentText}` }
+                            : msg
+                        ));
+                        
+                        // Delay between words (faster than real streaming)
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                      }
+                      
+                      // Mark as complete
+                      setJournal((J) => J.map(msg => 
+                        msg.id === messageId 
+                          ? { ...msg, streaming: false, memoryId: j.memory_id }
+                          : msg
+                      ));
                     } else {
-                      setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Alice: [no response]`}, ...J].slice(0,100));
+                      setJournal((J) => J.map(msg => 
+                        msg.id === messageId 
+                          ? { ...msg, text: `Alice: [no response]`, streaming: false }
+                          : msg
+                      ));
                     }
                   } catch (err) {
                     setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Error sending: ${String(err)}`}, ...J].slice(0,100));
@@ -692,15 +768,67 @@ function HUDInner() {
                 try {
                   await fetch("http://127.0.0.1:8000/api/jarvis/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
                   setIntents((q) => [{ id: safeUUID(), ts: new Date().toISOString(), command: body }, ...q].slice(0, 50));
-                  // Trigga chat även via Go-knappen
-                  const res = await fetch('http://127.0.0.1:8000/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: q, model: 'gpt-oss:20b', stream:false, provider })});
+                  // Trigga chat även via Go-knappen - inkluderar kontextdata
+                  const contextData = {
+                    weather: currentWeather ? `${currentWeather.temp}°C, ${currentWeather.description}` : null,
+                    location: geoCity,
+                    time: new Date().toLocaleString('sv-SE'),
+                    systemMetrics: { cpu, mem, net }
+                  };
+                  const chatPayload = { 
+                    prompt: q, 
+                    model: 'gpt-oss:20b', 
+                    stream: false, 
+                    provider,
+                    context: contextData 
+                  };
+                  console.log('Sending chat payload (send button):', { provider, context: contextData });
+                  
+                  // Create streaming message entry with typewriter effect
+                  const messageId = safeUUID();
+                  const messageTs = new Date().toISOString();
+                  setJournal((J)=>[{ id: messageId, ts: messageTs, text: `Alice: `, streaming: true }, ...J].slice(0,100));
+                  
+                  // Get full response first
+                  const res = await fetch('http://127.0.0.1:8000/api/chat', { 
+                    method:'POST', 
+                    headers:{'Content-Type':'application/json'}, 
+                    body: JSON.stringify(chatPayload)
+                  });
+                  
                   const j = await res.json().catch(()=>null);
+                  
                   if (j && j.text) {
-                    const mid = j.memory_id || null;
-                    const who = j.provider === 'openai' ? 'GPT' : 'Alice';
-                    setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`${who}: ${j.text}`, memoryId: mid}, ...J].slice(0,100));
+                    // Typewriter effect
+                    const fullText = j.text;
+                    let currentText = '';
+                    const words = fullText.split(' ');
+                    
+                    for (let i = 0; i < words.length; i++) {
+                      currentText += (i > 0 ? ' ' : '') + words[i];
+                      
+                      setJournal((J) => J.map(msg => 
+                        msg.id === messageId 
+                          ? { ...msg, text: `Alice: ${currentText}` }
+                          : msg
+                      ));
+                      
+                      // Delay between words (faster than real streaming)
+                      await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                    
+                    // Mark as complete
+                    setJournal((J) => J.map(msg => 
+                      msg.id === messageId 
+                        ? { ...msg, streaming: false, memoryId: j.memory_id }
+                        : msg
+                    ));
                   } else {
-                    setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Alice: [no response]`}, ...J].slice(0,100));
+                    setJournal((J) => J.map(msg => 
+                      msg.id === messageId 
+                        ? { ...msg, text: `Alice: [no response]`, streaming: false }
+                        : msg
+                    ));
                   }
                 } catch (err) {
                   setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Error sending: ${String(err)}`}, ...J].slice(0,100));

@@ -409,11 +409,13 @@ class ChatBody(BaseModel):
     stream: Optional[bool] = False
     provider: Optional[str] = "auto"  # 'local' | 'openai' | 'auto'
     raw: Optional[bool] = False         # when True → no RAG/context, clean reply
+    context: Optional[dict] = None      # HUD context: weather, location, time, etc.
 
 
 @app.post("/api/chat")
 async def chat(body: ChatBody) -> Dict[str, Any]:
-    logger.info("/api/chat model=%s prompt_len=%d", body.model, len(body.prompt or ""))
+    logger.info("/api/chat model=%s prompt_len=%d provider=%s context=%s", 
+                body.model, len(body.prompt or ""), body.provider, body.context is not None)
     t_request = time.time()
     
     # Generate session ID based on model and time
@@ -445,8 +447,26 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
                     contexts = []
         ctx_text = "\n".join([f"- {it.get('text','')}" for it in (contexts or []) if it.get('text')])
         ctx_payload = [it.get('text','') for it in contexts[:3] if it.get('text')]
+        
+        # Build HUD context information
+        hud_context = ""
+        if body.context:
+            context_parts = []
+            if body.context.get('weather'):
+                context_parts.append(f"Aktuellt väder: {body.context['weather']}")
+            if body.context.get('location'):
+                context_parts.append(f"Plats: {body.context['location']}")
+            if body.context.get('time'):
+                context_parts.append(f"Tid: {body.context['time']}")
+            if body.context.get('systemMetrics'):
+                metrics = body.context['systemMetrics']
+                context_parts.append(f"System: CPU {metrics.get('cpu', 0)}%, RAM {metrics.get('mem', 0)}%, Nätverk {metrics.get('net', 0)}%")
+            if context_parts:
+                hud_context = "Aktuell systeminfo:\n" + "\n".join(f"- {part}" for part in context_parts) + "\n\n"
+        
         full_prompt = (
-            ("Relevanta minnen:\n" + ctx_text + "\n\n") if ctx_text else ""
+            hud_context +
+            (("Relevanta minnen:\n" + ctx_text + "\n\n") if ctx_text else "")
         ) + f"Använd relevant kontext ovan vid behov. Besvara på svenska.\n\nFråga: {body.prompt}\nSvar:"
     try:
         memory.append_event("chat.in", json.dumps({"prompt": body.prompt}, ensure_ascii=False))
@@ -684,7 +704,27 @@ async def chat_stream(body: ChatBody):
                 contexts = []
         ctx_text = "\n".join([f"- {it.get('text','')}" for it in (contexts or []) if it.get('text')])
         ctx_payload = [it.get('text','') for it in (contexts or []) if it.get('text')][:3]
-        full_prompt = (("Relevanta minnen:\n" + ctx_text + "\n\n") if ctx_text else "") + f"Använd relevant kontext ovan vid behov. Besvara på svenska.\n\nFråga: {body.prompt}\nSvar:"
+        
+        # Build HUD context information
+        hud_context = ""
+        if body.context:
+            context_parts = []
+            if body.context.get('weather'):
+                context_parts.append(f"Aktuellt väder: {body.context['weather']}")
+            if body.context.get('location'):
+                context_parts.append(f"Plats: {body.context['location']}")
+            if body.context.get('time'):
+                context_parts.append(f"Tid: {body.context['time']}")
+            if body.context.get('systemMetrics'):
+                metrics = body.context['systemMetrics']
+                context_parts.append(f"System: CPU {metrics.get('cpu', 0)}%, RAM {metrics.get('mem', 0)}%, Nätverk {metrics.get('net', 0)}%")
+            if context_parts:
+                hud_context = "Aktuell systeminfo:\n" + "\n".join(f"- {part}" for part in context_parts) + "\n\n"
+        
+        full_prompt = (
+            hud_context +
+            (("Relevanta minnen:\n" + ctx_text + "\n\n") if ctx_text else "")
+        ) + f"Använd relevant kontext ovan vid behov. Besvara på svenska.\n\nFråga: {body.prompt}\nSvar:"
 
     provider = (body.provider or "auto").lower()
 
