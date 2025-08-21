@@ -6,6 +6,7 @@
 // - Partikelbakgrund och röst/video kan stängas av centralt
 
 import React, { useEffect, useMemo, useRef, useState, useContext, createContext, useId } from "react";
+import VoiceBox from '../components/VoiceBox';
 
 const SAFE_BOOT = true; // <-- slå PÅ för att garantera uppstart i sandbox. Kan sättas till false när allt funkar.
 const UI_ONLY = false; // Backend integration enabled - full functionality
@@ -427,7 +428,7 @@ function Diagnostics() { const [results, setResults] = useState([]); const { dis
 // TodoList
 function TodoList({ todos, onToggle, onRemove, onAdd }) {
   const [text, setText] = useState("");
-  return (<div><div className="mb-3 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { onAdd(text.trim()); setText(""); } }} placeholder="Lägg till uppgift…" className="w-full bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none" /><button onClick={() => { if (text.trim()) { onAdd(text.trim()); setText(""); } }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Lägg till</button></div><ul className="space-y-2">{todos.map((t) => (<li key={t.id} className="group flex items-center gap-2 rounded-lg border border-cyan-500/10 bg-cyan-900/10 p-2"><button aria-label="Växla status" onClick={() => onToggle(t.id)} className={`grid h-5 w-5 place-items-center rounded-md border ${t.done ? 'border-cyan-300 bg-cyan-300/20' : 'border-cyan-400/30'}`}>{t.done && <IconCheck className="h-3 w-3" />}</button><span className={`flex-1 text-sm ${t.done ? 'line-through text-cyan-300/50' : 'text-cyan-100'}`}>{t.text}</span><button aria-label="Ta bort" onClick={() => onRemove(t.id)} className="opacity-0 group-hover:opacity-100 transition-opacity"><IconX className="h-4 w-4 text-cyan-300/60" /></button></li>))}</ul></div>);
+  return (<div><div className="mb-3 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { onAdd(text.trim()); setText(""); } }} placeholder="Lägg till uppgift…" className="w-full bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none" /><button onClick={() => { if (text.trim()) { onAdd(text.trim()); setText(""); } }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Lägg till</button></div><ul className="space-y-2">{todos.map((t) => (<li key={t.id} className="group flex items-center gap-2 rounded-lg border border-cyan-500/10 bg-cyan-900/10 p-2"><button aria-label="Växla status" onClick={() => onToggle(t.id)} className={`grid h-5 w-5 place-items-center rounded-md border ${t.done ? 'border-cyan-300 bg-cyan-300/20' : 'border-cyan-400/30'}`}>{t.done && <IconCheck className="h-3 w-3" />}</button><span className={`flex-1 text-sm ${t.done ? 'line-through text-cyan-300/50':'text-cyan-100'}`}>{t.text}</span><button aria-label="Ta bort" onClick={() => onRemove(t.id)} className="opacity-0 group-hover:opacity-100 transition-opacity"><IconX className="h-4 w-4 text-cyan-300/60" /></button></li>))}</ul></div>);
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -619,10 +620,20 @@ function HUDInner() {
 
           <Pane title="Voice" actions={<IconMic className={`h-4 w-4 ${isListening ? "text-cyan-300" : "text-cyan-300/70"}`} />}>
             <div className="rounded-xl border border-cyan-500/20 p-3 bg-cyan-900/20">
-              <div className="text-xs text-cyan-300/70">{transcript || (SAFE_BOOT ? "Safe Boot: röst av" : "Say: lägg till todo...")}</div>
+              {/* Ersätter gammal röst-funktion med VoiceBox */}
+              <div className="text-xs text-cyan-300/70 mb-3">Alice Röst Interface</div>
+              <VoiceBox 
+                bars={5}
+                label="ALICE RÖST"
+                allowDemo={true}
+                allowPseudo={true}
+                onVoiceInput={(text) => {
+                  setTranscript(text);
+                  // Lägg till i journal
+                  setJournal((J) => [{ id: safeUUID(), ts: new Date().toISOString(), text: `You: ${text}` }, ...J].slice(0, 100));
+                }}
+              />
               <div className="mt-3 flex gap-2">
-                <button aria-label="Starta röst" onClick={start} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Start</button>
-                {!SAFE_BOOT && <button aria-label="Stoppa röst" onClick={stop} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Stop</button>}
                 <button aria-label="Lägg till i todo" onClick={()=>{ if(transcript.trim()) { add(transcript.trim()); } }} className="ml-auto rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Add to To‑do</button>
               </div>
             </div>
