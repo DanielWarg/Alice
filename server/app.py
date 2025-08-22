@@ -889,19 +889,27 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
         ctx_payload = []
         full_prompt = f"Besvara på svenska.\n\nFråga: {body.prompt}\nSvar:"
     else:
+        # Temporarily use simple LIKE-based retrieval since BM25 has issues
         try:
-            # Enhanced: använd conversation context för bättre retrieval
-            contexts = memory.get_related_memories_from_context(session_id, body.prompt, limit=5)
-        except Exception:
+            contexts = memory.retrieve_text_memories(body.prompt, limit=5)
+            logger.info(f"RAG memory retrieval found {len(contexts)} contexts for query: {body.prompt[:50]}")
+        except Exception as e:
+            logger.warning(f"Primary memory retrieval failed: {e}")
             try:
-                contexts = memory.retrieve_text_bm25_recency(body.prompt, limit=5)
-            except Exception:
+                # Enhanced: använd conversation context för bättre retrieval
+                contexts = memory.get_related_memories_from_context(session_id, body.prompt, limit=5)
+                logger.info(f"Context-based retrieval found {len(contexts)} contexts")
+            except Exception as e2:
+                logger.warning(f"Context-based retrieval failed: {e2}")
                 try:
-                    contexts = memory.retrieve_text_memories(body.prompt, limit=5)
-                except Exception:
+                    contexts = memory.retrieve_text_bm25_recency(body.prompt, limit=5)
+                    logger.info(f"BM25 retrieval found {len(contexts)} contexts")
+                except Exception as e3:
+                    logger.warning(f"BM25 retrieval failed: {e3}")
                     contexts = []
         ctx_text = "\n".join([f"- {it.get('text','')}" for it in (contexts or []) if it.get('text')])
         ctx_payload = [it.get('text','') for it in contexts[:3] if it.get('text')]
+        logger.info(f"Built ctx_text length: {len(ctx_text)}, ctx_payload items: {len(ctx_payload)}")
         
         # Build HUD context information
         hud_context = ""
@@ -923,6 +931,7 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
             hud_context +
             (("Relevanta minnen:\n" + ctx_text + "\n\n") if ctx_text else "")
         ) + f"Använd relevant kontext ovan vid behov. Besvara på svenska.\n\nFråga: {body.prompt}\nSvar:"
+        logger.info(f"Final full_prompt length: {len(full_prompt)}, includes RAG: {bool(ctx_text)}")
     try:
         memory.append_event("chat.in", json.dumps({"prompt": body.prompt}, ensure_ascii=False))
     except Exception:
@@ -1150,11 +1159,12 @@ async def chat_stream(body: ChatBody):
         ctx_payload = []
         full_prompt = f"Besvara på svenska.\n\nFråga: {body.prompt}\nSvar:"
     else:
+        # Temporarily use simple LIKE-based retrieval since BM25 has issues
         try:
-            contexts = memory.retrieve_text_bm25_recency(body.prompt, limit=5)
+            contexts = memory.retrieve_text_memories(body.prompt, limit=5)
         except Exception:
             try:
-                contexts = memory.retrieve_text_memories(body.prompt, limit=5)
+                contexts = memory.retrieve_text_bm25_recency(body.prompt, limit=5)
             except Exception:
                 contexts = []
         ctx_text = "\n".join([f"- {it.get('text','')}" for it in (contexts or []) if it.get('text')])
@@ -2047,6 +2057,171 @@ async def feedback(body: FeedbackBody) -> Dict[str, Any]:
         memory.update_tool_stats(body.tool, success=body.up)
         return {"ok": True}
     return {"ok": False, "error": "invalid feedback payload"}
+
+
+@app.post("/api/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    tags: Optional[str] = None  # JSON string of tags
+) -> Dict[str, Any]:
+    """
+    Ladda upp dokument till Alice's RAG-minne för bättre context.
+    Supporterar: .txt, .md, .pdf, .docx, .html
+    """
+    try:
+        # Validate file type
+        allowed_types = {
+            'text/plain': ['.txt', '.md'],
+            'application/pdf': ['.pdf'],
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+            'text/html': ['.html', '.htm'],
+            'text/markdown': ['.md']
+        }
+        
+        file_extension = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+        content_type = file.content_type or 'text/plain'
+        
+        # Check if file type is supported
+        supported = False
+        for mime_type, extensions in allowed_types.items():
+            if content_type == mime_type or file_extension in extensions:
+                supported = True
+                break
+        
+        if not supported:
+            return {
+                "ok": False, 
+                "error": f"Filtyp {content_type} ({file_extension}) stöds inte. Tillåtna: .txt, .md, .pdf, .docx, .html"
+            }
+        
+        # Read file content
+        content_bytes = await file.read()
+        
+        # Extract text based on file type
+        if file_extension == '.pdf':
+            try:
+                import PyPDF2
+                import io
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(content_bytes))
+                text_content = ""
+                for page in pdf_reader.pages:
+                    text_content += page.extract_text() + "\n"
+            except ImportError:
+                return {"ok": False, "error": "PyPDF2 krävs för PDF-stöd. Installera: pip install PyPDF2"}
+            except Exception as e:
+                return {"ok": False, "error": f"Fel vid PDF-läsning: {str(e)}"}
+                
+        elif file_extension == '.docx':
+            try:
+                import docx
+                import io
+                doc = docx.Document(io.BytesIO(content_bytes))
+                text_content = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+            except ImportError:
+                return {"ok": False, "error": "python-docx krävs för Word-stöd. Installera: pip install python-docx"}
+            except Exception as e:
+                return {"ok": False, "error": f"Fel vid Word-läsning: {str(e)}"}
+                
+        else:
+            # Plain text, markdown, HTML
+            try:
+                text_content = content_bytes.decode('utf-8')
+            except UnicodeDecodeError:
+                try:
+                    text_content = content_bytes.decode('latin1')
+                except UnicodeDecodeError:
+                    return {"ok": False, "error": "Kunde inte dekoda textinnehåll"}
+        
+        # Clean and validate content
+        if not text_content.strip():
+            return {"ok": False, "error": "Dokumentet innehåller ingen text"}
+        
+        # Prepare tags
+        document_tags = {
+            "source": "document_upload",
+            "filename": file.filename,
+            "content_type": content_type,
+            "file_size": len(content_bytes),
+            "uploaded_at": datetime.utcnow().isoformat() + "Z"
+        }
+        
+        # Add user-provided tags if any
+        if tags:
+            try:
+                user_tags = json.loads(tags)
+                document_tags.update(user_tags)
+            except json.JSONDecodeError:
+                pass  # Ignore invalid JSON tags
+        
+        # Upsert to memory (will auto-chunk if large)
+        memory_ids = memory.upsert_text_memory(
+            text=text_content,
+            score=2.0,  # Higher score for uploaded documents
+            tags_json=json.dumps(document_tags, ensure_ascii=False),
+            auto_chunk=True
+        )
+        
+        # Create embeddings för semantisk sökning
+        chunks_processed = 0
+        try:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key:
+                # Get text chunks for embedding
+                for mem_id in memory_ids:
+                    text_data = memory.get_texts_for_mem_ids([mem_id])
+                    chunk_text = text_data.get(mem_id, "")
+                    if chunk_text.strip():
+                        try:
+                            async with httpx.AsyncClient(timeout=30.0) as client:
+                                r = await client.post(
+                                    "https://api.openai.com/v1/embeddings",
+                                    headers={"Authorization": f"Bearer {api_key}"},
+                                    json={
+                                        "input": chunk_text,
+                                        "model": os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
+                                    },
+                                )
+                                if r.status_code == 200:
+                                    d = r.json() or {}
+                                    vec = ((d.get("data") or [{}])[0].get("embedding") or [])
+                                    if vec:
+                                        memory.upsert_embedding(
+                                            mem_id, 
+                                            model=os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small"), 
+                                            dim=len(vec), 
+                                            vector_json=json.dumps(vec)
+                                        )
+                                        chunks_processed += 1
+                        except Exception as e:
+                            logger.warning(f"Embedding failed for chunk {mem_id}: {e}")
+                            
+        except Exception as e:
+            logger.exception("Embedding processing failed")
+        
+        # Broadcast to connected clients
+        await hub.broadcast({
+            "type": "document_uploaded",
+            "data": {
+                "filename": file.filename,
+                "chunks": len(memory_ids),
+                "embeddings": chunks_processed,
+                "size_kb": round(len(content_bytes) / 1024, 1)
+            }
+        })
+        
+        return {
+            "ok": True,
+            "message": f"Dokument '{file.filename}' uppladdades framgångsrikt",
+            "memory_ids": memory_ids,
+            "chunks_created": len(memory_ids),
+            "embeddings_created": chunks_processed,
+            "file_size_kb": round(len(content_bytes) / 1024, 1),
+            "content_preview": text_content[:200] + "..." if len(text_content) > 200 else text_content
+        }
+        
+    except Exception as e:
+        logger.exception("Document upload failed")
+        return {"ok": False, "error": f"Upload misslyckades: {str(e)}"}
 
 
 class Hub:

@@ -8,6 +8,7 @@
 import React, { useEffect, useMemo, useRef, useState, useContext, createContext, useId } from "react";
 import VoiceBox from '../components/VoiceBox';
 import CalendarWidget from '../components/CalendarWidget';
+import DocumentUpload from '../components/DocumentUpload';
 
 const SAFE_BOOT = true; // <-- slå PÅ för att garantera uppstart i sandbox. Kan sättas till false när allt funkar.
 const UI_ONLY = false; // Backend integration enabled - full functionality
@@ -1169,6 +1170,35 @@ function HUDInner() {
                 console.log('Calendar event clicked:', event);
                 dispatch({ type: "SHOW_MODULE", module: "calendar" });
               }}
+            />
+          </Pane>
+
+          <Pane title="Ladda upp dokument">
+            <DocumentUpload 
+              baseUrl="http://127.0.0.1:8000"
+              onUploadComplete={(result) => {
+                if (result.ok) {
+                  // Success feedback
+                  console.log('Document uploaded successfully:', result);
+                  // Refresh memories if needed
+                  (async () => {
+                    try {
+                      const r = await fetch('http://127.0.0.1:8000/api/memory/recent', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ limit: 5 })
+                      });
+                      const j = await r.json();
+                      if (j && j.ok) {
+                        setMemories(j.items || []);
+                      }
+                    } catch (_) { }
+                  })();
+                } else {
+                  console.error('Document upload failed:', result.error);
+                }
+              }}
+              className="mt-2"
             />
           </Pane>
 
