@@ -9,6 +9,8 @@ Komplett utvecklingsguide för Alice AI Assistant Platform. Denna guide täcker 
 - **Node.js 18+** - Frontend och build-tools
 - **Git** - Versionshantering
 - **Ollama** - Lokal AI-modell (gpt-oss:20B)
+- **OpenAI API Key** - För avancerad voice pipeline (valfritt)
+- **HTTPS-utvecklingsmiljö** - För mikrofon/WebRTC-funktioner
 
 ### Lokal Utvecklingsmiljö
 
@@ -131,6 +133,28 @@ cd web && npm run dev
 
 # Terminal 3: Ollama
 ollama serve
+```
+
+### Voice Pipeline Utveckling
+```bash
+# Setup för voice utveckling med HTTPS
+cd web
+npm install --save-dev @next/https
+HTTPS=true npm run dev
+
+# Voice debugging aktiverat
+NEXT_PUBLIC_ENABLE_VOICE_DEBUG=true npm run dev
+
+# Test OpenAI Realtime integration
+curl -X GET http://localhost:3000/api/realtime/ephemeral
+
+# Test TTS streaming
+curl -X POST http://localhost:3000/api/tts/openai-stream \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Test voice", "model": "tts-1"}'
+
+# Voice component isolerade tester
+# Öppna: http://localhost:3000/voice
 ```
 
 ## 🧪 **Testning**

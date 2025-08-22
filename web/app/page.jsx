@@ -7,6 +7,7 @@
 
 import React, { useEffect, useMemo, useRef, useState, useContext, createContext, useId } from "react";
 import VoiceBox from '../components/VoiceBox';
+import VoiceClient from './components/VoiceClient';
 import CalendarWidget from '../components/CalendarWidget';
 import DocumentUpload from '../components/DocumentUpload';
 
@@ -40,6 +41,7 @@ const IconMail = (p) => (<Svg {...p}><rect x="3" y="5" width="18" height="14" rx
 const IconDollar = (p) => (<Svg {...p}><path d="M12 2v20" /><path d="M17 7a4 4 0 0 0-4-4 4 4 0 1 0 0 8 4 4 0 1 1 0 8 4 4 0 0 1-4-4" /></Svg>);
 const IconAlarm = (p) => (<Svg {...p}><circle cx="12" cy="13" r="7" /><path d="M12 10v4l2 2" /><path d="M5 3l3 3M19 3l-3 3" /></Svg>);
 const IconCamera = (p) => (<Svg {...p}><rect x="3" y="7" width="18" height="14" rx="2" /><circle cx="12" cy="14" r="4" /></Svg>);
+const IconVoice = (p) => (<Svg {...p}><path d="M9 2v16" /><path d="M15 6v8" /><path d="M3 10v4" /><path d="M21 10v4" /><path d="M12 14v4" /></Svg>);
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Copy Button Component
@@ -327,9 +329,9 @@ function useSpotify() {
 const HUDContext = createContext(null);
 function useHUD() { const ctx = useContext(HUDContext); if (!ctx) throw new Error("useHUD must be inside provider"); return ctx; }
 function HUDProvider({ children }) {
-  const [state, setState] = useState({ overlayOpen: false, currentModule: null, videoSource: undefined });
-  const dispatch = (c) => { setState((s) => { switch (c.type) { case "SHOW_MODULE": return { ...s, overlayOpen: true, currentModule: c.module }; case "HIDE_OVERLAY": return { ...s, overlayOpen: false, currentModule: null }; case "TOGGLE_MODULE": return { ...s, overlayOpen: s.currentModule === c.module ? false : true, currentModule: s.currentModule === c.module ? null : c.module }; case "OPEN_VIDEO": return { ...s, overlayOpen: true, currentModule: "video", videoSource: c.source }; default: return s; } }); };
-  useEffect(() => { if (typeof window === 'undefined') return; window.HUD = { showModule: (m, payload) => dispatch({ type: "SHOW_MODULE", module: m, payload }), hideOverlay: () => dispatch({ type: "HIDE_OVERLAY" }), openVideo: (source) => dispatch({ type: "OPEN_VIDEO", source }), toggle: (m) => dispatch({ type: "TOGGLE_MODULE", module: m }) }; }, []);
+  const [state, setState] = useState({ overlayOpen: false, currentModule: null, videoSource: undefined, voiceMode: 'basic' });
+  const dispatch = (c) => { setState((s) => { switch (c.type) { case "SHOW_MODULE": return { ...s, overlayOpen: true, currentModule: c.module }; case "HIDE_OVERLAY": return { ...s, overlayOpen: false, currentModule: null }; case "TOGGLE_MODULE": return { ...s, overlayOpen: s.currentModule === c.module ? false : true, currentModule: s.currentModule === c.module ? null : c.module }; case "OPEN_VIDEO": return { ...s, overlayOpen: true, currentModule: "video", videoSource: c.source }; case "TOGGLE_VOICE_MODE": return { ...s, voiceMode: s.voiceMode === 'basic' ? 'advanced' : 'basic' }; case "SET_VOICE_MODE": return { ...s, voiceMode: c.mode }; default: return s; } }); };
+  useEffect(() => { if (typeof window === 'undefined') return; window.HUD = { showModule: (m, payload) => dispatch({ type: "SHOW_MODULE", module: m, payload }), hideOverlay: () => dispatch({ type: "HIDE_OVERLAY" }), openVideo: (source) => dispatch({ type: "OPEN_VIDEO", source }), toggle: (m) => dispatch({ type: "TOGGLE_MODULE", module: m }), toggleVoiceMode: () => dispatch({ type: "TOGGLE_VOICE_MODE" }), setVoiceMode: (mode) => dispatch({ type: "SET_VOICE_MODE", mode }) }; }, []);
   return <HUDContext.Provider value={{ state, dispatch }}>{children}</HUDContext.Provider>;
 }
 
@@ -424,6 +426,13 @@ function ThreeBGAdvanced() {
 }
 function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net, provider = 'local' }) {
   const [voiceInput, setVoiceInput] = useState('');
+  const { state, dispatch } = useHUD();
+  const voiceMode = state.voiceMode; // Get voice mode from global HUD state
+  const [voiceSettings, setVoiceSettings] = useState({
+    personality: 'alice',
+    emotion: 'friendly',
+    voiceQuality: 'medium'
+  });
   
   const handleVoiceInput = async (text) => {
     console.log('Alice Core received voice input:', text);
@@ -517,22 +526,117 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
     }
   };
 
+  const handleVoiceClientTranscript = (text, isFinal) => {
+    if (isFinal) {
+      handleVoiceInput(text);
+    }
+  };
+
+  const handleVoiceClientError = (error) => {
+    console.error('VoiceClient error:', error);
+    setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Alice Voice Error: ${error}`}, ...J].slice(0,100));
+  };
+
+  const handleVoiceClientConnection = (connected) => {
+    const status = connected ? 'Ansluten till avancerad röstpipeline' : 'Frånkopplad från röstpipeline';
+    setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Voice: ${status}`}, ...J].slice(0,100));
+  };
+
   return (
     <div className="relative w-full max-w-4xl mx-auto">
-      {/* VoiceBox positioned directly under Alice Core title */}
-      <VoiceBox 
-        bars={7}
-        smoothing={0.15}
-        minScale={0.1}
-        allowDemo={true}
-        allowPseudo={true}
-        onVoiceInput={handleVoiceInput}
-      />
+      {/* Voice Mode Toggle - Mobile Responsive */}
+      <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="text-sm text-cyan-300/80 font-medium">Röstläge:</div>
+          <div className="flex items-center gap-1 bg-cyan-900/20 border border-cyan-400/20 rounded-lg p-1">
+            <button
+              onClick={() => dispatch({ type: "SET_VOICE_MODE", mode: 'basic' })}
+              className={`px-2 sm:px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                voiceMode === 'basic' 
+                  ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/30' 
+                  : 'text-cyan-400/70 hover:text-cyan-300'
+              }`}
+            >
+              <span className="hidden sm:inline">VoiceBox (Grundläggande)</span>
+              <span className="sm:hidden">VoiceBox</span>
+            </button>
+            <button
+              onClick={() => dispatch({ type: "SET_VOICE_MODE", mode: 'advanced' })}
+              className={`px-2 sm:px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                voiceMode === 'advanced' 
+                  ? 'bg-purple-500/20 text-purple-200 border border-purple-400/30' 
+                  : 'text-cyan-400/70 hover:text-cyan-300'
+              }`}
+            >
+              <span className="hidden sm:inline">VoiceClient (Avancerad)</span>
+              <span className="sm:hidden">VoiceClient</span>
+            </button>
+          </div>
+        </div>
+        
+        {/* Voice Settings - Mobile Responsive */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <select 
+            value={voiceSettings.personality}
+            onChange={(e) => setVoiceSettings(prev => ({ ...prev, personality: e.target.value }))}
+            className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
+          >
+            <option value="alice">Alice</option>
+            <option value="formal">Formell</option>
+            <option value="casual">Casual</option>
+          </select>
+          
+          <select 
+            value={voiceSettings.emotion}
+            onChange={(e) => setVoiceSettings(prev => ({ ...prev, emotion: e.target.value }))}
+            className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
+          >
+            <option value="neutral">Neutral</option>
+            <option value="happy">Glad</option>
+            <option value="calm">Lugn</option>
+            <option value="confident">Självsäker</option>
+            <option value="friendly">Vänlig</option>
+          </select>
+          
+          <select 
+            value={voiceSettings.voiceQuality}
+            onChange={(e) => setVoiceSettings(prev => ({ ...prev, voiceQuality: e.target.value }))}
+            className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
+          >
+            <option value="medium">Medium</option>
+            <option value="high">Hög</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Voice Components */}
+      {voiceMode === 'basic' ? (
+        <VoiceBox 
+          bars={7}
+          smoothing={0.15}
+          minScale={0.1}
+          allowDemo={true}
+          allowPseudo={true}
+          onVoiceInput={handleVoiceInput}
+          personality={voiceSettings.personality}
+          emotion={voiceSettings.emotion}
+          voiceQuality={voiceSettings.voiceQuality}
+        />
+      ) : (
+        <VoiceClient
+          personality={voiceSettings.personality}
+          emotion={voiceSettings.emotion}
+          voiceQuality={voiceSettings.voiceQuality}
+          onTranscript={handleVoiceClientTranscript}
+          onError={handleVoiceClientError}
+          onConnectionChange={handleVoiceClientConnection}
+        />
+      )}
       
       {/* Voice Input Display */}
       {voiceInput && (
         <div className="mt-4 p-3 bg-cyan-900/20 border border-cyan-400/20 rounded-lg">
-          <div className="text-sm text-cyan-300/80">Senaste röst-input:</div>
+          <div className="text-sm text-cyan-300/80">Senaste röst-input ({voiceMode === 'basic' ? 'VoiceBox' : 'VoiceClient'}):</div>
           <div className="text-cyan-100">"{voiceInput}"</div>
           <div className="text-xs text-cyan-400/70 mt-1">Skickat till Alice för bearbetning...</div>
         </div>
@@ -564,6 +668,40 @@ function TodoList({ todos, onToggle, onRemove, onAdd }) {
   const [text, setText] = useState("");
   return (<div><div className="mb-3 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { onAdd(text.trim()); setText(""); } }} placeholder="Lägg till uppgift…" className="w-full bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none" /><button onClick={() => { if (text.trim()) { onAdd(text.trim()); setText(""); } }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Lägg till</button></div><ul className="space-y-2">{todos.map((t) => (<li key={t.id} className="group flex items-center gap-2 rounded-lg border border-cyan-500/10 bg-cyan-900/10 p-2"><button aria-label="Växla status" onClick={() => onToggle(t.id)} className={`grid h-5 w-5 place-items-center rounded-md border ${t.done ? 'border-cyan-300 bg-cyan-300/20' : 'border-cyan-400/30'}`}>{t.done && <IconCheck className="h-3 w-3" />}</button><span className={`flex-1 text-sm ${t.done ? 'line-through text-cyan-300/50':'text-cyan-100'}`}>{t.text}</span><button aria-label="Ta bort" onClick={() => onRemove(t.id)} className="opacity-0 group-hover:opacity-100 transition-opacity"><IconX className="h-4 w-4 text-cyan-300/60" /></button></li>))}</ul></div>);
 }
+
+// ────────────────────────────────────────────────────────────────────────────────
+// HUD Voice Button Component
+const HUDVoiceButton = () => {
+  const { state, dispatch } = useHUD();
+  const isAdvanced = state.voiceMode === 'advanced';
+  
+  return (
+    <button
+      aria-label={`Växla till ${isAdvanced ? 'grundläggande' : 'avancerad'} röstläge`}
+      onClick={() => dispatch({ type: "TOGGLE_VOICE_MODE" })}
+      className={`rounded-xl border px-2 sm:px-3 py-2 text-xs backdrop-blur transition-colors flex-shrink-0 ${
+        isAdvanced 
+          ? 'border-purple-400/40 bg-purple-900/40 hover:bg-purple-400/20' 
+          : 'border-cyan-400/30 bg-cyan-900/30 hover:bg-cyan-400/10'
+      }`}
+    >
+      <div className={`flex items-center gap-1 sm:gap-2 ${isAdvanced ? 'text-purple-200' : 'text-cyan-200'}`}>
+        <IconVoice className="h-4 w-4" />
+        <span className="tracking-widest uppercase hidden sm:inline">
+          {isAdvanced ? 'AVANCERAD' : 'RÖST'}
+        </span>
+        <span className="tracking-widest uppercase sm:hidden text-[10px]">
+          {isAdvanced ? 'AI' : 'MIC'}
+        </span>
+        {isAdvanced && (
+          <div className="ml-1 px-1.5 py-0.5 bg-purple-500/30 text-purple-100 rounded text-[8px] uppercase tracking-wider hidden sm:block">
+            AI
+          </div>
+        )}
+      </div>
+    </button>
+  );
+};
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Main HUD
@@ -728,13 +866,14 @@ function HUDInner() {
         {globalError && (<div className="mt-3 rounded-xl border border-cyan-500/20 bg-cyan-900/20 p-3 text-xs text-cyan-300/90"><strong>Observerat globalt fel:</strong> {globalError}</div>)}
       </div>
 
-      <div className="sticky top-4 z-40 mx-auto mt-4 flex w-full max-w-3xl items-center justify-center gap-2">
+      <div className="sticky top-4 z-40 mx-auto mt-4 flex w-full max-w-4xl items-center justify-center gap-1 sm:gap-2 px-4 overflow-x-auto">
         <HUDButton icon={<IconCalendar className="h-4 w-4" />} label="Kalender" onClick={()=> dispatch({ type: "SHOW_MODULE", module: "calendar" })} />
         <HUDButton icon={<IconMail className="h-4 w-4" />} label="Mail" onClick={()=> dispatch({ type: "SHOW_MODULE", module: "mail" })} />
         <HUDButton icon={<IconDollar className="h-4 w-4" />} label="Finans" onClick={()=> dispatch({ type: "SHOW_MODULE", module: "finance" })} />
         <HUDButton icon={<IconAlarm className="h-4 w-4" />} label="Påminnelser" onClick={()=> dispatch({ type: "SHOW_MODULE", module: "reminders" })} />
         <HUDButton icon={<IconDollar className="h-4 w-4" />} label="Plånbok" onClick={()=> dispatch({ type: "SHOW_MODULE", module: "wallet" })} />
         <HUDButton icon={<IconCamera className="h-4 w-4" />} label="Video" onClick={()=> dispatch({ type: "OPEN_VIDEO", source: { kind: "webcam" } })} />
+        <HUDVoiceButton />
       </div>
 
       <main className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 pb-24 pt-4 md:grid-cols-12">
@@ -1238,7 +1377,7 @@ function HUDInner() {
   );
 }
 
-function HUDButton({ icon, label, onClick }) { return (<button aria-label={label} onClick={onClick} className="rounded-xl border border-cyan-400/30 bg-cyan-900/30 px-3 py-2 text-xs backdrop-blur hover:bg-cyan-400/10"><div className="flex items-center gap-2 text-cyan-200">{icon}<span className="tracking-widest uppercase">{label}</span></div></button>); }
+function HUDButton({ icon, label, onClick }) { return (<button aria-label={label} onClick={onClick} className="rounded-xl border border-cyan-400/30 bg-cyan-900/30 px-2 sm:px-3 py-2 text-xs backdrop-blur hover:bg-cyan-400/10 flex-shrink-0"><div className="flex items-center gap-1 sm:gap-2 text-cyan-200">{icon}<span className="tracking-widest uppercase hidden sm:inline">{label}</span><span className="tracking-widest uppercase sm:hidden text-[10px]">{label.slice(0,3)}</span></div></button>); }
 
 // Named exports kan störa i vissa sandboxar – kommentera bort vid behov
 export { clampPercent, safeUUID };

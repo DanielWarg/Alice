@@ -7,14 +7,18 @@ Komplett API-dokumentation för Alice AI Assistant Platform. Alice tillhandahål
 Alice API består av flera huvudkomponenter:
 
 - **REST API**: Huvudsakliga HTTP endpoints för chat, TTS, verktygsexekvering
-- **WebSocket**: Real-time kommunikation för HUD-uppdateringar
+- **Voice Pipeline**: OpenAI Realtime API integration med WebRTC streaming
+- **WebSocket**: Real-time kommunikation för HUD-uppdateringar och voice streaming
 - **NLU Agent**: Naturlig språkförståelse och intent-klassificering
+- **Agent Bridge**: Server-Sent Events (SSE) för streaming agent responses
 - **Verktygsystem**: Modulärt system för utökbar funktionalitet
 
 **Base URLs:**
 - Backend API: `http://localhost:8000`
+- Frontend API: `http://localhost:3000/api` (Next.js API routes)
 - NLU Agent: `http://localhost:7071`
 - WebSocket: `ws://localhost:8000/ws/alice`
+- Voice WebSocket: `ws://localhost:8000/ws/voice/{session_id}`
 
 ## Autentisering
 
@@ -360,6 +364,296 @@ async function playTTSAudio() {
     const blob = new Blob([audioBuffer], { type: 'audio/wav' });
     const audio = new Audio(URL.createObjectURL(blob));
     await audio.play();
+  }
+}
+```
+
+## Voice Pipeline API
+
+Alice's advanced voice pipeline provides two complementary approaches for voice interaction:
+
+### VoiceBox (Basic Voice Interface)
+- Browser Speech Recognition API
+- Real-time audio visualization 
+- Swedish speech post-processing
+- Alice backend TTS integration
+
+### VoiceClient (Advanced OpenAI Realtime)
+- OpenAI Realtime API with WebRTC streaming
+- Low-latency voice interaction
+- Agent bridge for streaming responses
+- Professional-grade audio processing
+
+### OpenAI Realtime Integration
+
+#### GET /api/realtime/ephemeral
+Create ephemeral session for OpenAI Realtime API.
+
+**Response:**
+```json
+{
+  "client_secret": {
+    "value": "your-openai-api-key"
+  },
+  "ephemeral_key_id": "ephemeral_1234567890",
+  "model": "gpt-4o-realtime-preview",
+  "voice": "alloy",
+  "expires_at": "2025-01-21T10:30:00Z"
+}
+```
+
+**Usage in VoiceClient:**
+```javascript
+const session = await fetch('/api/realtime/ephemeral').then(r => r.json());
+// Session används för att initiera WebRTC connection
+```
+
+#### POST /api/tts/openai-stream
+Stream TTS audio från OpenAI eller Alice backend.
+
+**Request:**
+```http
+POST /api/tts/openai-stream
+Content-Type: application/json
+
+{
+  "text": "Hej från Alice!",
+  "model": "tts-1-hd",
+  "voice": "nova",
+  "speed": 1.0,
+  "response_format": "mp3",
+  "stream": true
+}
+```
+
+**Response:**
+Streaming audio data i MP3 eller WAV format.
+
+**Fallback Logic:**
+1. Försöker först Alice backend TTS (`/api/tts/synthesize`)
+2. Vid fel, fallback till mock audio för graceful degradation
+
+#### POST /api/agent/stream
+Stream agent responses för VoiceClient integration.
+
+**Request:**
+```http
+POST /api/agent/stream
+Content-Type: application/json
+
+{
+  "prompt": "spela musik",
+  "model": "gpt-oss:20b",
+  "provider": "local",
+  "use_rag": true,
+  "use_tools": true,
+  "language": "svenska",
+  "context": {
+    "personality": "alice",
+    "emotion": "friendly",
+    "voice_quality": "high"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "type": "chunk",
+  "content": "Spelar musik nu!",
+  "metadata": {
+    "memory_id": "mem_12345",
+    "provider": "local"
+  }
+}
+```
+
+**Agent Response Types:**
+- `chunk` - Text chunk från agent response
+- `tool` - Tool execution result
+- `error` - Error message
+- `planning` - Agent planning phase
+- `executing` - Tool execution phase
+- `done` - Response complete
+
+### WebRTC Voice Communication
+
+Alice VoiceClient använder WebRTC för real-time audio streaming:
+
+**WebRTC Flow:**
+1. **Session Creation** - Skapa ephemeral session via `/api/realtime/ephemeral`
+2. **Peer Connection** - Etablera WebRTC peer connection med OpenAI
+3. **Media Stream** - Lägg till mikrofon audio track
+4. **Data Channel** - Använd data channel för real-time messaging
+5. **Audio Processing** - Stream incoming OpenAI audio
+
+**WebRTC Configuration:**
+```javascript
+const pcConfig = {
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+};
+
+const pc = new RTCPeerConnection(pcConfig);
+
+// Audio constraints för optimal kvalitet
+const audioConstraints = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+  sampleRate: 24000,
+  channelCount: 1
+};
+```
+
+### Voice WebSocket API
+
+#### Connection
+```javascript
+const sessionId = 'voice_' + Date.now();
+const ws = new WebSocket(`ws://localhost:8000/ws/voice/${sessionId}`);
+```
+
+#### Message Types
+
+**Outgoing Messages:**
+```javascript
+// Ping/heartbeat
+ws.send(JSON.stringify({ type: 'ping' }));
+
+// Voice input from speech recognition
+ws.send(JSON.stringify({
+  type: 'voice_input',
+  text: 'spela musik',
+  timestamp: Date.now()
+}));
+```
+
+**Incoming Messages:**
+```javascript
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  
+  switch (data.type) {
+    case 'pong':
+      // Heartbeat response
+      break;
+      
+    case 'heard':
+      // Alice acknowledged voice input
+      console.log('Alice heard:', data.text);
+      break;
+      
+    case 'acknowledge':
+      // Quick acknowledgment before processing
+      console.log('Alice says:', data.message);
+      break;
+      
+    case 'speak':
+      // Alice response for TTS
+      if (data.final) {
+        synthesizeAndPlay(data.text);
+      }
+      break;
+      
+    case 'tool_success':
+      // Tool execution completed
+      console.log('Tool result:', data.result);
+      break;
+      
+    case 'tool_error':
+      // Tool execution failed
+      console.error('Tool error:', data.message);
+      break;
+  }
+};
+```
+
+### Integration Examples
+
+#### Complete VoiceClient Setup
+```javascript
+import VoiceClient from '@/components/VoiceClient';
+
+function MyVoiceApp() {
+  const handleTranscript = (text, isFinal) => {
+    console.log('Transcript:', text, isFinal ? '(final)' : '(interim)');
+  };
+  
+  const handleError = (error) => {
+    console.error('Voice error:', error);
+  };
+  
+  const handleConnectionChange = (connected) => {
+    console.log('Connection:', connected ? 'Connected' : 'Disconnected');
+  };
+  
+  return (
+    <VoiceClient
+      personality="alice"
+      emotion="friendly"
+      voiceQuality="high"
+      onTranscript={handleTranscript}
+      onError={handleError}
+      onConnectionChange={handleConnectionChange}
+    />
+  );
+}
+```
+
+#### VoiceBox Basic Integration
+```javascript
+import VoiceBox from '@/components/VoiceBox';
+
+function MyVoiceApp() {
+  const handleVoiceInput = (text) => {
+    // Process voice input
+    sendToAlice(text);
+  };
+  
+  return (
+    <VoiceBox
+      bars={7}
+      personality="alice"
+      emotion="friendly"
+      voiceQuality="medium"
+      onVoiceInput={handleVoiceInput}
+      enableWakeWord={true}
+      wakeWordSensitivity={0.7}
+    />
+  );
+}
+```
+
+#### Hybrid Voice Implementation
+```javascript
+class AliceVoiceInterface {
+  constructor() {
+    this.mode = 'voicebox'; // 'voicebox' | 'voiceclient' | 'dual'
+    this.voiceBox = null;
+    this.voiceClient = null;
+  }
+  
+  async initialize() {
+    // Initialize based on capabilities and user preference
+    const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
+    const hasWebRTC = Boolean(window.RTCPeerConnection);
+    
+    if (hasOpenAI && hasWebRTC && this.mode !== 'voicebox') {
+      // Use advanced VoiceClient
+      this.voiceClient = new VoiceClient({
+        personality: 'alice',
+        emotion: 'friendly',
+        voiceQuality: 'high'
+      });
+    } else {
+      // Use basic VoiceBox
+      this.voiceBox = new VoiceBox({
+        personality: 'alice',
+        emotion: 'friendly',
+        allowDemo: true,
+        allowPseudo: true
+      });
+    }
   }
 }
 ```

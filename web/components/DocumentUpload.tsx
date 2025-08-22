@@ -76,10 +76,22 @@ export default function DocumentUpload({
       })
 
       const result: UploadResult = await response.json()
-      setUploadResult(result)
       
-      if (onUploadComplete) {
-        onUploadComplete(result)
+      // Only set result if response was successful
+      if (response.ok) {
+        setUploadResult(result)
+        if (onUploadComplete) {
+          onUploadComplete(result)
+        }
+      } else {
+        const errorResult = {
+          ok: false,
+          error: result.error || `HTTP ${response.status}: ${response.statusText}`
+        }
+        setUploadResult(errorResult)
+        if (onUploadComplete) {
+          onUploadComplete(errorResult)
+        }
       }
 
     } catch (error) {
@@ -210,7 +222,7 @@ export default function DocumentUpload({
       {/* Upload Result */}
       {uploadResult && (
         <div className={`
-          mt-4 p-4 rounded-lg border backdrop-blur-sm
+          mt-4 p-4 rounded-lg border backdrop-blur-sm overflow-hidden
           ${uploadResult.ok 
             ? 'bg-green-950/50 border-green-500/30' 
             : 'bg-red-950/50 border-red-500/30'
@@ -255,9 +267,11 @@ export default function DocumentUpload({
                 )}
 
                 {uploadResult.content_preview && (
-                  <div className="mt-3 p-2 bg-gray-900/50 rounded text-xs text-gray-400 font-mono">
-                    <p className="mb-1">Förhandsvisning:</p>
-                    <p className="truncate">{uploadResult.content_preview}</p>
+                  <div className="mt-3 p-2 bg-gray-900/50 rounded text-xs text-gray-400 font-mono overflow-hidden">
+                    <p className="mb-1 font-semibold text-gray-300">Förhandsvisning:</p>
+                    <p className="line-clamp-3 break-words overflow-wrap-anywhere">
+                      {uploadResult.content_preview}
+                    </p>
                   </div>
                 )}
               </div>

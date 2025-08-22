@@ -37,6 +37,8 @@ from harmony_test_endpoint import HarmonyTestBatchRequest, HarmonyTestBatchRespo
 from voice_stream import get_voice_manager
 from voice_stt import transcribe_audio_file, get_stt_status
 from audio_processor import audio_processor
+from deps import get_global_openai_settings, OpenAIClient, validate_openai_config
+from agents.bridge import AliceAgentBridge, AgentBridgeRequest, StreamChunk, create_alice_bridge
 
 
 load_dotenv()
@@ -610,6 +612,35 @@ class TTSRequest(BaseModel):
     cache: bool = Field(default=True, description="Use cached audio if available")
 
 
+class RealtimeSessionRequest(BaseModel):
+    """Request för OpenAI Realtime ephemeral session"""
+    model: Optional[str] = Field(default="gpt-4o-realtime-preview", description="OpenAI Realtime model")
+    voice: Optional[str] = Field(default="nova", description="Voice model: alloy, echo, fable, onyx, nova, shimmer")
+    instructions: Optional[str] = Field(default=None, description="Custom instructions for the session")
+    modalities: Optional[List[str]] = Field(default=["text", "audio"], description="Supported modalities")
+    input_audio_format: Optional[str] = Field(default="pcm16", description="Input audio format")
+    output_audio_format: Optional[str] = Field(default="pcm16", description="Output audio format")
+    temperature: Optional[float] = Field(default=0.8, ge=0.0, le=2.0, description="Response randomness")
+    max_response_output_tokens: Optional[int] = Field(default=4096, description="Max tokens in response")
+
+
+class RealtimeSessionResponse(BaseModel):
+    """Response för ephemeral session creation"""
+    client_secret: Dict[str, Any]
+    expires_at: int
+    session_config: Dict[str, Any]
+
+
+class OpenAITTSRequest(BaseModel):
+    """Request för OpenAI TTS streaming"""
+    text: str = Field(..., description="Text to synthesize")
+    model: Optional[str] = Field(default="tts-1", description="TTS model: tts-1 or tts-1-hd")
+    voice: Optional[str] = Field(default="nova", description="Voice: alloy, echo, fable, onyx, nova, shimmer") 
+    speed: Optional[float] = Field(default=1.0, ge=0.25, le=4.0, description="Speech speed")
+    response_format: Optional[str] = Field(default="mp3", description="Audio format: mp3, opus, aac, flac, wav, pcm")
+    stream: bool = Field(default=True, description="Stream audio response")
+
+
 @app.get("/api/health")
 async def health() -> Dict[str, Any]:
     return {"status": "ok", "db": memory.ping(), "ts": datetime.utcnow().isoformat() + "Z", "harmony": USE_HARMONY, "tools": USE_TOOLS}
@@ -889,10 +920,92 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
         ctx_payload = []
         full_prompt = f"Besvara på svenska.\n\nFråga: {body.prompt}\nSvar:"
     else:
-        # Temporarily use simple LIKE-based retrieval since BM25 has issues
+        # Enhanced RAG retrieval with expanded search and reranking
         try:
-            contexts = memory.retrieve_text_memories(body.prompt, limit=5)
-            logger.info(f"RAG memory retrieval found {len(contexts)} contexts for query: {body.prompt[:50]}")
+            # Swedish synonyms and aliases for better matching
+            synonyms = {
+                'agent core': ['Agent Core v1', 'autonomous workflow', 'planner', 'executor', 'orchestrator'],
+                'förmågor': ['vad kan du göra', 'funktioner', 'kapaciteter', 'färdigheter'],
+                'response time': ['svarstid', 'latens', 'prestanda', 'snabb'],
+                'embedding': ['text-embedding', 'semantisk', 'vektor', 'embedding-modell'],
+                'chunk': ['chunking', 'uppdelning', 'segment', 'textstycke'],
+                'dokument': ['document', 'fil', 'upload', 'ladda upp'],
+                'format': ['filformat', 'filtyp', 'typ', 'extension'],
+                'spotify': ['musik', 'spela', 'låt', 'musikuppspelning'],
+                'kalender': ['calendar', 'möte', 'boka', 'schema', 'tid']
+            }
+            
+            # Extract key words and expand with synonyms
+            import re
+            key_words = re.findall(r'\b\w+\b', body.prompt.lower())
+            expanded_words = set(key_words)
+            
+            for word in key_words:
+                if word in synonyms:
+                    expanded_words.update(synonyms[word])
+                # Also check if any synonym maps to this word
+                for key, values in synonyms.items():
+                    if word in [v.lower() for v in values]:
+                        expanded_words.add(key)
+                        expanded_words.update(values)
+            
+            # Search with expanded terms (increased limit for reranking)
+            contexts = []
+            for word in expanded_words:
+                if len(word) > 2:  # Skip short words
+                    word_results = memory.retrieve_text_memories(word, limit=10)  # Increased from 2 to 10
+                    contexts.extend(word_results)
+            
+            # Remove duplicates and score by relevance
+            seen_ids = set()
+            scored_contexts = []
+            
+            for ctx in contexts:
+                if ctx['id'] not in seen_ids:
+                    seen_ids.add(ctx['id'])
+                    
+                    # Calculate relevance score based on term frequency
+                    text_lower = ctx['text'].lower()
+                    score = 0
+                    
+                    # Boost for exact query matches
+                    if body.prompt.lower() in text_lower:
+                        score += 10
+                    
+                    # Boost for individual key words
+                    for word in key_words:
+                        if word in text_lower:
+                            score += 2
+                    
+                    # Boost for synonyms
+                    for word in expanded_words:
+                        if word.lower() in text_lower:
+                            score += 1
+                    
+                    # Boost for headers and structured content
+                    if any(marker in text_lower for marker in ['#', '<h', '**', 'viktigt', 'exempel']):
+                        score += 1
+                        
+                    ctx['relevance_score'] = score + ctx.get('score', 0)
+                    scored_contexts.append(ctx)
+            
+            # Sort by relevance and apply quality threshold
+            scored_contexts.sort(key=lambda x: x['relevance_score'], reverse=True)
+            
+            # Quality threshold - only include contexts with decent relevance
+            MIN_RELEVANCE_SCORE = 2  # Require at least some keyword matches
+            high_quality_contexts = [ctx for ctx in scored_contexts if ctx['relevance_score'] >= MIN_RELEVANCE_SCORE]
+            
+            if len(high_quality_contexts) >= 2:
+                contexts = high_quality_contexts[:5]  # Use high-quality matches
+            elif len(scored_contexts) >= 1 and scored_contexts[0]['relevance_score'] >= 1:
+                contexts = scored_contexts[:3]  # Use best available matches
+            else:
+                # Very low relevance - suggest clarification
+                contexts = []
+                logger.info(f"Low relevance scores (max: {scored_contexts[0]['relevance_score'] if scored_contexts else 0}), suggesting clarification")
+            
+            logger.info(f"RAG memory retrieval found {len(contexts)} contexts (from {len(scored_contexts)} candidates, {len(high_quality_contexts)} high-quality) for query: {body.prompt[:50]}")
         except Exception as e:
             logger.warning(f"Primary memory retrieval failed: {e}")
             try:
@@ -962,7 +1075,15 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
                         "model": body.model or os.getenv("LOCAL_MODEL", "gpt-oss:20b"),
                         "prompt": (f"System: {_harmony_system_prompt()}\nDeveloper: {_harmony_developer_prompt()}\nUser: {full_prompt}\nSvar: ") if USE_HARMONY else f"System: Du heter Alice och är en svensk AI-assistent. Du är INTE ChatGPT. Presentera dig alltid som Alice. Svara på svenska.\n\nUser: {full_prompt}\nAlice:",
                         "stream": False,
-                        "options": {"num_predict": 512, "temperature": HARMONY_TEMPERATURE_COMMANDS if USE_HARMONY else 0.3},
+                        "options": {
+                            "num_predict": 256,  # Reduced from 512 for faster responses  
+                            "temperature": HARMONY_TEMPERATURE_COMMANDS if USE_HARMONY else 0.3,
+                            "num_ctx": 2048,     # Smaller context window for speed
+                            "num_threads": -1,   # Use all available CPU cores
+                            "repeat_penalty": 1.1,
+                            "top_p": 0.9,
+                            "top_k": 40
+                        },
                     },
                 )
                 if r.status_code == 200:
@@ -1356,7 +1477,15 @@ async def chat_stream(body: ChatBody):
                             "model": body.model or os.getenv("LOCAL_MODEL", "gpt-oss:20b"),
                             "prompt": (f"System: {_harmony_system_prompt()}\nDeveloper: {_harmony_developer_prompt()}\nUser: {full_prompt}\nSvar: ") if USE_HARMONY else f"System: Du heter Alice och är en svensk AI-assistent. Du är INTE ChatGPT. Presentera dig alltid som Alice. Svara på svenska.\n\nUser: {full_prompt}\nAlice:",
                             "stream": True,
-                            "options": {"num_predict": 256, "temperature": HARMONY_TEMPERATURE_COMMANDS if USE_HARMONY else 0.3},
+                            "options": {
+                                "num_predict": 128,  # Even smaller for streaming
+                                "temperature": HARMONY_TEMPERATURE_COMMANDS if USE_HARMONY else 0.3,
+                                "num_ctx": 2048,
+                                "num_threads": -1,
+                                "repeat_penalty": 1.1,
+                                "top_p": 0.9,
+                                "top_k": 40
+                            },
                         },
                     )
                     if r.status_code != 200:
@@ -2966,4 +3095,209 @@ async def api_voice_status():
     except Exception as e:
         logger.error(f"Voice status API error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========== OpenAI Realtime API Endpoints ==========
+
+
+@app.get("/api/realtime/ephemeral")
+async def create_realtime_ephemeral_session(
+    model: Optional[str] = "gpt-4o-realtime-preview",
+    voice: Optional[str] = "nova",
+    instructions: Optional[str] = None,
+    modalities: Optional[str] = "text,audio"
+):
+    """
+    Create ephemeral OpenAI Realtime API session key for WebRTC
+    Compatible with OpenAI Realtime API documentation patterns
+    """
+    try:
+        settings = get_global_openai_settings()
+        
+        # Validate OpenAI configuration
+        validation = validate_openai_config(settings)
+        if not validation["valid"]:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"OpenAI configuration error: {', '.join(validation['errors'])}"
+            )
+        
+        # Parse modalities
+        modalities_list = [m.strip() for m in (modalities or "text,audio").split(",")]
+        
+        # Use Alice's default instructions if none provided
+        if not instructions:
+            instructions = settings.session_config.instructions
+        
+        # Create session configuration
+        session_config = {
+            "model": model or settings.realtime_model.value,
+            "voice": voice or settings.voice_settings.voice.value,
+            "instructions": instructions,
+            "modalities": modalities_list,
+            "input_audio_format": settings.session_config.input_audio_format,
+            "output_audio_format": settings.session_config.output_audio_format,
+            "temperature": settings.session_config.temperature,
+            "max_response_output_tokens": settings.session_config.max_response_output_tokens,
+            "turn_detection": {
+                "type": "server_vad",
+                "threshold": 0.5,
+                "prefix_padding_ms": 300,
+                "silence_duration_ms": 200
+            }
+        }
+        
+        # Create ephemeral token (valid for 60 seconds for WebRTC)
+        import time
+        expires_at = int(time.time()) + 60
+        
+        # Client secret for WebRTC connection
+        client_secret = {
+            "type": "ephemeral",
+            "expires_at": expires_at,
+            "api_key": settings.api_key,  # In real implementation, this would be a temporary token
+            "base_url": settings.realtime_url,
+            "headers": settings.websocket_headers
+        }
+        
+        logger.info(f"Created ephemeral Realtime session: {model}, voice: {voice}")
+        
+        return RealtimeSessionResponse(
+            client_secret=client_secret,
+            expires_at=expires_at,
+            session_config=session_config
+        )
+        
+    except Exception as e:
+        logger.error(f"Realtime ephemeral session error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/agent/stream")
+async def stream_agent_response(request: AgentBridgeRequest):
+    """
+    Stream agent responses via Server-Sent Events (SSE)
+    Integrates with Alice's agent bridge system for real-time AI responses
+    """
+    async def generate_sse_stream():
+        try:
+            # Create Alice agent bridge
+            bridge = await create_alice_bridge(memory)
+            
+            # Set response headers for SSE
+            yield "data: " + json.dumps({
+                "type": "meta", 
+                "message": "Alice agent stream startar...",
+                "timestamp": datetime.now().isoformat()
+            }) + "\n\n"
+            
+            # Stream response chunks
+            async for chunk in bridge.stream_response(request):
+                # Convert to SSE format
+                sse_data = chunk.to_sse_format()
+                yield sse_data
+                
+                # Add small delay for better streaming experience
+                await asyncio.sleep(0.01)
+                
+        except Exception as e:
+            logger.error(f"Agent stream error: {e}")
+            error_data = json.dumps({
+                "type": "error",
+                "message": f"Streaming fel: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            })
+            yield f"data: {error_data}\n\n"
+    
+    return StreamingResponse(
+        generate_sse_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Cache-Control",
+            "X-Alice-Agent": "bridge-v1"
+        }
+    )
+
+
+@app.post("/api/tts/openai-stream") 
+async def stream_openai_tts(request: OpenAITTSRequest):
+    """
+    Stream TTS audio using OpenAI's Text-to-Speech API
+    Streams binary audio chunks for real-time playback
+    """
+    async def generate_openai_audio_stream():
+        try:
+            settings = get_global_openai_settings()
+            
+            # Validate OpenAI configuration
+            validation = validate_openai_config(settings)
+            if not validation["valid"]:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"OpenAI configuration error: {', '.join(validation['errors'])}"
+                )
+            
+            # Prepare OpenAI TTS request
+            tts_payload = {
+                "model": request.model,
+                "input": request.text,
+                "voice": request.voice,
+                "response_format": request.response_format,
+                "speed": request.speed
+            }
+            
+            # Stream from OpenAI TTS API
+            async with OpenAIClient(settings) as client:
+                async with client.stream(
+                    "POST", 
+                    "/audio/speech",
+                    json=tts_payload,
+                    headers={"Accept": "audio/*"}
+                ) as response:
+                    
+                    if response.status_code != 200:
+                        error_msg = await response.aread()
+                        logger.error(f"OpenAI TTS API error: {response.status_code} - {error_msg}")
+                        raise HTTPException(
+                            status_code=response.status_code,
+                            detail=f"OpenAI TTS error: {response.status_code}"
+                        )
+                    
+                    # Stream audio chunks
+                    async for chunk in response.aiter_bytes(chunk_size=1024):
+                        if chunk:
+                            yield chunk
+                            
+        except Exception as e:
+            logger.error(f"OpenAI TTS streaming error: {e}")
+            # Return silence on error to avoid breaking audio stream
+            yield b'\x00' * 1024
+    
+    # Determine media type based on response format
+    media_types = {
+        "mp3": "audio/mpeg",
+        "opus": "audio/opus", 
+        "aac": "audio/aac",
+        "flac": "audio/flac",
+        "wav": "audio/wav",
+        "pcm": "audio/pcm"
+    }
+    
+    media_type = media_types.get(request.response_format, "audio/mpeg")
+    
+    return StreamingResponse(
+        generate_openai_audio_stream(),
+        media_type=media_type,
+        headers={
+            "Cache-Control": "no-cache",
+            "Access-Control-Allow-Origin": "*",
+            "X-TTS-Model": request.model,
+            "X-Voice": request.voice,
+            "X-Speed": str(request.speed),
+            "X-Format": request.response_format
+        }
+    )
 

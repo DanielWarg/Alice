@@ -28,12 +28,16 @@ Alice/
 
 ## 🎯 **Huvudfunktioner**
 
-### 🎤 **Avancerad Röst-AI**
+### 🎤 **Avancerad Röst-AI Pipeline**
+- **Dual Voice System** - VoiceBox (basic) + VoiceClient (advanced)
+- **OpenAI Realtime API** integration med WebRTC streaming
 - **Enhanced TTS** med 3 svenska personligheter (Alice, Formell, Casual)
 - **Emotionell modulering** - 5 toner (Neutral, Happy, Calm, Confident, Friendly)
 - **VoiceBox visualisering** - Real-time audio bars synkade med röst
+- **Agent bridge architecture** - Streaming responses via SSE
 - **Wake-word detection** för hands-free operation ("Alice")
 - **MD5-baserad cache** för 3-10x snabbare TTS-respons
+- **WebSocket real-time** kommunikation för låg latens
 
 ### 📅 **Smart Kalender-Assistent**
 - **Google Calendar integration** med svenska röstkommandon
@@ -63,12 +67,17 @@ Alice/
 
 ## ✅ **Status: Produktionsklar & Funktional**
 
-### **🎤 Röst-System**
-- ✅ Enhanced TTS med 3 personligheter fungerar
-- ✅ VoiceBox visualiserar audio real-time  
-- ✅ Svenska röstkommandon igenkänns korrekt
-- ✅ WebSocket /ws/alice anslutning stabil
-- ✅ Browser TTS fallback för seamless upplevelse
+### **🎤 Röst-Pipeline System**
+- ✅ **VoiceBox Component** - Basic visualizer med mikrofon integration
+- ✅ **VoiceClient Component** - Advanced OpenAI Realtime integration
+- ✅ **OpenAI Realtime API** - WebRTC streaming för real-time röstinteraktion
+- ✅ **Agent Bridge** - SSE streaming mellan VoiceClient och Alice agent
+- ✅ **Enhanced TTS** med 3 personligheter fungerar
+- ✅ **VoiceBox visualisering** - Real-time audio bars synkade med röst  
+- ✅ **Svenska röstkommandon** igenkänns korrekt
+- ✅ **WebSocket kommunikation** stabil (/ws/alice och /ws/voice)
+- ✅ **Browser TTS fallback** för seamless upplevelse
+- ✅ **FastAPI streaming endpoints** för real-time processing
 
 ### **📅 Kalender-Integration**
 - ✅ Google Calendar API endpoints aktiva
@@ -130,6 +139,8 @@ Alice/
 - Python 3.9+
 - Node.js 18+
 - Ollama med `gpt-oss:20B` modell
+- **OpenAI API Key** (för avancerad röstfunktionalitet - valfritt)
+- **HTTPS-miljö** (för WebRTC och mikrofonåtkomst i produktion)
 
 ### Installation
 
@@ -171,6 +182,11 @@ USE_HARMONY=true          # Aktivera Harmony AI-adapter
 USE_TOOLS=true            # Aktivera verktygssystem
 LOG_LEVEL=INFO            # Loggningsnivå
 OLLAMA_BASE_URL=http://localhost:11434
+
+# Advanced Voice Features (Optional)
+OPENAI_API_KEY=sk-...     # För OpenAI Realtime API integration
+VOICE_PIPELINE_MODE=dual  # dual|voicebox|voiceclient
+ENABLE_WEBRTC=true        # Aktivera WebRTC för real-time streaming
 ```
 
 ### Ollama Setup
@@ -189,10 +205,12 @@ ollama serve
 
 - **[STARTUP.md](STARTUP.md)** - Exakt startup-guide
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Utvecklingsguide
-- **[API.md](API.md)** - Komplett API-dokumentation
+- **[API.md](API.md)** - Komplett API-dokumentation inkl. OpenAI Realtime
+- **[AGENT_CORE.md](AGENT_CORE.md)** - Agent Core v1 och voice pipeline arkitektur
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment och production-guide
 - **[VISION.md](VISION.md)** - Projektvision och framtida funktioner
 - **[ALICE_ROADMAP.md](ALICE_ROADMAP.md)** - Detaljerad utvecklingsplan
+- **[web/README.md](web/README.md)** - Frontend och voice components guide
 
 ## 🧪 **Testning**
 

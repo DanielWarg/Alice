@@ -2,7 +2,7 @@
 
 **Autonomous Workflow Engine för intelligent task execution**
 
-Agent Core v1 ger Alice förmågan att autonomt planera, exekvera och förbättra komplexa multi-step uppgifter genom en sofistikerad Planning → Execution → Criticism → Improvement cykel.
+Agent Core v1 ger Alice förmågan att autonomt planera, exekvera och förbättra komplexa multi-step uppgifter genom en sofistikerad Planning → Execution → Criticism → Improvement cykel. Systemet inkluderar även en avancerad voice pipeline för real-time röstinteraktion.
 
 ## 🏗️ Arkitektur
 
@@ -180,9 +180,90 @@ tasks = [
 results = await asyncio.gather(*tasks)
 ```
 
+## 🎤 Voice Pipeline Arkitektur
+
+Agent Core v1 inkluderar en sofistikerad voice pipeline som möjliggör seamless röstinteraktion med Alice:
+
+### Dual Voice System
+
+**VoiceBox (Basic Interface)**
+- Browser Speech Recognition API för svenska
+- Real-time audio visualisering med ambient animation
+- Post-processing av svenska tal för bättre igenkänning
+- Integration med Alice backend TTS system
+- Fallback-system för graceful degradation
+
+**VoiceClient (Advanced Realtime)**
+- OpenAI Realtime API integration via WebRTC
+- Low-latency audio streaming för professionell kvalitet
+- Agent bridge arkitektur med SSE streaming
+- Real-time transcript processing
+- Barge-in support för naturlig konversation
+
+### Agent Bridge Architecture
+
+Voice pipeline använder en sofistikerad agent bridge för att koppla röstinteraktion till Alice's cognitive capabilities:
+
+```
+Voice Input → OpenAI Realtime → Transcript → Agent Bridge → Alice Core → Streaming Response → TTS → Audio Output
+```
+
+**Komponenter:**
+- **Speech-to-Text**: OpenAI Whisper via Realtime API
+- **Agent Bridge**: `/api/agent/stream` endpoint med SSE
+- **Alice Core**: Agent orchestration och tool execution  
+- **Text-to-Speech**: Hybrid OpenAI TTS / Alice enhanced TTS
+- **WebRTC**: Real-time audio streaming
+
+### Real-time Communication Flow
+
+1. **Audio Capture** - WebRTC MediaStream från mikrofon
+2. **Speech Recognition** - OpenAI Realtime API transkriberar i realtid
+3. **Agent Processing** - Transcript skickas till Alice agent via SSE
+4. **Tool Execution** - Alice Agent Core exekverar verktyg vid behov
+5. **Response Generation** - Streaming text response från Alice
+6. **Speech Synthesis** - TTS conversion och audio playback
+7. **Barge-in Support** - Användaren kan avbryta och starta ny interaktion
+
+### Voice WebSocket Events
+
+```javascript
+// Voice events som integrerar med Agent Core
+const voiceEvents = {
+  'voice_input': (transcript) => {
+    // Skicka till AgentOrchestrator för processing
+    orchestrator.execute_workflow(transcript);
+  },
+  
+  'agent_response': (response) => {
+    // Streaming response från Agent Core
+    voiceClient.synthesizeAndPlay(response.content);
+  },
+  
+  'tool_execution': (toolData) => {
+    // Tool execution från Agent Executor
+    voiceClient.emit('tool_executed', toolData);
+  }
+};
+```
+
+### Integration Points
+
+**Agent Core → Voice Pipeline:**
+- AgentOrchestrator trigger voice responses
+- AgentExecutor verktyg kan generera audio feedback
+- AgentCritic analyserar conversation quality
+- Real-time progress updates via voice synthesis
+
+**Voice Pipeline → Agent Core:**
+- Voice commands triggar Agent workflows  
+- Continuous conversation state management
+- Context awareness mellan voice sessions
+- Memory integration för personalized responses
+
 ## 🔧 Integration med Alice
 
-Agent Core v1 är fullt integrerat med Alice's befintliga system:
+Agent Core v1 är fullt integrerat med Alice's befintliga system och voice pipeline:
 
 ### Verktyg (22 stycken)
 - **Musikstyrning:** PLAY, PAUSE, STOP, SET_VOLUME, etc.

@@ -170,18 +170,40 @@ class MemoryStore:
             )
 
     # --- Memories (text) ---
-    def _chunk_text_semantically(self, text: str, max_chunk_size: int = 500) -> List[str]:
-        """Smart text chunking that preserves semantic boundaries"""
+    def _chunk_text_semantically(self, text: str, max_chunk_size: int = 600) -> List[str]:
+        """Enhanced text chunking with header preservation and overlapping"""
         if len(text) <= max_chunk_size:
             return [text]
         
         chunks = []
-        # First split by double newlines (paragraphs)
+        overlap_size = max_chunk_size // 5  # 20% overlap (120 chars for 600 char chunks)
+        
+        # Extract headers for context inheritance
+        lines = text.split('\n')
+        current_headers = []
+        
+        # First split by double newlines (paragraphs) 
         paragraphs = text.split('\n\n')
         
         current_chunk = ""
+        
         for paragraph in paragraphs:
-            # If paragraph alone is too long, split by sentences
+            # Check if paragraph contains headers (markdown or html)
+            paragraph_headers = []
+            for line in paragraph.split('\n'):
+                line = line.strip()
+                # Markdown headers or HTML headers
+                if (line.startswith('#') or 
+                    line.startswith('<h') or 
+                    (line.isupper() and len(line.split()) <= 10)):
+                    paragraph_headers.append(line)
+                    if line not in current_headers:
+                        current_headers.append(line)
+            
+            # Build chunk with header context
+            header_context = '\n'.join(current_headers[-3:]) if current_headers else ""  # Keep last 3 headers
+            chunk_prefix = header_context + '\n\n' if header_context and header_context not in current_chunk else ""
+            # If paragraph alone is too long, split by sentences with overlap
             if len(paragraph) > max_chunk_size:
                 # Split by sentence endings
                 sentences = []
@@ -194,29 +216,53 @@ class MemoryStore:
                             sentences.append(parts[-1])
                         break
                 else:
-                    # No sentence delimiters found, split by length
-                    sentences = [paragraph[i:i+max_chunk_size] 
-                               for i in range(0, len(paragraph), max_chunk_size)]
+                    # No sentence delimiters found, split by length with overlap
+                    sentences = []
+                    for i in range(0, len(paragraph), max_chunk_size - overlap_size):
+                        chunk_end = min(i + max_chunk_size, len(paragraph))
+                        sentences.append(paragraph[i:chunk_end])
                 
-                # Process sentences
+                # Process sentences with overlapping
                 for sentence in sentences:
-                    if len(current_chunk) + len(sentence) > max_chunk_size:
+                    full_content = chunk_prefix + current_chunk + (' ' if current_chunk else '') + sentence
+                    
+                    if len(full_content) > max_chunk_size:
                         if current_chunk.strip():
-                            chunks.append(current_chunk.strip())
-                        current_chunk = sentence
+                            # Add overlap from end of current chunk
+                            final_chunk = chunk_prefix + current_chunk
+                            chunks.append(final_chunk.strip())
+                        
+                        # Start new chunk with overlap from previous
+                        if current_chunk and len(current_chunk) > overlap_size:
+                            overlap_text = current_chunk[-overlap_size:]
+                            current_chunk = overlap_text + ' ' + sentence
+                        else:
+                            current_chunk = chunk_prefix + sentence
                     else:
                         current_chunk += (' ' if current_chunk else '') + sentence
             else:
-                # Normal paragraph processing
-                if len(current_chunk) + len(paragraph) > max_chunk_size:
+                # Normal paragraph processing with header context
+                full_content = chunk_prefix + current_chunk + ('\n\n' if current_chunk else '') + paragraph
+                
+                if len(full_content) > max_chunk_size:
                     if current_chunk.strip():
-                        chunks.append(current_chunk.strip())
-                    current_chunk = paragraph
+                        # Finalize current chunk
+                        final_chunk = chunk_prefix + current_chunk
+                        chunks.append(final_chunk.strip())
+                    
+                    # Start new chunk with overlap
+                    if current_chunk and len(current_chunk) > overlap_size:
+                        overlap_text = current_chunk[-overlap_size:]
+                        current_chunk = overlap_text + '\n\n' + paragraph
+                    else:
+                        current_chunk = chunk_prefix + paragraph
                 else:
                     current_chunk += ('\n\n' if current_chunk else '') + paragraph
         
+        # Add final chunk
         if current_chunk.strip():
-            chunks.append(current_chunk.strip())
+            final_chunk = (header_context + '\n\n' if header_context and header_context not in current_chunk else "") + current_chunk
+            chunks.append(final_chunk.strip())
         
         return chunks if chunks else [text]
 
