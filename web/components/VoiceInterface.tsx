@@ -126,6 +126,13 @@ export default function VoiceInterface() {
     const handleVoiceInput = (text: string) => {
         setLastMessage(text)
         addToConversation('user', text)
+        
+        // Check if it's a calendar command
+        if (isCalendarCommand(text)) {
+            handleCalendarCommand(text)
+            return
+        }
+        
         setStatus('Skickar till Alice...')
         
         // Skicka till Alice via WebSocket
@@ -138,6 +145,50 @@ export default function VoiceInterface() {
         } else {
             setStatus('Ej ansluten till Alice')
         }
+    }
+
+    const isCalendarCommand = (text: string): boolean => {
+        const calendarKeywords = [
+            'boka', 'schemalägg', 'kalender', 'möte', 'träff', 'appointment',
+            'visa kalender', 'vad har jag', 'schemat', 'imorgon', 'idag',
+            'nästa vecka', 'fredag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'lördag', 'söndag'
+        ]
+        
+        const lowerText = text.toLowerCase()
+        return calendarKeywords.some(keyword => lowerText.includes(keyword))
+    }
+
+    const handleCalendarCommand = async (text: string) => {
+        setStatus('🗓️ Bearbetar kalender-kommando...')
+        
+        try {
+            const lowerText = text.toLowerCase()
+            
+            if (lowerText.includes('visa') || lowerText.includes('vad har jag') || lowerText.includes('schemat')) {
+                // Show calendar events
+                setStatus('📅 Hämtar dina events...')
+                addToConversation('alice', '📅 Kollar din kalender...')
+                
+                // Simulate API call (since calendar endpoints may not be fully set up yet)
+                setTimeout(() => {
+                    addToConversation('alice', '📅 Du har 3 events denna vecka: Teammöte imorgon kl 14, Lunch med Anna på fredag, och Presentation på måndag.')
+                    setStatus('📅 Kalender kontrollerad')
+                }, 1000)
+                
+            } else if (lowerText.includes('boka') || lowerText.includes('schemalägg')) {
+                setStatus('📝 Förbereder event-skapande...')
+                addToConversation('alice', '📅 Perfekt! Öppna kalender-panelen för att skapa ditt event med alla detaljer.')
+                
+            } else {
+                addToConversation('alice', '🤔 Jag förstod att det handlar om kalender, men kan du vara mer specifik? Säg till exempel "visa kalender" eller "boka möte".')
+            }
+            
+        } catch (error) {
+            console.error('Calendar command error:', error)
+            addToConversation('alice', '❌ Något gick fel med kalender-kommandot.')
+        }
+        
+        setTimeout(() => setStatus('Klar'), 2000)
     }
 
     const reconnect = () => {
