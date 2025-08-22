@@ -87,37 +87,37 @@
 
 ## 7️⃣ **CI/CD**
 
-- [ ] GitHub Actions: backend-jobb (pytest + coverage + artefakter)
-- [ ] GitHub Actions: frontend-e2e (Playwright HTML-rapport som artefakt)
-- [ ] Actions Summary visar coverage-% och NLU-accuracy i klartext
-- [ ] (Publikt) Codecov uppladdning + badge + PR-kommentar
-- [ ] Release-workflow (tagg → changelog → Docker-image/artefakter publiceras)
-- [ ] Branch protection kräver grön CI för merge
+- [x] GitHub Actions: backend-jobb (pytest + coverage + artefakter)
+- [x] GitHub Actions: frontend-e2e (Playwright HTML-rapport som artefakt)
+- [x] Actions Summary visar coverage-% och NLU-accuracy i klartext
+- [x] (Publikt) Codecov uppladdning + badge + PR-kommentar
+- [x] Release-workflow (tagg → changelog → Docker-image/artefakter publiceras)
+- [x] Branch protection kräver grön CI för merge
 
 ---
 
 ## 8️⃣ **Teststrategi (Pyramid)**
 
-- [ ] Unit-tester: kärnlogik, validering, pydantic-modeller, små hjälpfunktioner
-- [ ] Integrations-tester: httpx + respx (mockar Google/Spotify/Gmail)
-- [ ] Kontrakttester: pydantic/OpenAPI-schema valideras (IO-format) i CI
-- [ ] E2E backend "smoke": text→plan→tool→text utan ljud (stabilt i CI)
-- [ ] E2E frontend: Playwright mot HUD i STUB_MODE (ingen extern backend krävs)
-- [ ] Nightly (valfritt): kör en "riktig" e2e mot dev-backend (flakighet tolereras nattligt)
-- [ ] Coverage-mål backend ≥ 80% (linjer), branches ≥ 70% (mål), badge i README
-- [ ] Buggar får minimalt reproducerbart test som stannar kvar efter fix (regressionsskydd)
+- [x] Unit-tester: kärnlogik, validering, pydantic-modeller, små hjälpfunktioner
+- [x] Integrations-tester: httpx + respx (mockar Google/Spotify/Gmail)
+- [x] Kontrakttester: pydantic/OpenAPI-schema valideras (IO-format) i CI
+- [x] E2E backend "smoke": text→plan→tool→text utan ljud (stabilt i CI)
+- [x] E2E frontend: Playwright mot HUD i STUB_MODE (ingen extern backend krävs)
+- [x] Nightly (valfritt): kör en "riktig" e2e mot dev-backend (flakighet tolereras nattligt)
+- [x] Coverage-mål backend ≥ 80% (linjer), branches ≥ 70% (mål), badge i README
+- [x] Buggar får minimalt reproducerbart test som stannar kvar efter fix (regressionsskydd)
 
 ---
 
 ## 9️⃣ **NLU/ML-Kvalitet (Svenska)**
 
-- [ ] Gold-set för intents/slots i versionerad katalog (tests/fixtures/nlu_sv.jsonl)
-- [ ] Metriker: accuracy/precision/recall/F1 för intent, rapporteras i CI Summary
-- [ ] Tröskel definierad (t.ex. intent-accuracy ≥ 0.85) som bryter bygget under tröskel
-- [ ] Seeds låsta för reproducerbar inferens (om stochastiska komponenter)
-- [ ] Dokumenterad datakälla och anonymisering (inga personuppgifter i träningsdata)
-- [ ] Modellversioner (Ollama/Whisper/Piper) är pin-ade och dokumenterade i README
-- [ ] Prompt-/routingtuning dokumenterad (ändringslogg när regler eller mallar uppdateras)
+- [x] Gold-set för intents/slots i versionerad katalog (tests/fixtures/nlu_sv.jsonl)
+- [x] Metriker: accuracy/precision/recall/F1 för intent, rapporteras i CI Summary
+- [x] Tröskel definierad (t.ex. intent-accuracy ≥ 0.85) som bryter bygget under tröskel
+- [x] Seeds låsta för reproducerbar inferens (om stochastiska komponenter)
+- [x] Dokumenterad datakälla och anonymisering (inga personuppgifter i träningsdata)
+- [x] Modellversioner (Ollama/Whisper/Piper) är pin-ade och dokumenterade i README
+- [x] Prompt-/routingtuning dokumenterad (ändringslogg när regler eller mallar uppdateras)
 
 ---
 
@@ -286,9 +286,9 @@
 | 4. Configuration & Secrets | 5/5 | ✅ Complete | 8h |
 | 5. Dependencies & Supply Chain | 0/5 | 🟡 High | 6h |
 | 6. Build & Tooling | 0/4 | 🟡 High | 4h |
-| 7. CI/CD | 0/6 | 🔴 Critical | 10h |
-| 8. Test Strategy | 0/8 | 🔴 Critical | 16h |
-| 9. NLU/ML Quality | 0/7 | 🔴 Critical | 12h |
+| 7. CI/CD | 6/6 | ✅ Complete | 10h |
+| 8. Test Strategy | 8/8 | ✅ Complete | 16h |
+| 9. NLU/ML Quality | 7/7 | ✅ Complete | 12h |
 | 10. Voice Chain & Audio | 0/5 | 🟡 High | 8h |
 | 11. Backend & API | 0/7 | 🟡 High | 10h |
 | 12. Tool Router & Permissions | 0/4 | 🟡 High | 6h |
