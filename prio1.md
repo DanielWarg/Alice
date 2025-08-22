@@ -24,12 +24,12 @@
 
 ## 1️⃣ **Repo & Branching**
 
-- [ ] Default branch = main (master avvecklad eller tydligt deprecierad i README)
-- [ ] Branch protection på main (kräv CI-status + CODEOWNERS review)
-- [ ] Conventional Commits (enforce via PR-granskning eller hook)
-- [ ] CODEOWNERS finns och pekar på ansvariga per katalog
-- [ ] .gitignore täcker virtuella miljöer, build-artefakter, .env, cache, modeller
-- [ ] Licensfil (MIT) ligger i roten och nämns i README
+- [x] Default branch = main (master avvecklad eller tydligt deprecierad i README)
+- [x] Branch protection på main (kräv CI-status + CODEOWNERS review)
+- [x] Conventional Commits (enforce via PR-granskning eller hook)
+- [x] CODEOWNERS finns och pekar på ansvariga per katalog
+- [x] .gitignore täcker virtuella miljöer, build-artefakter, .env, cache, modeller
+- [x] Licensfil (MIT) ligger i roten och nämns i README
 
 ---
 
@@ -58,11 +58,11 @@
 
 ## 4️⃣ **Konfiguration & Hemligheter**
 
-- [ ] .env.example med alla nycklar, defaultvärden och beskrivning
-- [ ] Aldrig checka in riktiga .env-filer; secrets scannas i CI
-- [ ] Separata credentials för dev/stage/prod; inga delade Google/Spotify-konton
-- [ ] Token-rotation (dokumenterad), revoke-rutin, "break glass"-process
-- [ ] Valfritt: integrera hemligheter med t.ex. 1Password/Vault; lokalt fallback via krypterad fil
+- [x] .env.example med alla nycklar, defaultvärden och beskrivning
+- [x] Aldrig checka in riktiga .env-filer; secrets scannas i CI
+- [x] Separata credentials för dev/stage/prod; inga delade Google/Spotify-konton
+- [x] Token-rotation (dokumenterad), revoke-rutin, "break glass"-process
+- [x] Valfritt: integrera hemligheter med t.ex. 1Password/Vault; lokalt fallback via krypterad fil
 
 ---
 
@@ -280,10 +280,10 @@
 
 | Category | Progress | Priority | Estimated Hours |
 |----------|----------|----------|-----------------|
-| 1. Repo & Branching | 0/6 | 🔴 Critical | 4h |
+| 1. Repo & Branching | 6/6 | ✅ Complete | 4h |
 | 2. Project Metadata | 0/5 | 🟡 High | 6h |
 | 3. Documentation | 0/8 | 🟡 High | 12h |
-| 4. Configuration & Secrets | 0/5 | 🔴 Critical | 8h |
+| 4. Configuration & Secrets | 5/5 | ✅ Complete | 8h |
 | 5. Dependencies & Supply Chain | 0/5 | 🟡 High | 6h |
 | 6. Build & Tooling | 0/4 | 🟡 High | 4h |
 | 7. CI/CD | 0/6 | 🔴 Critical | 10h |
