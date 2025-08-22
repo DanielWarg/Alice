@@ -478,6 +478,256 @@ Content-Type: application/json
 }
 ```
 
+### Google Calendar Integration
+
+#### GET /api/calendar/events
+Hämta kommande kalenderhändelser från Google Calendar.
+
+**Parameters:**
+| Parameter | Type | Default | Beskrivning |
+|-----------|------|---------|-------------|
+| `max_results` | integer | 10 | Max antal händelser att hämta |
+| `time_min` | string | null | Start tid (ISO format) |
+| `time_max` | string | null | Slut tid (ISO format) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "events": [
+    {
+      "id": "event_12345",
+      "title": "Möte med teamet",
+      "start": "2025-01-22T14:00:00+01:00",
+      "end": "2025-01-22T15:00:00+01:00",
+      "description": "Veckomöte för projektstatus",
+      "attendees": ["john@example.com"],
+      "location": "Konferensrum A"
+    }
+  ],
+  "total_count": 5
+}
+```
+
+#### POST /api/calendar/events
+Skapa ny kalenderhändelse med intelligent scheduling.
+
+**Request:**
+```http
+POST /api/calendar/events
+Content-Type: application/json
+
+{
+  "title": "Lunch med Anna",
+  "start_time": "2025-01-23 12:00",
+  "end_time": "2025-01-23 13:00",
+  "description": "Lunch på Café Linné",
+  "attendees": ["anna@example.com"],
+  "check_conflicts": true
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "event_id": "event_67890",
+  "message": "Händelse skapad framgångsrikt",
+  "conflicts_found": false,
+  "calendar_url": "https://calendar.google.com/event?eid=..."
+}
+```
+
+#### PUT /api/calendar/events
+Uppdatera befintlig kalenderhändelse.
+
+**Request:**
+```http
+PUT /api/calendar/events
+Content-Type: application/json
+
+{
+  "event_id": "event_12345",
+  "title": "Uppdaterat möte",
+  "start_time": "2025-01-22 15:00",
+  "end_time": "2025-01-22 16:00"
+}
+```
+
+#### DELETE /api/calendar/events/{event_id}
+Ta bort kalenderhändelse.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Händelse borttagen"
+}
+```
+
+#### POST /api/calendar/events/search
+Sök efter händelser med naturligt språk.
+
+**Request:**
+```http
+POST /api/calendar/events/search
+Content-Type: application/json
+
+{
+  "query": "möten med Anna nästa vecka",
+  "max_results": 20
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "id": "event_789",
+      "title": "Projektmöte med Anna",
+      "start": "2025-01-29T10:00:00+01:00",
+      "relevance_score": 0.95
+    }
+  ],
+  "query_interpretation": {
+    "person": "Anna",
+    "timeframe": "next_week",
+    "type": "meeting"
+  }
+}
+```
+
+#### POST /api/calendar/check-conflicts
+Kontrollera konflikter för föreslagen tid.
+
+**Request:**
+```http
+POST /api/calendar/check-conflicts
+Content-Type: application/json
+
+{
+  "start_time": "2025-01-23 14:00",
+  "end_time": "2025-01-23 15:00",
+  "exclude_event_id": null
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "has_conflict": true,
+  "message": "Konflikt funnen med 'Utvecklingsmöte'",
+  "conflicts": [
+    {
+      "id": "event_456",
+      "title": "Utvecklingsmöte",
+      "start": "2025-01-23T14:30:00+01:00",
+      "end": "2025-01-23T15:30:00+01:00"
+    }
+  ],
+  "suggestions": [
+    {
+      "start_time": "2025-01-23T13:00:00+01:00",
+      "end_time": "2025-01-23T14:00:00+01:00",
+      "formatted": "Idag 13:00-14:00",
+      "confidence": 0.9
+    }
+  ]
+}
+```
+
+#### POST /api/calendar/suggest-times
+Få AI-baserade tidsförslag för möten.
+
+**Request:**
+```http
+POST /api/calendar/suggest-times
+Content-Type: application/json
+
+{
+  "duration_minutes": 60,
+  "date_preference": "2025-01-24",
+  "max_suggestions": 5,
+  "meeting_type": "focus_work",
+  "attendees": ["colleague@example.com"]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "suggestions": [
+    {
+      "start_time": "2025-01-24T09:00:00+01:00",
+      "end_time": "2025-01-24T10:00:00+01:00",
+      "formatted": "Imorgon 09:00-10:00",
+      "confidence": 0.95,
+      "rationale": "Optimal morgontid, inga konflikter"
+    },
+    {
+      "start_time": "2025-01-24T14:00:00+01:00",
+      "end_time": "2025-01-24T15:00:00+01:00",
+      "formatted": "Imorgon 14:00-15:00",
+      "confidence": 0.85,
+      "rationale": "Eftermiddagsfokus, kort paus efter lunch"
+    }
+  ],
+  "ai_insights": {
+    "best_time_of_day": "morning",
+    "productivity_score": 0.9,
+    "energy_level": "high"
+  }
+}
+```
+
+#### GET /api/calendar/voice-commands
+Hämta supporterade svenska röstkommandon för kalender.
+
+**Response:**
+```json
+{
+  "commands": {
+    "view": [
+      "visa kalender",
+      "vad har jag för möten",
+      "kolla mitt schema"
+    ],
+    "create": [
+      "boka möte imorgon kl 14",
+      "skapa händelse nästa fredag",
+      "lägg till lunch på måndag"
+    ],
+    "search": [
+      "när har jag möte med Anna",
+      "sök efter projekt-möten",
+      "hitta mina Teams-möten"
+    ]
+  },
+  "supported_time_expressions": [
+    "imorgon", "nästa vecka", "kl 14:30",
+    "på måndag", "om en timme", "nästa fredag"
+  ]
+}
+```
+
+**Svenska Röstintegration:**
+```javascript
+// Användning av calendar voice commands
+const calendarVoiceCommands = {
+  "visa kalender": () => alice.getEvents(),
+  "boka möte imorgon kl 14": () => alice.createEvent({
+    title: "Möte",
+    start_time: "tomorrow 14:00",
+    end_time: "tomorrow 15:00"
+  }),
+  "när har jag möte med Anna": () => alice.searchEvents("Anna")
+};
+```
+
 ### Spotify Integration
 
 #### GET /api/spotify/auth_url

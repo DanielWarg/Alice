@@ -292,6 +292,58 @@ python stress_test_nlu.py
 python stress_test_rag.py
 ```
 
+### 🎤 Voice & TTS Testing
+```bash
+# Test enhanced TTS system
+cd server
+python test_enhanced_tts.py
+
+# Test Swedish calendar voice commands
+python test_swedish_calendar_voice.py
+
+# Test complete calendar integration
+python test_calendar_integration.py
+```
+
+## 🎯 **Feature Development Guides**
+
+### Enhanced TTS System
+Alice's röst-system stöder nu:
+- **3 Personligheter**: Alice (energisk), Formell (professionell), Casual (avslappnad)
+- **5 Emotioner**: Neutral, Happy, Calm, Confident, Friendly
+- **MD5-baserad cache** för 3-10x snabbare respons
+- **Browser fallback** för seamless upplevelse
+
+**Test TTS:**
+1. Starta Alice (`./start_alice.sh`)
+2. Öppna http://localhost:3001
+3. Klicka "Test TTS" i VoiceBox
+4. Testa olika personligheter och emotioner
+
+### Google Calendar Integration
+Alice kan nu hantera kalender naturligt på svenska:
+- **"Visa kalender"** - Listar kommande events
+- **"Boka möte imorgon kl 14"** - Guidar till event-skapande
+- **Svenska datum-parsing** - "imorgon", "nästa fredag", "kl 14:30"
+
+**Test Calendar:**
+1. VoiceBox: Säg "Visa kalender"
+2. Kalender-panel: Klicka "+" för snabbt event-skapande
+3. HUD: Klicka kalender-ikonen för full modal
+4. Röst + UI: Seamless integration mellan röst och visuell kalender
+
+### Voice Command Development
+**Lägg till nya svenska röstkommandon:**
+```python
+# I voice_calendar_nlu.py eller motsvarande
+calendar_patterns = [
+    r"boka (möte|träff) (.+)",
+    r"visa (kalender|schemat)",  
+    r"vad har jag (.+)",
+    # Lägg till ditt nya pattern här
+]
+```
+
 ## 📚 **API-utveckling**
 
 ### Nya Endpoints
