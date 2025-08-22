@@ -62,8 +62,9 @@ def search_emails(query: str, max_results: int = 20) -> str:
 
 # Calendar-funktioner
 def create_calendar_event(title: str, start_time: str, end_time: str = None, 
-                         description: str = None, attendees: list = None) -> str:
-    return calendar_service.create_event(title, start_time, end_time, description, attendees)
+                         description: str = None, attendees: list = None, 
+                         check_conflicts_first: bool = True) -> str:
+    return calendar_service.create_event(title, start_time, end_time, description, attendees, check_conflicts_first)
 
 def list_calendar_events(max_results: int = 10, time_min: str = None, time_max: str = None) -> str:
     return calendar_service.list_events(max_results, time_min, time_max)
@@ -77,6 +78,39 @@ def delete_calendar_event(event_id: str) -> str:
 def update_calendar_event(event_id: str, title: str = None, start_time: str = None, 
                          end_time: str = None, description: str = None) -> str:
     return calendar_service.update_event(event_id, title, start_time, end_time, description)
+
+def suggest_meeting_times(duration_minutes: int = 60, date_preference: str = None, 
+                         max_suggestions: int = 5) -> str:
+    suggestions = calendar_service.suggest_meeting_times(duration_minutes, date_preference, max_suggestions)
+    if not suggestions:
+        return "Inga lediga tider hittades för den angivna perioden."
+    
+    result = f"Föreslagna mötestider ({duration_minutes} minuter):\n\n"
+    for i, suggestion in enumerate(suggestions, 1):
+        confidence_pct = int(suggestion['confidence'] * 100)
+        result += f"{i}. {suggestion['formatted']} (rekommendation: {confidence_pct}%)\n"
+    
+    return result
+
+def check_calendar_conflicts(start_time: str, end_time: str = None, exclude_event_id: str = None) -> str:
+    conflict_result = calendar_service.check_conflicts(start_time, end_time, exclude_event_id)
+    
+    if not conflict_result['has_conflict']:
+        return "✅ Ingen konflikt - tiden är ledig!"
+    
+    message = f"⚠️ {conflict_result['message']}\n\n"
+    
+    if conflict_result.get('conflicts'):
+        message += "Konflikterande händelser:\n"
+        for conflict in conflict_result['conflicts']:
+            message += f"• {conflict['title']} ({conflict['start']} - {conflict['end']})\n"
+    
+    if conflict_result.get('suggestions'):
+        message += "\nAlternativa tider:\n"
+        for i, suggestion in enumerate(conflict_result['suggestions'], 1):
+            message += f"{i}. {suggestion['formatted']}\n"
+    
+    return message
 
 # Verktygsexekverare som matchar TOOL_SPECS exakt - SAMMA NAMN!
 EXECUTORS = {
@@ -100,6 +134,8 @@ EXECUTORS = {
     "SEARCH_CALENDAR_EVENTS": lambda args: search_calendar_events(args.query, args.max_results),
     "DELETE_CALENDAR_EVENT": lambda args: delete_calendar_event(args.event_id),
     "UPDATE_CALENDAR_EVENT": lambda args: update_calendar_event(args.event_id, args.title, args.start_time, args.end_time, args.description),
+    "SUGGEST_MEETING_TIMES": lambda args: suggest_meeting_times(args.duration_minutes, args.date_preference, args.max_suggestions),
+    "CHECK_CALENDAR_CONFLICTS": lambda args: check_calendar_conflicts(args.start_time, args.end_time, args.exclude_event_id),
 }
 
 def list_tool_specs() -> list[Dict[str, Any]]:

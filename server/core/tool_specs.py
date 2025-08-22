@@ -59,6 +59,16 @@ class UpdateCalendarEventArgs(BaseModel):
     end_time: str = Field(None, description="Ny sluttid (valfritt)")
     description: str = Field(None, description="Ny beskrivning (valfritt)")
 
+class SuggestMeetingTimesArgs(BaseModel):
+    duration_minutes: int = Field(60, ge=15, le=480, description="Möteslängd i minuter (15-480)")
+    date_preference: str = Field(None, description="Önskat datum (t.ex. 'imorgon', 'nästa fredag')")
+    max_suggestions: int = Field(5, ge=1, le=10, description="Max antal förslag (1-10)")
+
+class CheckCalendarConflictsArgs(BaseModel):
+    start_time: str = Field(description="Starttid att kontrollera (t.ex. 'imorgon kl 14:00')")
+    end_time: str = Field(None, description="Sluttid (valfritt, standard 1 timme)")
+    exclude_event_id: str = Field(None, description="Exkludera händelse-ID från kolning (valfritt)")
+
 class NoArgs(BaseModel):
     """Inga argument behövs för detta verktyg"""
     pass
@@ -176,7 +186,13 @@ TOOL_SPECS: Dict[str, Dict[str, Any]] = {
             "skapa möte imorgon kl 14:00",
             "boka tid för tandläkare på fredag kl 10:30",
             "lägg till lunch med Jonas imorgon 12:00",
-            "skapa möte 'Projektstatus' nästa måndag kl 09:00"
+            "skapa möte 'Projektstatus' nästa måndag kl 09:00",
+            "boka doktortid på tisdag eftermiddag",
+            "schemalägg presentation på onsdag kl 15:30",
+            "planera middag med familjen på lördag kl 18:00",
+            "sätt upp träning på måndag morgon kl 07:00",
+            "arrangera kundmöte på torsdag förmiddag",
+            "reservera konferensrum fredag kl 13:00"
         ]
     },
     "LIST_CALENDAR_EVENTS": {
@@ -186,7 +202,13 @@ TOOL_SPECS: Dict[str, Dict[str, Any]] = {
             "visa mina möten denna vecka",
             "lista kalenderhändelser",
             "vad har jag för möten imorgon",
-            "visa 5 kommande händelser"
+            "visa 5 kommande händelser",
+            "vad står i kalendern idag",
+            "vilka möten har jag nästa vecka",
+            "kolla mitt schema för fredag",
+            "hur ser min kalender ut",
+            "visa alla möten den här månaden",
+            "vad har jag planerat för helgen"
         ]
     },
     "SEARCH_CALENDAR_EVENTS": {
@@ -196,7 +218,13 @@ TOOL_SPECS: Dict[str, Dict[str, Any]] = {
             "sök efter möte med Jonas",
             "hitta tandläkartid",
             "sök kalenderhändelse om projekt",
-            "leta efter lunch möten"
+            "leta efter lunch möten",
+            "när har jag möte med chefen",
+            "hitta alla möten med kunder",
+            "sök alla träningspass",
+            "leta reda på presentationen",
+            "vilken dag har jag läkarbesök",
+            "hitta möten som innehåller 'budget'"
         ]
     },
     "DELETE_CALENDAR_EVENT": {
@@ -216,6 +244,27 @@ TOOL_SPECS: Dict[str, Dict[str, Any]] = {
             "uppdatera titel på möte",
             "flytta mötet till imorgon",
             "ändra beskrivning på kalenderhändelse"
+        ]
+    },
+    "SUGGEST_MEETING_TIMES": {
+        "args_model": SuggestMeetingTimesArgs,
+        "desc": "Föreslå lämpliga mötestider baserat på befintlig kalender.",
+        "examples": [
+            "föreslå mötestider för imorgon",
+            "hitta lediga tider nästa vecka",
+            "när kan vi ha ett 2-timmars möte",
+            "visa lediga tider på fredag",
+            "föreslå tid för lunch nästa vecka"
+        ]
+    },
+    "CHECK_CALENDAR_CONFLICTS": {
+        "args_model": CheckCalendarConflictsArgs,
+        "desc": "Kontrollera om en föreslagen tid har konflikter med befintliga händelser.",
+        "examples": [
+            "kolla om imorgon kl 14:00 är ledigt",
+            "kontrollera konflikter fredag eftermiddag",
+            "är måndagen kl 10:00 ledig",
+            "kollar konflikter för nästa vecka torsdag"
         ]
     },
 }

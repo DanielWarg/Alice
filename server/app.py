@@ -436,6 +436,131 @@ async def tools_enabled():
     """Hämta lista över aktiverade verktyg från miljövariabel"""
     return {"enabled": enabled_tools()}
 
+# Calendar API endpoints
+from core.calendar_service import calendar_service
+
+class CalendarEventRequest(BaseModel):
+    title: str = Field(..., description="Händelsens titel")
+    start_time: str = Field(..., description="Starttid (svensk format)")
+    end_time: Optional[str] = Field(None, description="Sluttid (valfritt)")
+    description: Optional[str] = Field(None, description="Beskrivning")
+    attendees: Optional[List[str]] = Field(None, description="E-postadresser till deltagare")
+    check_conflicts: bool = Field(True, description="Kontrollera konflikter innan skapande")
+
+class CalendarListRequest(BaseModel):
+    max_results: int = Field(10, ge=1, le=50, description="Antal händelser att hämta")
+    time_min: Optional[str] = Field(None, description="Tidigaste tid")
+    time_max: Optional[str] = Field(None, description="Senaste tid")
+
+class CalendarSearchRequest(BaseModel):
+    query: str = Field(..., description="Sökfråga")
+    max_results: int = Field(20, ge=1, le=100, description="Max antal resultat")
+
+class CalendarUpdateRequest(BaseModel):
+    event_id: str = Field(..., description="Händelse-ID")
+    title: Optional[str] = Field(None, description="Ny titel")
+    start_time: Optional[str] = Field(None, description="Ny starttid")
+    end_time: Optional[str] = Field(None, description="Ny sluttid")
+    description: Optional[str] = Field(None, description="Ny beskrivning")
+
+class SuggestTimesRequest(BaseModel):
+    duration_minutes: int = Field(60, ge=15, le=480, description="Möteslängd i minuter")
+    date_preference: Optional[str] = Field(None, description="Önskat datum (svensk format)")
+    max_suggestions: int = Field(5, ge=1, le=10, description="Max antal förslag")
+
+class ConflictCheckRequest(BaseModel):
+    start_time: str = Field(..., description="Starttid")
+    end_time: Optional[str] = Field(None, description="Sluttid")
+    exclude_event_id: Optional[str] = Field(None, description="Exkludera händelse-ID")
+
+@router.post("/api/calendar/events")
+async def create_calendar_event(request: CalendarEventRequest):
+    """Skapa en ny kalenderhändelse"""
+    try:
+        result = calendar_service.create_event(
+            title=request.title,
+            start_time=request.start_time,
+            end_time=request.end_time,
+            description=request.description,
+            attendees=request.attendees,
+            check_conflicts_first=request.check_conflicts
+        )
+        return {"success": True, "message": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/calendar/events")
+async def list_calendar_events(
+    max_results: int = 10,
+    time_min: Optional[str] = None,
+    time_max: Optional[str] = None
+):
+    """Lista kommande kalenderhändelser"""
+    try:
+        result = calendar_service.list_events(max_results, time_min, time_max)
+        return {"success": True, "message": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/calendar/events/search")
+async def search_calendar_events(request: CalendarSearchRequest):
+    """Sök kalenderhändelser"""
+    try:
+        result = calendar_service.search_events(request.query, request.max_results)
+        return {"success": True, "message": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/api/calendar/events/{event_id}")
+async def delete_calendar_event(event_id: str):
+    """Ta bort en kalenderhändelse"""
+    try:
+        result = calendar_service.delete_event(event_id)
+        return {"success": True, "message": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/api/calendar/events")
+async def update_calendar_event(request: CalendarUpdateRequest):
+    """Uppdatera en kalenderhändelse"""
+    try:
+        result = calendar_service.update_event(
+            event_id=request.event_id,
+            title=request.title,
+            start_time=request.start_time,
+            end_time=request.end_time,
+            description=request.description
+        )
+        return {"success": True, "message": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/calendar/suggest-times")
+async def suggest_meeting_times(request: SuggestTimesRequest):
+    """Föreslå lämpliga mötestider"""
+    try:
+        suggestions = calendar_service.suggest_meeting_times(
+            duration_minutes=request.duration_minutes,
+            date_preference=request.date_preference,
+            max_suggestions=request.max_suggestions
+        )
+        return {"success": True, "suggestions": suggestions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/calendar/check-conflicts")
+async def check_calendar_conflicts(request: ConflictCheckRequest):
+    """Kontrollera konflikter för en föreslagen tid"""
+    try:
+        result = calendar_service.check_conflicts(
+            start_time=request.start_time,
+            end_time=request.end_time,
+            exclude_event_id=request.exclude_event_id
+        )
+        return {"success": True, "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 app.include_router(router)
 
 # Kör preflight-kontroller vid startup

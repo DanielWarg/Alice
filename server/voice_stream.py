@@ -16,6 +16,8 @@ import logging
 from core.router import classify
 from core.tool_registry import validate_and_execute_tool, enabled_tools
 from memory import MemoryStore
+from voice_calendar_processor import calendar_voice_processor
+from voice_calendar_responses import alice_calendar_responses
 
 logger = logging.getLogger("alice.voice")
 
@@ -134,8 +136,22 @@ class VoiceStreamManager:
             await self._handle_conversation(websocket, session_id, text, context)
     
     async def _classify_intent_fast(self, text: str) -> Optional[Dict[str, Any]]:
-        """Snabb lokal intent classification"""
+        """Snabb lokal intent classification inklusive svenska kalender-kommandon"""
         try:
+            # 1. Först kontrollera om det är ett kalender-kommando
+            if calendar_voice_processor.is_calendar_command(text):
+                calendar_confidence = calendar_voice_processor.get_command_confidence(text)
+                if calendar_confidence >= 0.5:
+                    return {
+                        "is_tool_command": True,
+                        "tool": "CALENDAR",
+                        "args": {"text": text},
+                        "confidence": calendar_confidence,
+                        "method": "fast",
+                        "command_type": "calendar"
+                    }
+            
+            # 2. Annars använd vanlig router för andra verktyg
             router_result = classify(text)
             
             if router_result and router_result.get("confidence", 0) >= 0.7:
@@ -144,7 +160,8 @@ class VoiceStreamManager:
                     "tool": router_result["tool"],
                     "args": router_result["args"],
                     "confidence": router_result["confidence"],
-                    "method": "fast"
+                    "method": "fast",
+                    "command_type": "standard"
                 }
             
             return {"is_tool_command": False}
@@ -154,9 +171,22 @@ class VoiceStreamManager:
             return {"is_tool_command": False}
     
     async def _classify_intent_detailed(self, text: str) -> Optional[Dict[str, Any]]:
-        """Detaljerad intent classification för Whisper text"""
+        """Detaljerad intent classification för Whisper text inklusive svenska kalender"""
         try:
-            # Använd samma system men med lägre threshold för Whisper
+            # 1. Först kontrollera kalender-kommandon med lägre threshold för Whisper
+            if calendar_voice_processor.is_calendar_command(text):
+                calendar_confidence = calendar_voice_processor.get_command_confidence(text)
+                if calendar_confidence >= 0.3:  # Lägre threshold för Whisper
+                    return {
+                        "is_tool_command": True,
+                        "tool": "CALENDAR",
+                        "args": {"text": text},
+                        "confidence": calendar_confidence,
+                        "method": "detailed",
+                        "command_type": "calendar"
+                    }
+            
+            # 2. Använd samma system men med lägre threshold för Whisper
             router_result = classify(text)
             
             if router_result and router_result.get("confidence", 0) >= 0.5:  # Lägre threshold
@@ -165,7 +195,8 @@ class VoiceStreamManager:
                     "tool": router_result["tool"],
                     "args": router_result["args"],
                     "confidence": router_result["confidence"],
-                    "method": "detailed"
+                    "method": "detailed",
+                    "command_type": "standard"
                 }
             
             return {"is_tool_command": False}
@@ -179,11 +210,17 @@ class VoiceStreamManager:
         
         tool_name = intent["tool"]
         tool_args = intent["args"]
+        command_type = intent.get("command_type", "standard")
         
-        # Immediate acknowledgment
+        # Hantera kalender-kommandon direkt
+        if command_type == "calendar":
+            await self._handle_calendar_command(websocket, session_id, intent, original_text)
+            return
+        
+        # Immediate acknowledgment för standard verktyg
         confirmations = {
             "PLAY": "Okej, jag startar musiken",
-            "PAUSE": "Jag pausar musiken",
+            "PAUSE": "Jag pausar musiken", 
             "SET_VOLUME": "Jag ändrar volymen",
             "SEND_EMAIL": "Jag skickar e-posten åt dig",
             "READ_EMAILS": "Jag hämtar dina e-postmeddelanden",
@@ -200,6 +237,74 @@ class VoiceStreamManager:
         
         # Execute tool locally (async, non-blocking)
         asyncio.create_task(self._execute_tool_async(websocket, session_id, tool_name, tool_args))
+    
+    async def _handle_calendar_command(self, websocket: WebSocket, session_id: str, intent: Dict, original_text: str):
+        """Hantera svenska kalender-kommandon med Alice's personlighet"""
+        
+        # Immediate acknowledgment med svensk naturlighet
+        calendar_acknowledgments = [
+            "Okej, jag kollar kalendern",
+            "Absolut, jag fixar det här",
+            "Klart det, jag hanterar kalendern",
+            "Ja, jag hjälper dig med kalendern"
+        ]
+        
+        import random
+        acknowledgment = random.choice(calendar_acknowledgments)
+        
+        await websocket.send_json({
+            "type": "acknowledge", 
+            "message": acknowledgment,
+            "executing": "CALENDAR"
+        })
+        
+        # Processa kalender-kommandot asynkront
+        asyncio.create_task(self._execute_calendar_async(websocket, session_id, original_text))
+    
+    async def _execute_calendar_async(self, websocket: WebSocket, session_id: str, text: str):
+        """Exekvera kalender-kommando asynkront med Alice's responses"""
+        try:
+            # Processa kommandot
+            result = await calendar_voice_processor.process_voice_command(text)
+            
+            # Generera naturligt svenska svar med Alice's personlighet
+            response_text = alice_calendar_responses.generate_response(result)
+            
+            if result['success']:
+                await websocket.send_json({
+                    "type": "calendar_success",
+                    "message": response_text,
+                    "action": result.get('action'),
+                    "confidence": result.get('confidence', 0.0)
+                })
+                
+                # Lagra i minne för kontext
+                await self.memory.upsert_text_memory_single(
+                    f"Calendar command: {text}. Result: {response_text}",
+                    metadata={
+                        "type": "calendar_action", 
+                        "action": result.get('action'),
+                        "timestamp": time.time()
+                    }
+                )
+            else:
+                await websocket.send_json({
+                    "type": "calendar_error",
+                    "message": response_text,
+                    "confidence": result.get('confidence', 0.0)
+                })
+                
+        except Exception as e:
+            logger.error(f"Calendar execution error: {e}")
+            error_responses = [
+                "Oj, något gick fel med kalendern. Kan du försöka igen?",
+                "Det blev lite problem med kalender-kommandot. Försök igen.",
+                "Hmm, jag hade svårt att hantera det där. Kan du säga det igen?"
+            ]
+            await websocket.send_json({
+                "type": "calendar_error",
+                "message": random.choice(error_responses)
+            })
     
     async def _execute_tool_async(self, websocket: WebSocket, session_id: str, tool_name: str, tool_args: Dict):
         """Execute tool in background and report results"""
@@ -285,8 +390,18 @@ class VoiceStreamManager:
         """Get Alice's conversational personality prompt"""
         return """Du är Alice, en supersmart AI-assistent som talar svenska naturligt. 
         Du är hjälpsam, vänlig och konverserar naturligt. Du svarar koncist men informativt.
-        Du hjälper användare med frågor, diskussioner och allmän konversation.
-        Svara alltid på svenska och håll ett naturligt, vänligt tonläge."""
+        Du hjälper användare med frågor, diskussioner, allmän konversation och kalenderhantering.
+        
+        Du kan hantera svenska röstkommandon för kalendern som:
+        - "Boka möte imorgon kl 14"
+        - "Vad har jag på schemat idag?"
+        - "Flytta mötet till fredag"
+        - "Hitta mötet med Anna"
+        
+        Du förstår svenska datum (imorgon, nästa vecka, på måndag) och tider (kl 14, halv tre, på eftermiddagen).
+        
+        Svara alltid på svenska med ett naturligt, vänligt tonläge som reflekterar din svenska personlighet.
+        Var entusiastisk och hjälpsam när det gäller kalenderhantering."""
     
     async def _stream_api_response(self, websocket: WebSocket, messages: list):
         """Stream response from API with real-time chunks"""
