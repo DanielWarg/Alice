@@ -1,0 +1,169 @@
+name: Branch Protection Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_settings:
+        description: 'Apply branch protection settings (requires admin)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  administration: write
+  contents: read
+
+jobs:
+  setup-branch-protection:
+    name: Setup Branch Protection Rules
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate Branch Protection Summary
+        run: |
+          echo "## 🛡️ Alice AI Assistant - Branch Protection Setup" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Required Branch Protection Settings for 'main'" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### ✅ Required Status Checks" >> $GITHUB_STEP_SUMMARY
+          echo "- **Require status checks to pass**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **Require branches to be up to date**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Required Checks:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`CI Status\` (from ci.yml workflow)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`Python CI (3.10)\` (main Python version)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`Web Frontend CI (20)\` (main Node version)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`Alice Tools CI (20)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`NLU Agent CI (20)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`Integration Tests\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`Security & Quality Gate\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`Swedish NLU Accuracy Test\` (from nlu-quality.yml)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### 👥 Code Review Requirements" >> $GITHUB_STEP_SUMMARY
+          echo "- **Require pull request reviews**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **Required approving reviews**: 1 (minimum)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Require review from CODEOWNERS**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dismiss stale reviews**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **Require conversation resolution**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### 🚫 Restrictions" >> $GITHUB_STEP_SUMMARY
+          echo "- **Restrict pushes**: Administrators only" >> $GITHUB_STEP_SUMMARY
+          echo "- **Allow force pushes**: ❌ Disabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **Allow deletions**: ❌ Disabled" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### ⚙️ Additional Settings" >> $GITHUB_STEP_SUMMARY
+          echo "- **Include administrators**: ✅ Enabled (admins follow same rules)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Linear history**: ✅ Enabled (require squash or rebase)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Manual Setup Instructions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Since this requires repository admin permissions, follow these steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to repository Settings → Branches" >> $GITHUB_STEP_SUMMARY
+          echo "2. Click 'Add rule' for branch \`main\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Configure all settings listed above" >> $GITHUB_STEP_SUMMARY
+          echo "4. Save the protection rule" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📜 GitHub CLI Commands (Alternative)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'gh api repos/:owner/:repo/branches/main/protection \' >> $GITHUB_STEP_SUMMARY
+          echo '  --method PUT \' >> $GITHUB_STEP_SUMMARY
+          echo '  --field required_status_checks="{' >> $GITHUB_STEP_SUMMARY
+          echo '    \"strict\": true,' >> $GITHUB_STEP_SUMMARY
+          echo '    \"contexts\": [' >> $GITHUB_STEP_SUMMARY
+          echo '      \"CI Status\",' >> $GITHUB_STEP_SUMMARY
+          echo '      \"Python CI (3.10)\",' >> $GITHUB_STEP_SUMMARY
+          echo '      \"Web Frontend CI (20)\",' >> $GITHUB_STEP_SUMMARY
+          echo '      \"Alice Tools CI (20)\",' >> $GITHUB_STEP_SUMMARY
+          echo '      \"NLU Agent CI (20)\",' >> $GITHUB_STEP_SUMMARY
+          echo '      \"Integration Tests\",' >> $GITHUB_STEP_SUMMARY
+          echo '      \"Security & Quality Gate\",' >> $GITHUB_STEP_SUMMARY
+          echo '      \"Swedish NLU Accuracy Test\"' >> $GITHUB_STEP_SUMMARY
+          echo '    ]' >> $GITHUB_STEP_SUMMARY
+          echo '  }" \' >> $GITHUB_STEP_SUMMARY
+          echo '  --field enforce_admins=true \' >> $GITHUB_STEP_SUMMARY
+          echo '  --field required_pull_request_reviews="{' >> $GITHUB_STEP_SUMMARY
+          echo '    \"required_approving_review_count\": 1,' >> $GITHUB_STEP_SUMMARY
+          echo '    \"require_code_owner_reviews\": true,' >> $GITHUB_STEP_SUMMARY
+          echo '    \"dismiss_stale_reviews\": true' >> $GITHUB_STEP_SUMMARY
+          echo '  }" \' >> $GITHUB_STEP_SUMMARY
+          echo '  --field restrictions=null \' >> $GITHUB_STEP_SUMMARY
+          echo '  --field required_linear_history=true \' >> $GITHUB_STEP_SUMMARY
+          echo '  --field allow_force_pushes=false \' >> $GITHUB_STEP_SUMMARY
+          echo '  --field allow_deletions=false' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Attempt automated setup (if enabled)
+        if: github.event.inputs.apply_settings == 'true'
+        run: |
+          echo "🚀 Attempting to apply branch protection settings..."
+          
+          # This would require a GitHub App or PAT with admin permissions
+          if [ -n "${{ secrets.ADMIN_GITHUB_TOKEN }}" ]; then
+            echo "Admin token found, applying settings..."
+            
+            # Use GitHub CLI to apply settings
+            export GITHUB_TOKEN="${{ secrets.ADMIN_GITHUB_TOKEN }}"
+            
+            gh api repos/${{ github.repository }}/branches/main/protection \
+              --method PUT \
+              --field required_status_checks='{
+                "strict": true,
+                "contexts": [
+                  "CI Status",
+                  "Python CI (3.10)",
+                  "Web Frontend CI (20)",
+                  "Alice Tools CI (20)",
+                  "NLU Agent CI (20)",
+                  "Integration Tests",
+                  "Security & Quality Gate",
+                  "Swedish NLU Accuracy Test"
+                ]
+              }' \
+              --field enforce_admins=true \
+              --field required_pull_request_reviews='{
+                "required_approving_review_count": 1,
+                "require_code_owner_reviews": true,
+                "dismiss_stale_reviews": true,
+                "require_conversation_resolution": true
+              }' \
+              --field restrictions=null \
+              --field required_linear_history=true \
+              --field allow_force_pushes=false \
+              --field allow_deletions=false
+            
+            echo "✅ Branch protection rules applied successfully!"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Automated Setup Complete" >> $GITHUB_STEP_SUMMARY
+            echo "Branch protection rules have been applied automatically." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ No admin token available. Please set up manually using instructions above."
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ⚠️ Manual Setup Required" >> $GITHUB_STEP_SUMMARY
+            echo "No admin token found. Please follow manual setup instructions." >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      - name: Validate current protection status
+        run: |
+          echo "🔍 Checking current branch protection status..."
+          
+          # Check if branch protection is already configured
+          PROTECTION_STATUS=$(gh api repos/${{ github.repository }}/branches/main/protection --jq '.required_status_checks.contexts // empty' 2>/dev/null || echo "none")
+          
+          if [ "$PROTECTION_STATUS" != "none" ]; then
+            echo "✅ Branch protection is currently configured"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔍 Current Protection Status" >> $GITHUB_STEP_SUMMARY
+            echo "Branch protection rules are already configured for main branch." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Branch protection not configured yet"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ⚠️ Setup Required" >> $GITHUB_STEP_SUMMARY
+            echo "Branch protection rules need to be configured manually." >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
