@@ -1,11 +1,11 @@
 {
-  "name": "Jarvis HUD",
-  "short_name": "Jarvis",
+  "name": "Alice HUD",
+  "short_name": "Alice",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#030b10",
   "theme_color": "#06b6d4",
-  "description": "Installationsbar HUD för Jarvis-systemet",
+  "description": "Installationsbar HUD för Alice-systemet",
   "icons": [
     { "src": "/favicon.ico", "sizes": "64x64 32x32 24x24 16x16", "type": "image/x-icon" }
   ]

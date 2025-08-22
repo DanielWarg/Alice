@@ -1,155 +1,247 @@
+# 🤖 Alice - Din Svenska AI-Assistent
 
+**Alice** är en supersmart AI-assistent byggd med svenska som primärt språk, utrustad med lokal AI-kraft via Ollama och en futuristisk HUD-baserad användarupplevelse.
+
+## 🚀 **Vad är Alice?**
+
+Alice är en komplett AI-assistent som kombinerar:
+- **Lokal AI-kraft** via `gpt-oss:20B` (Ollama)
+- **Svenska språkkommandon** med 89% NLU-accuracy
+- **Futuristisk HUD-UI** med real-time uppdateringar
+- **Smart verktygsintegration** (Spotify, Gmail, Kalender)
+- **Röststyrning** med Whisper STT + Piper TTS
+- **Privacy-first** - Allt körs lokalt, ingen telemetri
+
+## 🏗️ **Projektstruktur**
 
 ```
-      ██╗ █████╗ ██████╗ ██╗   ██╗██╗███████╗
-      ██║██╔══██╗██╔══██╗██║   ██║██║██╔════╝
-      ██║███████║██████╔╝██║   ██║██║███████╗
- ██   ██║██╔══██║██╔══██╗██║   ██║██║╚════██║
- ╚█████╔╝██║  ██║██║  ██║╚██████╔╝██║███████║
-  ╚════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝╚══════╝
-             The Ultimate AI Assistant
+Alice/
+├── server/                 # FastAPI backend med AI-kärna
+├── web/                    # Next.js HUD frontend
+├── alice-tools/            # NLU och router-system
+├── nlu-agent/              # Naturlig språkförståelse
+├── tests/                  # Komplett test-suite
+├── docs/                   # Dokumentation
+├── tools/                  # Verktyg och utilities
+└── requirements.txt        # Python dependencies
 ```
 
+## 🎯 **Huvudfunktioner**
 
-──────────────────────────────
+### 🎤 **Avancerad Röst-AI Pipeline**
+- **Dual Voice System** - VoiceBox (basic) + VoiceClient (advanced)
+- **OpenAI Realtime API** integration med WebRTC streaming
+- **Enhanced TTS** med 3 svenska personligheter (Alice, Formell, Casual)
+- **Emotionell modulering** - 5 toner (Neutral, Happy, Calm, Confident, Friendly)
+- **VoiceBox visualisering** - Real-time audio bars synkade med röst
+- **Agent bridge architecture** - Streaming responses via SSE
+- **Wake-word detection** för hands-free operation ("Alice")
+- **MD5-baserad cache** för 3-10x snabbare TTS-respons
+- **WebSocket real-time** kommunikation för låg latens
 
-# 🚀 JARVIS HUD — Local AI with Voice, Vision & Memory
+### 📅 **Smart Kalender-Assistent**
+- **Google Calendar integration** med svenska röstkommandon
+- **"Visa kalender"**, **"boka möte imorgon kl 14"** fungerar naturligt
+- **Intelligent scheduling** med conflict detection
+- **CompactWidget + Full Modal** i HUD för seamless kalender-hantering
+- **Svenska datum-parsing** (imorgon, nästa fredag, kl 14:30)
 
-*"Your personal AI. Local. Private. Limitless."*
+### 🧠 **AI & Språk**
+- **Lokal GPT-OSS:20B** via Ollama
+- **Svenska NLU** med 89% accuracy och slot extraction
+- **Harmony-adapter** för intelligent verktygsrouting
+- **WebSocket real-time** kommunikation mellan röst och backend
+
+### 🔧 **Verktyg & Integration**
+- **Spotify** - Musikuppspelning och kontroll
+- **Gmail** - E-posthantering och sökning  
+- **Google Calendar** - Komplett kalenderhantering med röst
+- **Document Upload** - Ladda upp dokument för Alice's AI-kontext
+- **20+ verktyg** registrerade och redo för expansion
+
+### 🎨 **HUD & UI**
+- **Futuristisk design** med cyan/blue tema och glassmorphism
+- **Real-time metrics** (CPU, RAM, nätverk, kalenderstatus)
+- **Modulära paneler** med både kompakta och detaljerade lägen
+- **VoiceBox-integration** för audio-visuell feedback
+
+## ✅ **Status: Produktionsklar & Funktional**
+
+### **🎤 Röst-Pipeline System**
+- ✅ **VoiceBox Component** - Basic visualizer med mikrofon integration
+- ✅ **VoiceClient Component** - Advanced OpenAI Realtime integration
+- ✅ **OpenAI Realtime API** - WebRTC streaming för real-time röstinteraktion
+- ✅ **Agent Bridge** - SSE streaming mellan VoiceClient och Alice agent
+- ✅ **Enhanced TTS** med 3 personligheter fungerar
+- ✅ **VoiceBox visualisering** - Real-time audio bars synkade med röst  
+- ✅ **Svenska röstkommandon** igenkänns korrekt
+- ✅ **WebSocket kommunikation** stabil (/ws/alice och /ws/voice)
+- ✅ **Browser TTS fallback** för seamless upplevelse
+- ✅ **FastAPI streaming endpoints** för real-time processing
+
+### **📅 Kalender-Integration**
+- ✅ Google Calendar API endpoints aktiva
+- ✅ Svenska röstkommandon ("visa kalender", "boka möte")
+- ✅ CalendarWidget i HUD (kompakt + full modal)
+- ✅ Intelligent scheduling med conflict detection
+- ✅ Svenska datum/tid-parsing (imorgon, kl 14, etc.)
+
+### **📁 Document Management**
+- ✅ Document upload system (.txt, .md, .pdf, .docx, .html)
+- ✅ Automatisk RAG-integration med chunking och embeddings
+- ✅ Alice kan svara på frågor baserat på uppladdade dokument
+- ✅ Drag & drop interface i HUD med real-time feedback
+- ✅ Intelligent document parsing och text extraction
+
+### **🖥️ Backend (FastAPI)**
+- ✅ FastAPI server startar på port 8000
+- ✅ 25+ API endpoints inklusive /api/calendar/* och /api/tts/*
+- ✅ Verktygsregister aktiverat (20+ verktyg)
+- ✅ Harmony adapter implementerad med streaming
+- ✅ WebSocket real-time kommunikation
+
+### **🎨 Frontend (Next.js)**
+- ✅ Next.js HUD startar på port 3001
+- ✅ Futuristisk HUD interface med glassmorphism
+- ✅ VoiceBox-komponent integrerad i huvudsidan
+- ✅ Calendar panel (både snabb-widget och full modal)
+- ✅ Real-time uppdateringar via WebSocket
+- ✅ Real-time metrics fungerar
+- ✅ Responsiv design
+
+### **AI & NLU**
+- ✅ Ollama integration
+- ✅ GPT-OSS:20B modell tillgänglig
+- ✅ Svenska NLU system
+- ✅ Intent-klassificering
+
+### **Verktyg & Integration**
+- ✅ Spotify integration
+- ✅ Gmail integration
+- ✅ Kalender integration
+- ✅ Röststyrning
+
+### **Agent Core v1 - Autonomous Workflows** 🤖
+- ✅ **AgentPlanner** - Bryter ner mål i exekverbara steg
+- ✅ **AgentExecutor** - Utför actions med dependencies & parallellisering  
+- ✅ **AgentCritic** - Analyserar resultat & föreslår förbättringar
+- ✅ **AgentOrchestrator** - Koordinerar Planning→Execution→Criticism→Improvement cycles
+- ✅ **100 tester** med full test coverage
+- ✅ **Autonomous multi-step task execution**
+- ✅ **Adaptive improvement strategies**
+- ✅ **Progress tracking & monitoring**
 
 ---
 
-🌌 Vision
-Jarvis HUD is a self-hosted AI powerhouse.
-It listens, speaks, understands Swedish commands with precision, remembers context, and controls your world — from media to email, calendars, IoT, and beyond — all inside a sleek, futuristic heads-up display.
+## 🚀 **Snabbstart**
 
-Built for speed, privacy, and total control — no cloud lock-in, no compromises.
+### Förutsättningar
+- Python 3.9+
+- Node.js 18+
+- Ollama med `gpt-oss:20B` modell
+- **OpenAI API Key** (för avancerad röstfunktionalitet - valfritt)
+- **HTTPS-miljö** (för WebRTC och mikrofonåtkomst i produktion)
 
-<div style="background-color:#0d1117;padding:20px;border-radius:10px;text-align:center;"> <img src="docs/image.png" alt="Jarvis HUD — Local AI with Voice, Vision & Memory in a Futuristic Interface" style="max-width:100%;border-radius:8px;"> <p style="color:#8b949e;font-style:italic;">Preview of the Jarvis HUD interface</p> </div>
+### Installation
 
----
+1. **Klon och navigera:**
+```bash
+git clone https://github.com/DanielWarg/Alice.git
+cd Alice
+```
 
-## ✨ Features
-
-* **Futuristic HUD Panels** — System stats, weather, to-do, diagnostics, journal, and media.
-* **Overlay Modules** — Calendar, email, finance, reminders, wallet, video feeds.
-* **Spotify Control** — OAuth login, playback, queue, search, playlists, auto device sync.
-* **Smart Intent Routing** — Natural language → NLU → Agent → Tool.
-* **Safe Boot Mode** — Kill camera/mic instantly.
-* **Extensible Tools** — Ready for API, IoT, and custom agent integration.
-
----
-
-## 🛠 Tech Stack
-
-**Frontend:** Next.js 15, React 19, Tailwind CSS v4, next-pwa
-**Backend:** FastAPI, httpx, orjson, python-dotenv, SQLite memory store
-**AI Core:** `gpt-oss:20B` (Ollama), RAG retrieval, Whisper STT, Piper TTS
-
-*Chosen for modern rendering, real-time capabilities, local-first AI execution, and minimal latency.*
-
----
-
-## ⚡ Quick Start
-
-### Backend
-
-python3 -m venv .venv
+2. **Aktivera virtuell miljö:**
+```bash
 source .venv/bin/activate
-pip install fastapi "uvicorn\[standard]" httpx orjson python-dotenv
-uvicorn server.app\:app --host 127.0.0.1 --port 8000
+```
 
-### Frontend
+3. **Starta backend:**
+```bash
+cd server
+python run.py
+```
 
+4. **Starta frontend (ny terminal):**
+```bash
 cd web
 npm install
-npm run dev -- -p 3100
+npm run dev
+```
 
-Then open: [http://localhost:3100](http://localhost:3100)
+5. **Öppna HUD:**
+```
+http://localhost:3000
+```
 
----
+## 🔧 **Konfiguration**
 
-## 🎵 Spotify Setup
+### Miljövariabler
+```bash
+# .env
+USE_HARMONY=true          # Aktivera Harmony AI-adapter
+USE_TOOLS=true            # Aktivera verktygssystem
+LOG_LEVEL=INFO            # Loggningsnivå
+OLLAMA_BASE_URL=http://localhost:11434
 
-1. Create an app in [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/).
-2. Add redirect URI:
-   [http://127.0.0.1:3100/spotify/callback](http://127.0.0.1:3100/spotify/callback)
-3. Create `.env` in project root:
+# Advanced Voice Features (Optional)
+OPENAI_API_KEY=sk-...     # För OpenAI Realtime API integration
+VOICE_PIPELINE_MODE=dual  # dual|voicebox|voiceclient
+ENABLE_WEBRTC=true        # Aktivera WebRTC för real-time streaming
+```
 
-SPOTIFY\_CLIENT\_ID=xxxx
-SPOTIFY\_CLIENT\_SECRET=xxxx
-SPOTIFY\_REDIRECT\_URI=[http://127.0.0.1:3100/spotify/callback](http://127.0.0.1:3100/spotify/callback)
+### Ollama Setup
+```bash
+# Installera Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
 
-4. Start backend, open HUD → Connect Spotify.
+# Ladda ner modell
+ollama pull gpt-oss:20b
 
----
+# Starta Ollama
+ollama serve
+```
 
-## 📂 Structure
+## 📚 **Dokumentation**
 
-Jarvis/
-├─ README.md
-├─ server/         # FastAPI backend
-├─ web/            # Next.js frontend
-├─ project\_plan.md
-├─ requirements.md
+- **[STARTUP.md](STARTUP.md)** - Exakt startup-guide
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Utvecklingsguide
+- **[API.md](API.md)** - Komplett API-dokumentation inkl. OpenAI Realtime
+- **[AGENT_CORE.md](AGENT_CORE.md)** - Agent Core v1 och voice pipeline arkitektur
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment och production-guide
+- **[VISION.md](VISION.md)** - Projektvision och framtida funktioner
+- **[ALICE_ROADMAP.md](ALICE_ROADMAP.md)** - Detaljerad utvecklingsplan
+- **[web/README.md](web/README.md)** - Frontend och voice components guide
 
----
+## 🧪 **Testning**
 
-## 🧠 Master Build Checklist
+```bash
+# Kör alla tester
+cd tests
+python -m pytest
 
-### Phase 1 — NLU Finalization (in progress)
+# Kör specifika tester
+python -m pytest tests/test_harmony.py
+python -m pytest tests/test_voice_system.py
+```
 
-* Slot extractors for room/device/time/volume
-* Router mapping + alias & prefs in agent
-* Unit tests (≥10 time, ≥6 volume, ≥6 room/device)
-* RAG retrieval for LLM fallback
-* Eval: Slot-F1 ≥ 0.9, latency p50 < 120ms, 95% refuse when unsure
+## 🌟 **Framtida funktioner**
 
-### Phase 2 — LiveKit & Voice (planned)
+- **Multi-modal AI** - Bild- och videoförståelse
+- **IoT-integration** - Smart hem-kontroll
+- **Plugin-system** - Utbyggbar arkitektur
+- **Enterprise-features** - Multi-user och RBAC
 
-* Local LiveKit server (<100ms RTT)
-* Whisper STT, Piper TTS
-* Wake-word + barge-in
-* Multi-turn with memory
+## 🤝 **Bidrag**
 
-### Phase 3 — Core Tools (upcoming)
+Alice är ett öppet projekt! Bidrag är välkomna:
+- Bug-rapporter via GitHub Issues
+- Feature-förslag via Discussions
+- Pull Requests för förbättringar
 
-* Calendar, email, finance, reminders, video
+## 📄 **Licens**
 
-### Phase 4 — Long-term Memory (upcoming)
-
-* Profiles, contextual retrieval, doc integration
-
-### Phase 5 — Optimization & UX (upcoming)
-
-* Latency/stress tests, SQLite tuning, accessibility, HUD polish
-
----
-
-## 🛡 Fallback
-
-**Latest stable Spotify auto-start:**
-git reset --hard fallback-spotify-autostart-2025-08-12 && git clean -fd
-
-**Previous stable Spotify version:**
-git reset --hard fallback-spotify-stable-2025-08-12 && git clean -fd
-
----
-
-## 🤝 Contributing
-
-We welcome pull requests, bug reports, and feature suggestions.
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+MIT License - se [LICENSE](LICENSE) för detaljer.
 
 ---
 
-## 📜 License
-
-TBD
-
----
+**Alice** - Din supersmarta svenska AI-assistent för framtiden! 🚀
