@@ -234,19 +234,26 @@ graph TB
 
 ## 📖 Documentation
 
+> **🌍 Language Selection:**  
+> **🇺🇸 English** (current) | **🇸🇪 [Svenska](docs/sv/)** - Choose your preferred language
+
 ### 🚀 Getting Started
 - **[STARTUP.md](STARTUP.md)** - Complete setup guide
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development workflow
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development workflow | **[🇸🇪 Svenska](docs/sv/DEVELOPMENT.md)**
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment | **[🇸🇪 Svenska](docs/sv/DEPLOYMENT.md)**
+- **[VOICE_SETUP.md](VOICE_SETUP.md)** - Voice pipeline setup | **[🇸🇪 Svenska](docs/sv/VOICE_SETUP.md)**
 
 ### 🔧 Technical Guides
-- **[API.md](API.md)** - Complete API reference
-- **[AGENT_CORE.md](AGENT_CORE.md)** - Agent Core v1 architecture
-- **[web/README.md](web/README.md)** - Frontend components guide
+- **[API.md](API.md)** - Complete API reference | **[🇸🇪 Svenska](docs/sv/API.md)**
+- **[AGENT_CORE.md](AGENT_CORE.md)** - Agent Core v1 architecture | **[🇸🇪 Svenska](docs/sv/AGENT_CORE.md)**
+- **[web/README.md](web/README.md)** - Frontend components guide | **[🇸🇪 Svenska](docs/sv/WEB_README.md)**
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions | **[🇸🇪 Svenska](docs/sv/TROUBLESHOOTING.md)**
 
 ### 📋 Planning & Vision
-- **[ALICE_ROADMAP.md](ALICE_ROADMAP.md)** - Development roadmap
-- **[VISION.md](VISION.md)** - Project vision and future features
+- **[ALICE_ROADMAP.md](ALICE_ROADMAP.md)** - Development roadmap | **[🇸🇪 Svenska](docs/sv/ALICE_ROADMAP.md)**
+- **[VISION.md](VISION.md)** - Project vision and future features | **[🇸🇪 Svenska](docs/sv/VISION.md)**
+
+**Note:** Alice is a Swedish AI assistant optimized for Swedish language and culture. While documentation is available in English for global accessibility, Alice's core functionality, voice commands, and cultural context remain authentically Swedish.
 
 ---
 

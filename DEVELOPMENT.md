@@ -1,20 +1,22 @@
 # 🛠️ Alice Development Guide
 
-Komplett utvecklingsguide för Alice AI Assistant Platform. Denna guide täcker allt från lokal utvecklingsmiljö till production deployment.
+Complete development guide for the Alice AI Assistant Platform. This guide covers everything from local development environment to production deployment.
 
-## 🚀 **Snabbstart för Utvecklare**
+> **🇸🇪 Svenska:** [docs/sv/DEVELOPMENT.md](docs/sv/DEVELOPMENT.md) - Full Swedish version available
 
-### Förutsättningar
-- **Python 3.9+** - Backend och AI-kärna
-- **Node.js 18+** - Frontend och build-tools
-- **Git** - Versionshantering
-- **Ollama** - Lokal AI-modell (gpt-oss:20B)
-- **OpenAI API Key** - För avancerad voice pipeline (valfritt)
-- **HTTPS-utvecklingsmiljö** - För mikrofon/WebRTC-funktioner
+## 🚀 **Quick Start for Developers**
 
-### Lokal Utvecklingsmiljö
+### Prerequisites
+- **Python 3.9+** - Backend and AI core
+- **Node.js 18+** - Frontend and build tools
+- **Git** - Version control
+- **Ollama** - Local AI model (gpt-oss:20B)
+- **OpenAI API Key** - For advanced voice pipeline (optional)
+- **HTTPS development environment** - For microphone/WebRTC features
 
-1. **Klon och navigera:**
+### Local Development Environment
+
+1. **Clone and navigate:**
 ```bash
 git clone https://github.com/DanielWarg/Alice.git
 cd Alice
@@ -22,11 +24,11 @@ cd Alice
 
 2. **Backend Setup:**
 ```bash
-# Skapa virtuell miljö
+# Create virtual environment
 python3 -m venv .venv
-source .venv/bin/activate  # På Windows: .venv\Scripts\activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Installera dependencies
+# Install dependencies
 pip install -r server/requirements.txt
 ```
 
@@ -38,92 +40,93 @@ npm install
 
 4. **AI Setup (Ollama):**
 ```bash
-# Installera Ollama
+# Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
 
-# Ladda ner modell
+# Download model
 ollama pull gpt-oss:20b
 
-# Starta Ollama
+# Start Ollama
 ollama serve
 ```
 
-## 🏗️ **Projektstruktur**
+## 🏗️ **Project Structure**
 
 ```
 Alice/
 ├── server/                 # FastAPI backend
-│   ├── app.py             # Huvudapplikation
-│   ├── core/              # Kärnmoduler
-│   │   ├── router.py      # Intent-klassificering
-│   │   ├── tool_registry.py # Verktygshantering
-│   │   ├── tool_specs.py  # Verktygsspecifikationer
+│   ├── app.py             # Main application
+│   ├── core/              # Core modules
+│   │   ├── router.py      # Intent classification
+│   │   ├── tool_registry.py # Tool management
+│   │   ├── tool_specs.py  # Tool specifications
 │   │   ├── calendar_service.py # Google Calendar
 │   │   ├── gmail_service.py # Gmail integration
-│   │   └── preflight.py   # System-kontroller
-│   ├── prompts/           # AI-prompts på svenska
-│   ├── tests/             # Backend-tester
-│   ├── voice_stream.py    # Rösthantering
+│   │   └── preflight.py   # System checks
+│   ├── prompts/           # AI prompts in Swedish
+│   ├── tests/             # Backend tests
+│   ├── voice_stream.py    # Voice handling
 │   ├── voice_stt.py       # Speech-to-Text
 │   └── requirements.txt   # Python dependencies
 ├── web/                    # Next.js frontend
 │   ├── app/               # Next.js 13+ app directory
-│   ├── components/        # React-komponenter
-│   ├── lib/               # Hjälpbibliotek
+│   ├── components/        # React components
+│   ├── lib/               # Helper libraries
 │   └── package.json       # Node.js dependencies
-├── alice-tools/            # NLU och router-system (TypeScript)
-│   ├── src/router/        # Intent-klassificering
-│   ├── src/lexicon/       # Svenska kommandon
-│   └── tests/             # Router-tester
-├── nlu-agent/              # Naturlig språkförståelse
-├── tests/                  # Integrationstester
-├── docs/                   # Dokumentation
-└── tools/                  # Verktyg och utilities
+├── alice-tools/            # NLU and router system (TypeScript)
+│   ├── src/router/        # Intent classification
+│   ├── src/lexicon/       # Swedish commands
+│   └── tests/             # Router tests
+├── nlu-agent/              # Natural language understanding
+├── tests/                  # Integration tests
+├── docs/                   # Documentation
+│   └── sv/                 # Swedish documentation
+└── tools/                  # Tools and utilities
 ```
 
-## 🔧 **Utvecklingskommandon**
+## 🔧 **Development Commands**
 
 ### Git & Repository
 ```bash
-# Kontrollera remote
+# Check remote
 git remote -v
 
-# Pusha till Alice-repositoryt
+# Push to Alice repository
 git push origin feature/harmony
 
-# Hämta från Alice-repositoryt
+# Pull from Alice repository
 git pull origin feature/harmony
 ```
 
-### Backend Utveckling
+### Backend Development
 ```bash
-# Starta backend med hot-reload
+# Start backend with hot-reload
 cd server
 source ../.venv/bin/activate
 uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 
-# Kör tester
+# Run tests
 python -m pytest tests/ -v
 
-# Kör specifika tester
+# Run specific tests
 python -m pytest tests/test_harmony.py
 python -m pytest tests/test_voice_system.py
 ```
 
-### Frontend Utveckling
+### Frontend Development
 ```bash
-# Starta utvecklingsserver
+# Start development server
 cd web
 npm run dev
 
-# Bygg för produktion
+# Build for production
 npm run build
 
-# Starta i produktionsläge
+# Start in production mode
 npm start
 ```
 
-### Fullstack Utveckling
+### Full Stack Development
 ```bash
 # Terminal 1: Backend
 cd server && source ../.venv/bin/activate && uvicorn app:app --reload
@@ -135,14 +138,14 @@ cd web && npm run dev
 ollama serve
 ```
 
-### Voice Pipeline Utveckling
+### Voice Pipeline Development
 ```bash
-# Setup för voice utveckling med HTTPS
+# Setup for voice development with HTTPS
 cd web
 npm install --save-dev @next/https
 HTTPS=true npm run dev
 
-# Voice debugging aktiverat
+# Voice debugging enabled
 NEXT_PUBLIC_ENABLE_VOICE_DEBUG=true npm run dev
 
 # Test OpenAI Realtime integration
@@ -153,42 +156,42 @@ curl -X POST http://localhost:3000/api/tts/openai-stream \
   -H "Content-Type: application/json" \
   -d '{"text": "Test voice", "model": "tts-1"}'
 
-# Voice component isolerade tester
-# Öppna: http://localhost:3000/voice
+# Voice component isolated tests
+# Open: http://localhost:3000/voice
 ```
 
-## 🧪 **Testning**
+## 🧪 **Testing**
 
-### Teststruktur
+### Test Structure
 ```bash
 tests/
-├── harmony_e2e_test.py     # End-to-end Harmony-tester
-├── test_harmony_tools.py   # Verktygsintegration
-├── test_voice_system.py    # Röstsystem
-└── results/                # Testresultat och rapporter
+├── harmony_e2e_test.py     # End-to-end Harmony tests
+├── test_harmony_tools.py   # Tool integration
+├── test_voice_system.py    # Voice system
+└── results/                # Test results and reports
 ```
 
-### Kör Tester
+### Run Tests
 ```bash
-# Alla tester
+# All tests
 cd tests
 python -m pytest -v
 
-# Specifika testkategorier
+# Specific test categories
 python -m pytest test_harmony_tools.py -v
 python -m pytest test_voice_system.py -v
 
-# Med coverage
+# With coverage
 python -m pytest --cov=../server --cov-report=html
 ```
 
-### Testdata
+### Test Data
 ```bash
-# Generera testdata
+# Generate test data
 cd tests
 python generate_test_data.py
 
-# Kör stress-tester
+# Run stress tests
 python stress_test_integrated.py
 ```
 
@@ -196,12 +199,12 @@ python stress_test_integrated.py
 
 ### Backend Debug
 ```bash
-# Starta med debug-loggar
+# Start with debug logs
 export LOG_LEVEL=DEBUG
 cd server
 python -c "import app; print('App loaded successfully')"
 
-# Kontrollera endpoints
+# Check endpoints
 curl http://localhost:8000/api/health
 curl http://localhost:8000/api/tools/spec
 ```
@@ -209,37 +212,37 @@ curl http://localhost:8000/api/tools/spec
 ### Frontend Debug
 ```bash
 # Browser Developer Tools
-# - Console för JavaScript-fel
-# - Network tab för API-anrop
-# - React DevTools för komponenter
+# - Console for JavaScript errors
+# - Network tab for API calls
+# - React DevTools for components
 
-# Logga till konsolen
+# Log to console
 console.log('Debug info:', data);
 ```
 
 ### AI Debug
 ```bash
-# Testa Ollama-anslutning
+# Test Ollama connection
 curl http://localhost:11434/api/tags
 
-# Testa modell
-ollama run gpt-oss:20b "Hej, testar anslutningen"
+# Test model
+ollama run gpt-oss:20b "Hello, testing connection"
 ```
 
-## 📝 **Kodstandard**
+## 📝 **Code Standards**
 
 ### Python
 - **PEP 8** - Python style guide
-- **Type hints** - Använd `typing` modulen
+- **Type hints** - Use `typing` module
 - **Docstrings** - Google style docstrings
-- **Black** - Automatisk kodformatering
+- **Black** - Automatic code formatting
 
 ```python
 from typing import Dict, List, Optional
 from pydantic import BaseModel
 
 class ToolResponse(BaseModel):
-    """Response model för verktygsexekvering."""
+    """Response model for tool execution."""
     
     success: bool
     message: str
@@ -250,9 +253,9 @@ class ToolResponse(BaseModel):
 ```
 
 ### TypeScript/JavaScript
-- **ESLint** - Kodkvalitet
-- **Prettier** - Kodformatering
-- **TypeScript** - Typesäkerhet
+- **ESLint** - Code quality
+- **Prettier** - Code formatting
+- **TypeScript** - Type safety
 - **Conventional Commits** - Git commit messages
 
 ```typescript
@@ -279,9 +282,9 @@ test: add voice system tests
 
 ## 🚀 **Deployment**
 
-För detaljerad deployment-information, se **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+For detailed deployment information, see **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
-### Snabbstart för lokal production
+### Quick Start for Local Production
 ```bash
 # Backend
 cd server
@@ -294,7 +297,7 @@ npm run build
 npm start
 ```
 
-## 🔧 **Verktyg och Utilities**
+## 🔧 **Tools and Utilities**
 
 ### Preflight Checks
 ```bash
@@ -332,45 +335,45 @@ python test_calendar_integration.py
 ## 🎯 **Feature Development Guides**
 
 ### Enhanced TTS System
-Alice's röst-system stöder nu:
-- **3 Personligheter**: Alice (energisk), Formell (professionell), Casual (avslappnad)
-- **5 Emotioner**: Neutral, Happy, Calm, Confident, Friendly
-- **MD5-baserad cache** för 3-10x snabbare respons
-- **Browser fallback** för seamless upplevelse
+Alice's voice system now supports:
+- **3 Personalities**: Alice (energetic), Formal (professional), Casual (relaxed)
+- **5 Emotions**: Neutral, Happy, Calm, Confident, Friendly
+- **MD5-based cache** for 3-10x faster response
+- **Browser fallback** for seamless experience
 
 **Test TTS:**
-1. Starta Alice (`./start_alice.sh`)
-2. Öppna http://localhost:3001
-3. Klicka "Test TTS" i VoiceBox
-4. Testa olika personligheter och emotioner
+1. Start Alice (`./start_alice.sh`)
+2. Open http://localhost:3001
+3. Click "Test TTS" in VoiceBox
+4. Test different personalities and emotions
 
 ### Google Calendar Integration
-Alice kan nu hantera kalender naturligt på svenska:
-- **"Visa kalender"** - Listar kommande events
-- **"Boka möte imorgon kl 14"** - Guidar till event-skapande
-- **Svenska datum-parsing** - "imorgon", "nästa fredag", "kl 14:30"
+Alice can now handle calendar naturally in Swedish:
+- **"Visa kalender"** (Show calendar) - Lists upcoming events
+- **"Boka möte imorgon kl 14"** (Book meeting tomorrow at 2 PM) - Guides to event creation
+- **Swedish date parsing** - "imorgon" (tomorrow), "nästa fredag" (next Friday), "kl 14:30" (at 2:30 PM)
 
 **Test Calendar:**
-1. VoiceBox: Säg "Visa kalender"
-2. Kalender-panel: Klicka "+" för snabbt event-skapande
-3. HUD: Klicka kalender-ikonen för full modal
-4. Röst + UI: Seamless integration mellan röst och visuell kalender
+1. VoiceBox: Say "Visa kalender"
+2. Calendar panel: Click "+" for quick event creation
+3. HUD: Click calendar icon for full modal
+4. Voice + UI: Seamless integration between voice and visual calendar
 
 ### Voice Command Development
-**Lägg till nya svenska röstkommandon:**
+**Add new Swedish voice commands:**
 ```python
-# I voice_calendar_nlu.py eller motsvarande
+# In voice_calendar_nlu.py or equivalent
 calendar_patterns = [
     r"boka (möte|träff) (.+)",
     r"visa (kalender|schemat)",  
     r"vad har jag (.+)",
-    # Lägg till ditt nya pattern här
+    # Add your new pattern here
 ]
 ```
 
-## 📚 **API-utveckling**
+## 📚 **API Development**
 
-### Nya Endpoints
+### New Endpoints
 ```python
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -382,7 +385,7 @@ class NewEndpointRequest(BaseModel):
 
 @router.post("/api/new-endpoint")
 async def new_endpoint(request: NewEndpointRequest):
-    """Ny endpoint för funktionalitet."""
+    """New endpoint for functionality."""
     try:
         # Implementation
         return {"success": True, "data": request.data}
@@ -404,86 +407,86 @@ async def websocket_endpoint(websocket: WebSocket):
         pass
 ```
 
-## 🧠 **AI-utveckling**
+## 🧠 **AI Development**
 
 ### Harmony Adapter
 ```python
-# Lägg till nya verktyg
+# Add new tools
 from core.tool_registry import register_tool
 
 @register_tool("NEW_TOOL")
 def new_tool_function(args: Dict) -> str:
-    """Implementera nytt verktyg."""
+    """Implement new tool."""
     return "Tool executed successfully"
 ```
 
 ### **Harmony Implementation Guide**
 
-#### **Fas 0 – Baseline och säkerhetslina**
-- [x] Skapa branch `feature/harmony`
-- [x] Lägg env-flaggor: `USE_HARMONY=false`, `USE_TOOLS=false`
-- [x] Sätt upp `.venv` i `server/` och frys beroenden
+#### **Phase 0 – Baseline and safety line**
+- [x] Create branch `feature/harmony`
+- [x] Add env flags: `USE_HARMONY=false`, `USE_TOOLS=false`
+- [x] Set up `.venv` in `server/` and freeze dependencies
 
-#### **Fas 1 – Harmony-adapter i servern**
-- [x] Skapa adapter-lager i `server/app.py`
-- [x] Instruktioner till modellen: resonemang i `analysis`, tool-calls i `commentary`, endast svar i `final`
-- [x] Parsning: extrahera endast kanal `final` till klient
-- [x] Lägg debug-loggning i dev: roll + kanal
+#### **Phase 1 – Harmony adapter in server**
+- [x] Create adapter layer in `server/app.py`
+- [x] Model instructions: reasoning in `analysis`, tool calls in `commentary`, only responses in `final`
+- [x] Parsing: extract only `final` channel to client
+- [x] Add debug logging in dev: role + channel
 
-#### **Fas 2 – Verktygsregister och validering**
-- [x] Skapa `server/tools/registry.py` med verktygsspecar
-- [x] Implementera exekvering med Pydantic-validering
-- [x] Första verktyg: `PLAY`, `PAUSE`, `SET_VOLUME`, `SAY`/`DISPLAY`
+#### **Phase 2 – Tool registry and validation**
+- [x] Create `server/tools/registry.py` with tool specs
+- [x] Implement execution with Pydantic validation
+- [x] First tools: `PLAY`, `PAUSE`, `SET_VOLUME`, `SAY`/`DISPLAY`
 
-#### **Fas 3 – Körsätt för gpt-oss lokalt**
-- [x] Välj körsätt: Ollama-adapter
-- [x] Dokumentera valet
-- [x] Smoke-test: modell svarar i rätt kanaler
+#### **Phase 3 – Runtime for gpt-oss locally**
+- [x] Choose runtime: Ollama adapter
+- [x] Document the choice
+- [x] Smoke test: model responds in correct channels
 
-#### **Fas 4 – Prompts och policys**
-- [x] Skapa `server/prompts/system_prompts.py` (svenska)
-- [x] Skapa developer-prompt: följ Harmony; "no-tool-if-unsure"
-- [x] Länka in i adapter-lagret
+#### **Phase 4 – Prompts and policies**
+- [x] Create `server/prompts/system_prompts.py` (Swedish)
+- [x] Create developer prompt: follow Harmony; "no-tool-if-unsure"
+- [x] Link into adapter layer
 
-#### **Fas 5 – Router-först**
-- [x] Behåll existerande NLU/router som förstaval
-- [x] Lägg tröskel `NLU_CONFIDENCE_THRESHOLD` i env
-- [x] Lägre confidence → skicka via Harmony + verktygsspec
+#### **Phase 5 – Router first**
+- [x] Keep existing NLU/router as first choice
+- [x] Add threshold `NLU_CONFIDENCE_THRESHOLD` in env
+- [x] Lower confidence → send via Harmony + tool spec
 
-#### **Fas 6 – Streaming och UI**
-- [x] Servern streamar endast `final` till klient
-- [x] Lägg lätt metadata till UI: `tool_called`, `tool_result`
+#### **Phase 6 – Streaming and UI**
+- [x] Server streams only `final` to client
+- [x] Add light metadata to UI: `tool_called`, `tool_result`
 
-#### **Fas 7 – Telemetri och loggning**
-- [x] Logga p50/p95: tid till första `final`-token
-- [x] Logga: tid `tool_call` → `tool_result`, valideringsfel
-- [x] Logga: router-vs-LLM hit-rate
+#### **Phase 7 – Telemetry and logging**
+- [x] Log p50/p95: time to first `final` token
+- [x] Log: time `tool_call` → `tool_result`, validation errors
+- [x] Log: router vs LLM hit rate
 
-#### **Fas 8 – Evals**
-- [x] Skapa 20 kommandon som kräver verktyg
-- [x] Skapa 20 rena chattfrågor
-- [x] Skapa 10 fall med saknade parametrar
-- [ ] Mål: ≥95% korrekt vägval, 0% `analysis`-läckage
+#### **Phase 8 – Evals**
+- [x] Create 20 commands requiring tools
+- [x] Create 20 pure chat questions
+- [x] Create 10 cases with missing parameters
+- [ ] Goal: ≥95% correct routing, 0% `analysis` leakage
 
-#### **Fas 9 – Utrullning i små PR:er**
-- [x] PR1: flaggor + Harmony-adapter
-- [x] PR2: tool-registry + validering
-- [x] PR3: aktivera `USE_TOOLS=true`
-- [x] PR4: router-först med tröskel
-- [x] PR5: telemetri + syntetiska evals
+#### **Phase 9 – Rollout in small PRs**
+- [x] PR1: flags + Harmony adapter
+- [x] PR2: tool registry + validation
+- [x] PR3: activate `USE_TOOLS=true`
+- [x] PR4: router first with threshold
+- [x] PR5: telemetry + synthetic evals
 
-#### **Fas 10 – Dokumentation och runbooks**
-- [ ] Uppdatera `README.md`/`ARCHITECTURE.md`
-- [ ] Runbook: lägga till nytt verktyg
-- [ ] Felsökning: kanalläckage, valideringsfel, latensspikar
+#### **Phase 10 – Documentation and runbooks**
+- [ ] Update `README.md`/`ARCHITECTURE.md`
+- [ ] Runbook: adding new tools
+- [ ] Troubleshooting: channel leakage, validation errors, latency spikes
 
-### NLU-utveckling
+### NLU Development
 ```typescript
-// Lägg till nya intents i alice-tools
+// Add new intents in alice-tools
 export function classifyNewIntent(input: string): IntentResult | null {
   const patterns = [
-    /nytt mönster/i,
-    /annat mönster/i
+    /new pattern/i,
+    /another pattern/i
   ];
   
   for (const pattern of patterns) {
@@ -500,166 +503,166 @@ export function classifyNewIntent(input: string): IntentResult | null {
 }
 ```
 
-## 🐛 **Vanliga Problem**
+## 🐛 **Common Issues**
 
-### Backend startar inte
+### Backend Won't Start
 ```bash
-# Kontrollera portar
+# Check ports
 lsof -i :8000
 
-# Kontrollera dependencies
+# Check dependencies
 pip install -r requirements.txt
 
-# Kontrollera Python-version
+# Check Python version
 python --version
 ```
 
-### Frontend bygg misslyckas
+### Frontend Build Fails
 ```bash
-# Rensa cache
+# Clear cache
 rm -rf node_modules package-lock.json
 npm install
 
-# Kontrollera Node-version
+# Check Node version
 node --version
 ```
 
-### Ollama-anslutning
+### Ollama Connection
 ```bash
-# Kontrollera Ollama-status
+# Check Ollama status
 ollama list
 
-# Starta om Ollama
+# Restart Ollama
 ollama serve
 
-# Testa modell
+# Test model
 ollama run gpt-oss:20b "test"
 ```
 
-## 🤝 **Bidrag**
+## 🤝 **Contributing**
 
 ### Pull Request Process
-1. **Forka repository**
-2. **Skapa feature branch**
-3. **Implementera funktionalitet**
-4. **Lägg till tester**
-5. **Uppdatera dokumentation**
-6. **Skicka PR**
+1. **Fork repository**
+2. **Create feature branch**
+3. **Implement functionality**
+4. **Add tests**
+5. **Update documentation**
+6. **Submit PR**
 
 ### Code Review
-- **Kodkvalitet** - Följer standarder
-- **Tester** - Alla tester passerar
-- **Dokumentation** - Uppdaterad
-- **Performance** - Ingen regression
+- **Code quality** - Follows standards
+- **Tests** - All tests pass
+- **Documentation** - Updated
+- **Performance** - No regression
 
-## 📚 **Dokumentation**
+## 📚 **Documentation**
 
-- **[STARTUP.md](STARTUP.md)** - Exakt startup-guide
-- **[README.md](README.md)** - Projektöversikt och status
-- **[VISION.md](VISION.md)** - Projektvision och framtida funktioner
-- **[ALICE_ROADMAP.md](ALICE_ROADMAP.md)** - Detaljerad utvecklingsplan
-- **[API.md](API.md)** - Komplett API-dokumentation
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment och production-guide
+- **[STARTUP.md](STARTUP.md)** - Exact startup guide
+- **[README.md](README.md)** - Project overview and status
+- **[VISION.md](VISION.md)** - Project vision and future features
+- **[ALICE_ROADMAP.md](ALICE_ROADMAP.md)** - Detailed development plan
+- **[API.md](API.md)** - Complete API documentation
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment and production guide
 
 ---
 
-**Alice Development** - Bygg framtidens AI-assistent! 🚀
+**Alice Development** - Build the future AI assistant! 🚀
 
-*För ytterligare hjälp, se dokumentationen ovan.*
+*For additional help, see the documentation above or check the Swedish version in [docs/sv/DEVELOPMENT.md](docs/sv/DEVELOPMENT.md).*
 
-# 🎤 VoiceBox Integration & Planering
+# 🎤 VoiceBox Integration & Planning
 
-## Komponentöversikt
+## Component Overview
 
-**VoiceBox** är en avancerad röst-komponent som ersätter den gamla enkla röst-funktionen i Alice HUD. Komponenten är designad för att ge en visuell representation av audio-input med real-time bars och integrerad speech recognition.
+**VoiceBox** is an advanced voice component that replaces the old simple voice function in Alice HUD. The component is designed to provide a visual representation of audio input with real-time bars and integrated speech recognition.
 
-### Tekniska Specifikationer
+### Technical Specifications
 
-- **Bars**: Konfigurerbar (standard: 5-7 bars)
-- **Audio Processing**: WebAudio API med AnalyserNode
-- **Speech Recognition**: Web Speech API (svenska)
-- **Fallback-lägen**: Demo och pseudo-läge om mic inte är tillgänglig
-- **Styling**: Anpassad för Alice's HUD tema (cyan/blue)
+- **Bars**: Configurable (default: 5-7 bars)
+- **Audio Processing**: WebAudio API with AnalyserNode
+- **Speech Recognition**: Web Speech API (Swedish)
+- **Fallback modes**: Demo and pseudo mode if mic not available
+- **Styling**: Customized for Alice's HUD theme (cyan/blue)
 
-### Komponentstruktur
+### Component Structure
 
 ```typescript
 interface VoiceBoxProps {
-  bars?: number                    // Antal bars (default: 7)
+  bars?: number                    // Number of bars (default: 7)
   smoothing?: number              // EMA smoothing (0.15)
-  minScale?: number               // Minimum skala (0.1)
+  minScale?: number               // Minimum scale (0.1)
   label?: string                  // Label text
-  allowDemo?: boolean             // Demo-läge
-  allowPseudo?: boolean           // Pseudo-läge
+  allowDemo?: boolean             // Demo mode
+  allowPseudo?: boolean           // Pseudo mode
   onVoiceInput?: (text: string) => void  // Callback
 }
 ```
 
-## Integration Planer
+## Integration Plans
 
-### 1. Referens-implementation (Aktuell)
-- **Placering**: VOICE-panelen (vänster kolumn)
-- **Status**: ✅ Fungerar korrekt
-- **Funktionalitet**: 
-  - 5 bars med audio visualisering
-  - "Starta mic" knapp
-  - Röst-input läggs till i journal
-  - "Add to To-do" funktionalitet
+### 1. Reference Implementation (Current)
+- **Placement**: VOICE panel (left column)
+- **Status**: ✅ Works correctly
+- **Functionality**: 
+  - 5 bars with audio visualization
+  - "Start mic" button
+  - Voice input added to journal
+  - "Add to To-do" functionality
 
-### 2. ALICE CORE Integration (Planerad)
-- **Mål**: Ersätta spheren i ALICE CORE med VoiceBox
-- **Placering**: Centrerad i ALICE CORE-panelen
-- **Utmaningar identifierade**:
-  - ✅ Komponenten renderar korrekt med audio bars
-  - ❌ Placeringen är fel - inte där vi vill ha den
-  - ❌ Formen är fel - kanske för smal, för hög, eller fel position
-  - ❌ "Starta mic" knapp placerad fel
+### 2. ALICE CORE Integration (Planned)
+- **Goal**: Replace sphere in ALICE CORE with VoiceBox
+- **Placement**: Centered in ALICE CORE panel
+- **Identified challenges**:
+  - ✅ Component renders correctly with audio bars
+  - ❌ Placement is wrong - not where we want it
+  - ❌ Shape is wrong - maybe too narrow, too tall, or wrong position
+  - ❌ "Start mic" button placed incorrectly
 
-### 3. Felsökning & Lösningar
+### 3. Troubleshooting & Solutions
 
-#### Problem 1: Fel placering
-- **Symptom**: VoiceBox ligger inte där vi vill ha den i ALICE CORE
-- **Möjliga orsaker**:
-  - CSS-positionering (top, left, transform)
-  - Container-struktur i ALICE CORE
-  - Z-index eller overflow-problem
+#### Problem 1: Wrong placement
+- **Symptom**: VoiceBox not positioned where we want it in ALICE CORE
+- **Possible causes**:
+  - CSS positioning (top, left, transform)
+  - Container structure in ALICE CORE
+  - Z-index or overflow issues
 
-#### Problem 2: Fel form
-- **Symptom**: VoiceBox är för smal, för hög, eller har fel proportioner
-- **Lösning**: Kopiera exakt samma attribut som referens-komponenten
+#### Problem 2: Wrong shape
+- **Symptom**: VoiceBox is too narrow, too tall, or has wrong proportions
+- **Solution**: Copy exact same attributes as reference component
 
-#### Problem 3: Knapp-placering
-- **Symptom**: "Starta mic" knapp ligger fel
-- **Lösning**: Justera positionering inom VoiceBox-komponenten
+#### Problem 3: Button placement
+- **Symptom**: "Start mic" button positioned incorrectly
+- **Solution**: Adjust positioning within VoiceBox component
 
-### 4. Rekommenderad Approach
+### 4. Recommended Approach
 
-1. **Behåll referens-komponenten** i VOICE-panelen
-2. **Kopiera exakt samma attribut** till ALICE CORE-versionen
-3. **Testa stegvis** - först placering, sedan styling
-4. **Använd samma container-struktur** som fungerar i VOICE-panelen
+1. **Keep reference component** in VOICE panel
+2. **Copy exact same attributes** to ALICE CORE version
+3. **Test incrementally** - first placement, then styling
+4. **Use same container structure** that works in VOICE panel
 
-### 5. Framtida Förbättringar
+### 5. Future Improvements
 
-- **TTS Integration**: Låt Alice svara med röst
-- **WebSocket Integration**: Real-time kommunikation med backend
-- **Voice Commands**: Integrera med Alice's verktygssystem
-- **Custom Styling**: Anpassa för olika HUD-teman
+- **TTS Integration**: Let Alice respond with voice
+- **WebSocket Integration**: Real-time communication with backend
+- **Voice Commands**: Integrate with Alice's tool system
+- **Custom Styling**: Customize for different HUD themes
 
-## Aktuell Status
+## Current Status
 
-- ✅ **VoiceBox-komponent**: Fungerar korrekt
-- ✅ **Referens-implementation**: Synlig i VOICE-panelen
-- ❌ **ALICE CORE integration**: Kräver felsökning
-- 🔄 **Planering**: Under utveckling
+- ✅ **VoiceBox component**: Works correctly
+- ✅ **Reference implementation**: Visible in VOICE panel
+- ❌ **ALICE CORE integration**: Requires troubleshooting
+- 🔄 **Planning**: Under development
 
-## Nästa Steg
+## Next Steps
 
-1. **Felsök ALICE CORE integration**
-2. **Kopiera fungerande attribut**
-3. **Testa placering och styling**
-4. **Integrera med Alice's röst-system**
+1. **Troubleshoot ALICE CORE integration**
+2. **Copy working attributes**
+3. **Test placement and styling**
+4. **Integrate with Alice's voice system**
 
 ---
 
-*Senast uppdaterad: 21 Augusti 2024*
+*Last updated: August 21, 2024*

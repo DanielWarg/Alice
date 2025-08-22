@@ -2,8 +2,6 @@
 
 Comprehensive guide for setting up Alice's advanced voice pipeline with OpenAI Realtime integration and dual voice system.
 
-> **🇸🇪 Svenska:** [docs/sv/VOICE_SETUP.md](docs/sv/VOICE_SETUP.md) - Full Swedish version available
-
 ## 🚀 **Quick Start**
 
 ### Prerequisites
@@ -696,5 +694,3 @@ After successful setup:
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
 
 For support and questions, check the project documentation or create an issue in the repository.
-
-**Note on Swedish Voice Features:** Alice's voice pipeline is optimized for Swedish language interaction. All voice commands, TTS personalities, and speech recognition are designed to work seamlessly with Swedish pronunciation, grammar, and cultural context. Commands like "Hej Alice" (Hello Alice), "spela musik" (play music), and "visa kalender" (show calendar) maintain Alice's authentic Swedish AI assistant character even in international deployments.

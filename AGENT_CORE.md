@@ -1,54 +1,54 @@
 # 🤖 Alice Agent Core v1
 
-**Autonomous Workflow Engine för intelligent task execution**
+**Autonomous Workflow Engine for intelligent task execution**
 
-Agent Core v1 ger Alice förmågan att autonomt planera, exekvera och förbättra komplexa multi-step uppgifter genom en sofistikerad Planning → Execution → Criticism → Improvement cykel. Systemet inkluderar även en avancerad voice pipeline för real-time röstinteraktion.
+Agent Core v1 gives Alice the ability to autonomously plan, execute, and improve complex multi-step tasks through a sophisticated Planning → Execution → Criticism → Improvement cycle. The system also includes an advanced voice pipeline for real-time voice interaction.
 
-## 🏗️ Arkitektur
+## 🏗️ Architecture
 
-Agent Core består av fyra huvudkomponenter:
+Agent Core consists of four main components:
 
 ### 🧠 AgentPlanner
-Bryter ner komplexa mål i konkreta, exekverbara steg.
+Breaks down complex goals into concrete, executable steps.
 
-**Kapaciteter:**
-- Regelbaserad task decomposition
+**Capabilities:**
+- Rule-based task decomposition
 - AI-integration ready (Ollama/OpenAI)
-- Svenska språkstöd
+- Swedish language support
 - Dependency management
 - Confidence scoring
 - Duration estimation
 
-**Exempel:**
+**Example:**
 ```python
 planner = AgentPlanner()
 plan = await planner.create_plan("spela musik och sätt volym till 75")
-# Skapar: [PLAY, SET_VOLUME(level=75)]
+# Creates: [PLAY, SET_VOLUME(level=75)]
 ```
 
 ### ⚡ AgentExecutor  
-Utför handlingsplaner med dependencies och parallellisering.
+Executes action plans with dependencies and parallelization.
 
-**Kapaciteter:**
+**Capabilities:**
 - Dependency-aware execution
-- Parallell action processing
+- Parallel action processing
 - Progress tracking
 - Error handling & recovery
-- Retry logic med exponential backoff
-- Execution hooks för monitoring
+- Retry logic with exponential backoff
+- Execution hooks for monitoring
 - Cancellation support
 
-**Exempel:**
+**Example:**
 ```python
 executor = AgentExecutor(max_parallel_actions=3)
 result = await executor.execute_plan(plan, progress_callback=callback)
-# Exekverar alla actions enligt dependencies
+# Executes all actions according to dependencies
 ```
 
 ### 🔍 AgentCritic
-Analyserar execution-resultat och föreslår förbättringar.
+Analyzes execution results and suggests improvements.
 
-**Analyserar:**
+**Analyzes:**
 - Execution success rate
 - Performance metrics
 - Tool usage patterns
@@ -56,24 +56,24 @@ Analyserar execution-resultat och föreslår förbättringar.
 - Dependency optimization
 - Resource utilization
 
-**Genererar:**
-- Detailed insights med confidence scores  
-- Prioriterade recommendations
+**Generates:**
+- Detailed insights with confidence scores  
+- Prioritized recommendations
 - Performance metrics
 - Improvement suggestions
 
-**Exempel:**
+**Example:**
 ```python
 critic = AgentCritic()
 report = await critic.evaluate_execution(plan, execution_result)
-# Genererar detaljerad analys med rekommendationer
+# Generates detailed analysis with recommendations
 ```
 
 ### 🎭 AgentOrchestrator
-Koordinerar hela workflow med Planning→Execution→Criticism→Improvement cycles.
+Coordinates the entire workflow with Planning→Execution→Criticism→Improvement cycles.
 
-**Hanterar:**
-- Fullständig workflow orchestration
+**Handles:**
+- Complete workflow orchestration
 - Automatic improvement cycles
 - Multiple improvement strategies
 - Progress monitoring
@@ -81,51 +81,51 @@ Koordinerar hela workflow med Planning→Execution→Criticism→Improvement cyc
 - Workflow cancellation
 - Parallel workflows
 
-**Exempel:**
+**Example:**
 ```python
 orchestrator = AgentOrchestrator()
 result = await orchestrator.execute_workflow("komplex uppgift")
-# Automatisk Planning → Execution → Criticism → Improvement
+# Automatic Planning → Execution → Criticism → Improvement
 ```
 
 ## 🔄 Workflow Lifecycle
 
-1. **PLANNING** - AgentPlanner skapar detaljerad handlingsplan
-2. **EXECUTION** - AgentExecutor utför actions enligt dependencies  
-3. **CRITICISM** - AgentCritic analyserar resultat och föreslår förbättringar
-4. **IMPROVEMENT** - AgentOrchestrator tillämpar förbättringar och itererar
+1. **PLANNING** - AgentPlanner creates detailed action plan
+2. **EXECUTION** - AgentExecutor performs actions according to dependencies  
+3. **CRITICISM** - AgentCritic analyzes results and suggests improvements
+4. **IMPROVEMENT** - AgentOrchestrator applies improvements and iterates
 
-## 🎯 Förbättringsstrategier
+## 🎯 Improvement Strategies
 
 ### ADAPTIVE (Standard)
-Intelligenta förbättringar baserat på critic recommendations:
+Intelligent improvements based on critic recommendations:
 - Remove problematic steps
 - Modify parameters  
 - Optimize execution order
 - Retry failed actions
 
 ### RETRY_FAILED
-Fokuserar på att retry misslyckade actions.
+Focuses on retrying failed actions.
 
 ### OPTIMIZE_PLAN  
-Optimerar hela planen strukturellt.
+Optimizes the entire plan structurally.
 
 ### NONE
-Ingen automatisk förbättring.
+No automatic improvement.
 
 ## 📊 Test Coverage
 
-Agent Core v1 har **100 tester** med full coverage:
+Agent Core v1 has **100 tests** with full coverage:
 
-- **24 AgentPlanner tester** - Planning logic, validation, error handling
-- **21 AgentExecutor tester** - Execution, dependencies, parallellisering  
-- **19 AgentCritic tester** - Analysis, insights, recommendations
-- **23 AgentOrchestrator tester** - Workflow management, improvement cycles
-- **13 Integration tester** - End-to-end scenarios, complex workflows
+- **24 AgentPlanner tests** - Planning logic, validation, error handling
+- **21 AgentExecutor tests** - Execution, dependencies, parallelization  
+- **19 AgentCritic tests** - Analysis, insights, recommendations
+- **23 AgentOrchestrator tests** - Workflow management, improvement cycles
+- **13 Integration tests** - End-to-end scenarios, complex workflows
 
-**100% Pass Rate** - Alla tester validerar funktionalitet.
+**100% Pass Rate** - All tests validate functionality.
 
-## 🚀 Användning
+## 🚀 Usage
 
 ### Basic Autonomous Workflow
 ```python
@@ -144,7 +144,7 @@ success, summary = await orchestrator.execute_simple_goal("pausa musiken")
 print(f"Success: {success}, Score: {summary['final_score']}")
 ```
 
-### Med Progress Tracking
+### With Progress Tracking
 ```python
 def progress_callback(info):
     print(f"Progress: {info['message']}")
@@ -155,7 +155,7 @@ result = await orchestrator.execute_workflow(
 )
 ```
 
-### Anpassad Konfiguration
+### Custom Configuration
 ```python
 from core import WorkflowConfig, ImprovementStrategy
 
@@ -169,7 +169,7 @@ config = WorkflowConfig(
 orchestrator = AgentOrchestrator(config=config)
 ```
 
-### Parallella Workflows
+### Parallel Workflows
 ```python
 tasks = [
     orchestrator.execute_workflow("spela musik"),
@@ -180,68 +180,68 @@ tasks = [
 results = await asyncio.gather(*tasks)
 ```
 
-## 🎤 Voice Pipeline Arkitektur
+## 🎤 Voice Pipeline Architecture
 
-Agent Core v1 inkluderar en sofistikerad voice pipeline som möjliggör seamless röstinteraktion med Alice:
+Agent Core v1 includes a sophisticated voice pipeline that enables seamless voice interaction with Alice:
 
 ### Dual Voice System
 
 **VoiceBox (Basic Interface)**
-- Browser Speech Recognition API för svenska
-- Real-time audio visualisering med ambient animation
-- Post-processing av svenska tal för bättre igenkänning
-- Integration med Alice backend TTS system
-- Fallback-system för graceful degradation
+- Browser Speech Recognition API for Swedish
+- Real-time audio visualization with ambient animation
+- Post-processing of Swedish speech for better recognition
+- Integration with Alice backend TTS system
+- Fallback system for graceful degradation
 
 **VoiceClient (Advanced Realtime)**
 - OpenAI Realtime API integration via WebRTC
-- Low-latency audio streaming för professionell kvalitet
-- Agent bridge arkitektur med SSE streaming
+- Low-latency audio streaming for professional quality
+- Agent bridge architecture with SSE streaming
 - Real-time transcript processing
-- Barge-in support för naturlig konversation
+- Barge-in support for natural conversation
 
 ### Agent Bridge Architecture
 
-Voice pipeline använder en sofistikerad agent bridge för att koppla röstinteraktion till Alice's cognitive capabilities:
+The voice pipeline uses a sophisticated agent bridge to connect voice interaction to Alice's cognitive capabilities:
 
 ```
 Voice Input → OpenAI Realtime → Transcript → Agent Bridge → Alice Core → Streaming Response → TTS → Audio Output
 ```
 
-**Komponenter:**
+**Components:**
 - **Speech-to-Text**: OpenAI Whisper via Realtime API
-- **Agent Bridge**: `/api/agent/stream` endpoint med SSE
-- **Alice Core**: Agent orchestration och tool execution  
+- **Agent Bridge**: `/api/agent/stream` endpoint with SSE
+- **Alice Core**: Agent orchestration and tool execution  
 - **Text-to-Speech**: Hybrid OpenAI TTS / Alice enhanced TTS
 - **WebRTC**: Real-time audio streaming
 
 ### Real-time Communication Flow
 
-1. **Audio Capture** - WebRTC MediaStream från mikrofon
-2. **Speech Recognition** - OpenAI Realtime API transkriberar i realtid
-3. **Agent Processing** - Transcript skickas till Alice agent via SSE
-4. **Tool Execution** - Alice Agent Core exekverar verktyg vid behov
-5. **Response Generation** - Streaming text response från Alice
-6. **Speech Synthesis** - TTS conversion och audio playback
-7. **Barge-in Support** - Användaren kan avbryta och starta ny interaktion
+1. **Audio Capture** - WebRTC MediaStream from microphone
+2. **Speech Recognition** - OpenAI Realtime API transcribes in real-time
+3. **Agent Processing** - Transcript sent to Alice agent via SSE
+4. **Tool Execution** - Alice Agent Core executes tools when needed
+5. **Response Generation** - Streaming text response from Alice
+6. **Speech Synthesis** - TTS conversion and audio playback
+7. **Barge-in Support** - User can interrupt and start new interaction
 
 ### Voice WebSocket Events
 
 ```javascript
-// Voice events som integrerar med Agent Core
+// Voice events that integrate with Agent Core
 const voiceEvents = {
   'voice_input': (transcript) => {
-    // Skicka till AgentOrchestrator för processing
+    // Send to AgentOrchestrator for processing
     orchestrator.execute_workflow(transcript);
   },
   
   'agent_response': (response) => {
-    // Streaming response från Agent Core
+    // Streaming response from Agent Core
     voiceClient.synthesizeAndPlay(response.content);
   },
   
   'tool_execution': (toolData) => {
-    // Tool execution från Agent Executor
+    // Tool execution from Agent Executor
     voiceClient.emit('tool_executed', toolData);
   }
 };
@@ -250,57 +250,57 @@ const voiceEvents = {
 ### Integration Points
 
 **Agent Core → Voice Pipeline:**
-- AgentOrchestrator trigger voice responses
-- AgentExecutor verktyg kan generera audio feedback
-- AgentCritic analyserar conversation quality
+- AgentOrchestrator triggers voice responses
+- AgentExecutor tools can generate audio feedback
+- AgentCritic analyzes conversation quality
 - Real-time progress updates via voice synthesis
 
 **Voice Pipeline → Agent Core:**
-- Voice commands triggar Agent workflows  
+- Voice commands trigger Agent workflows  
 - Continuous conversation state management
-- Context awareness mellan voice sessions
-- Memory integration för personalized responses
+- Context awareness between voice sessions
+- Memory integration for personalized responses
 
-## 🔧 Integration med Alice
+## 🔧 Integration with Alice
 
-Agent Core v1 är fullt integrerat med Alice's befintliga system och voice pipeline:
+Agent Core v1 is fully integrated with Alice's existing system and voice pipeline:
 
-### Verktyg (22 stycken)
-- **Musikstyrning:** PLAY, PAUSE, STOP, SET_VOLUME, etc.
-- **E-post:** READ_EMAILS, SEND_EMAIL, SEARCH_EMAILS
-- **Kalender:** LIST_CALENDAR_EVENTS, CREATE_CALENDAR_EVENT, etc.
+### Tools (22 total)
+- **Music Control:** PLAY, PAUSE, STOP, SET_VOLUME, etc.
+- **Email:** READ_EMAILS, SEND_EMAIL, SEARCH_EMAILS
+- **Calendar:** LIST_CALENDAR_EVENTS, CREATE_CALENDAR_EVENT, etc.
 
 ### NLU Integration
-Agent Core arbetar med Alice's svenska NLU system för att förstå komplexa mål.
+Agent Core works with Alice's Swedish NLU system to understand complex goals.
 
 ### Voice Integration  
-Fungerar seamless med Alice's röststyrningssystem.
+Works seamlessly with Alice's voice control system.
 
 ## 📈 Performance
 
-- **Sub-second planning** för enkla uppgifter
-- **Parallell execution** för oberoende actions
-- **Intelligent retry logic** för robust execution
-- **Memory efficient** med streaming progress updates
-- **Scalable architecture** för komplexa workflows
+- **Sub-second planning** for simple tasks
+- **Parallel execution** for independent actions
+- **Intelligent retry logic** for robust execution
+- **Memory efficient** with streaming progress updates
+- **Scalable architecture** for complex workflows
 
-## 🔮 Framtida Förbättringar
+## 🔮 Future Improvements
 
-- **AI-baserad planering** med Ollama/OpenAI integration
-- **Learning from experience** för bättre framtida planering  
-- **Advanced multi-tool scenarios** med komplex reasoning
-- **Persistent workflow history** och analytics
-- **Dynamic replanning** baserat på real-time feedback
-- **Resource optimization** och load balancing
+- **AI-based planning** with Ollama/OpenAI integration
+- **Learning from experience** for better future planning  
+- **Advanced multi-tool scenarios** with complex reasoning
+- **Persistent workflow history** and analytics
+- **Dynamic replanning** based on real-time feedback
+- **Resource optimization** and load balancing
 
 ## 🎉 Status
 
-**Agent Core v1 är KOMPLETT och REDO för produktion!**
+**Agent Core v1 is COMPLETE and READY for production!**
 
-✅ Full arkitektur implementerad  
-✅ 100 tester passerar alla  
-✅ Integration med Alice's verktyg  
-✅ Autonomous workflow kapacitet  
-✅ Comprehensive dokumentation  
+✅ Full architecture implemented  
+✅ 100 tests passing all  
+✅ Integration with Alice's tools  
+✅ Autonomous workflow capability  
+✅ Comprehensive documentation  
 
-Agent Core v1 transformerar Alice från en reaktiv assistent till en proaktiv, intelligent agent som kan självständigt planera och utföra komplexa uppgifter!
+Agent Core v1 transforms Alice from a reactive assistant to a proactive, intelligent agent that can independently plan and execute complex tasks!

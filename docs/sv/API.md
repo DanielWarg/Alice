@@ -1,19 +1,17 @@
 # Alice API Documentation
 
-Complete API documentation for the Alice AI Assistant Platform. Alice provides REST API endpoints, WebSocket connections and a comprehensive tool ecosystem.
+Komplett API-dokumentation för Alice AI Assistant Platform. Alice tillhandahåller REST API endpoints, WebSocket-anslutningar och ett omfattande verktygsekosystem.
 
-> **🇸🇪 Svenska:** [docs/sv/API.md](docs/sv/API.md) - Full Swedish version available
+## Översikt
 
-## Overview
+Alice API består av flera huvudkomponenter:
 
-Alice API consists of several main components:
-
-- **REST API**: Main HTTP endpoints for chat, TTS, tool execution
-- **Voice Pipeline**: OpenAI Realtime API integration with WebRTC streaming
-- **WebSocket**: Real-time communication for HUD updates and voice streaming
-- **NLU Agent**: Natural language understanding and intent classification
-- **Agent Bridge**: Server-Sent Events (SSE) for streaming agent responses
-- **Tool System**: Modular system for extensible functionality
+- **REST API**: Huvudsakliga HTTP endpoints för chat, TTS, verktygsexekvering
+- **Voice Pipeline**: OpenAI Realtime API integration med WebRTC streaming
+- **WebSocket**: Real-time kommunikation för HUD-uppdateringar och voice streaming
+- **NLU Agent**: Naturlig språkförståelse och intent-klassificering
+- **Agent Bridge**: Server-Sent Events (SSE) för streaming agent responses
+- **Verktygsystem**: Modulärt system för utökbar funktionalitet
 
 **Base URLs:**
 - Backend API: `http://localhost:8000`
@@ -22,22 +20,22 @@ Alice API consists of several main components:
 - WebSocket: `ws://localhost:8000/ws/alice`
 - Voice WebSocket: `ws://localhost:8000/ws/voice/{session_id}`
 
-## Authentication
+## Autentisering
 
-Alice currently uses no authentication for local installations. For production deployment, implement API keys or OAuth.
+Alice använder för närvarande ingen autentisering för lokala installationer. För production-deployment, implementera API-nycklar eller OAuth.
 
 ```http
-# Headers for future authentication
+# Headers för framtida autentisering
 Authorization: Bearer <api-token>
 X-API-Key: <api-key>
 ```
 
 ## REST API Endpoints
 
-### Chat & Conversation
+### Chat & Konversation
 
 #### POST /api/chat
-Send text messages to Alice and get intelligent responses.
+Skicka textmeddelanden till Alice och få intelligent svar.
 
 **Request:**
 ```http
@@ -53,17 +51,17 @@ Content-Type: application/json
 ```
 
 **Request Parameters:**
-| Parameter | Type | Required | Default | Description |
+| Parameter | Type | Required | Default | Beskrivning |
 |-----------|------|----------|---------|-------------|
-| `prompt` | string | ✓ | - | User's text input |
+| `prompt` | string | ✓ | - | Användarens textinput |
 | `provider` | string | | "auto" | AI provider ("auto", "ollama", "openai") |
-| `context` | string | | null | Contextual information |
-| `user_id` | string | | null | User ID for personalization |
+| `context` | string | | null | Kontextuell information |
+| `user_id` | string | | null | Användar-ID för personalisering |
 
 **Response:**
 ```json
 {
-  "text": "Playing music now.",
+  "text": "Spelar musik nu.",
   "provider": "ollama", 
   "engine": "gpt-oss:20b",
   "confidence": 0.95,
@@ -102,7 +100,7 @@ Content-Type: application/json
 ```
 
 #### POST /api/chat/stream
-Streaming chat for real-time responses (Server-Sent Events).
+Streaming chat för real-time svar (Server-Sent Events).
 
 **Request:**
 ```http
@@ -111,7 +109,7 @@ Content-Type: application/json
 Accept: text/event-stream
 
 {
-  "prompt": "tell me a story",
+  "prompt": "berätta en historia",
   "stream": true,
   "provider": "auto"
 }
@@ -121,21 +119,21 @@ Accept: text/event-stream
 ```
 data: {"type":"start","timestamp":"2025-01-20T10:30:00Z"}
 
-data: {"type":"token","text":"It","delta":"It"}
+data: {"type":"token","text":"Det","delta":"Det"}
 
-data: {"type":"token","text":"It was","delta":" was"}
+data: {"type":"token","text":"Det var","delta":" var"}
 
 data: {"type":"meta","meta":{"tool":null,"processing_time":150}}
 
-data: {"type":"final","text":"It was once...","complete":true}
+data: {"type":"final","text":"Det var en gång...","complete":true}
 
 data: [DONE]
 ```
 
-### Tool Execution
+### Verktygsexekvering
 
 #### POST /api/tools/exec
-Execute specific tools directly.
+Exekvera specifika verktyg direkt.
 
 **Request:**
 ```http
@@ -155,26 +153,26 @@ Content-Type: application/json
 ```
 
 **Available Tools:**
-| Tool | Description | Arguments |
+| Tool | Beskrivning | Arguments |
 |------|------------|-----------|
-| `PLAY` | Start playback | `{}` |
-| `PAUSE` | Pause playback | `{}` |
-| `STOP` | Stop playback | `{}` |
-| `NEXT` | Next track | `{}` |
-| `PREV` | Previous track | `{}` |
-| `SET_VOLUME` | Set volume | `{"level": 0-100}` or `{"delta": ±N}` |
-| `MUTE` | Mute audio | `{}` |
-| `UNMUTE` | Unmute audio | `{}` |
-| `SHUFFLE` | Random order | `{"enabled": true/false}` |
-| `REPEAT` | Repeat mode | `{"mode": "off"/"one"/"all"}` |
-| `LIKE` | Like current track | `{}` |
-| `UNLIKE` | Unlike track | `{}` |
+| `PLAY` | Starta uppspelning | `{}` |
+| `PAUSE` | Pausa uppspelning | `{}` |
+| `STOP` | Stoppa uppspelning | `{}` |
+| `NEXT` | Nästa spår | `{}` |
+| `PREV` | Föregående spår | `{}` |
+| `SET_VOLUME` | Ställ volym | `{"level": 0-100}` eller `{"delta": ±N}` |
+| `MUTE` | Stäng av ljud | `{}` |
+| `UNMUTE` | Sätt på ljud | `{}` |
+| `SHUFFLE` | Slumpmässig ordning | `{"enabled": true/false}` |
+| `REPEAT` | Upprepa läge | `{"mode": "off"/"one"/"all"}` |
+| `LIKE` | Gilla aktuellt spår | `{}` |
+| `UNLIKE` | Ogilla spår | `{}` |
 
 **Response:**
 ```json
 {
   "ok": true,
-  "message": "Volume set to 75%",
+  "message": "Volym satt till 75%",
   "tool": "SET_VOLUME",
   "args": {"level": 75},
   "execution_time_ms": 45,
@@ -183,14 +181,14 @@ Content-Type: application/json
 ```
 
 #### GET /api/tools/spec
-Get specifications for all available tools.
+Hämta specifikationer för alla tillgängliga verktyg.
 
 **Response:**
 ```json
 [
   {
     "name": "SET_VOLUME",
-    "description": "Control volume level",
+    "description": "Kontrollera volymnivå",
     "parameters": {
       "type": "object",
       "properties": {
@@ -198,13 +196,13 @@ Get specifications for all available tools.
           "type": "integer",
           "minimum": 0,
           "maximum": 100,
-          "description": "Absolute volume level (0-100)"
+          "description": "Absolut volymnivå (0-100)"
         },
         "delta": {
           "type": "integer", 
           "minimum": -100,
           "maximum": 100,
-          "description": "Relative volume change"
+          "description": "Relativ volymändring"
         }
       },
       "anyOf": [
@@ -218,7 +216,7 @@ Get specifications for all available tools.
 ```
 
 #### GET /api/tools/enabled
-List enabled tools.
+Lista aktiverade verktyg.
 
 **Response:**
 ```json
@@ -229,10 +227,10 @@ List enabled tools.
 }
 ```
 
-### Enhanced Text-to-Speech (TTS)
+### Enhanced Text-till-Tal (TTS)
 
 #### POST /api/tts/synthesize
-Enhanced speech synthesis with emotions, personality and caching.
+Förbättrad röstsyntes med emotioner, personlighet och caching.
 
 **Request:**
 ```http
@@ -240,7 +238,7 @@ POST /api/tts/synthesize
 Content-Type: application/json
 
 {
-  "text": "Hello! I'm Alice, your AI assistant.",
+  "text": "Hej! Jag är Alice, din AI-assistent.",
   "voice": "sv_SE-nst-high",
   "speed": 1.0,
   "emotion": "friendly",
@@ -252,33 +250,33 @@ Content-Type: application/json
 ```
 
 **Parameters:**
-| Parameter | Type | Default | Description |
+| Parameter | Type | Default | Beskrivning |
 |-----------|------|---------|-------------|
-| `text` | string | - | Text to synthesize |
-| `voice` | string | "sv_SE-nst-medium" | Voice model |
-| `speed` | float | 1.0 | Speech speed (0.5-2.0) |
-| `emotion` | string | null | Emotional tone |
-| `personality` | string | "alice" | Personality |
-| `pitch` | float | 1.0 | Voice pitch (0.8-1.2) |
-| `volume` | float | 1.0 | Audio volume (0.1-1.0) |
-| `cache` | boolean | true | Use cache |
+| `text` | string | - | Text att syntetisera |
+| `voice` | string | "sv_SE-nst-medium" | Röstmodell |
+| `speed` | float | 1.0 | Talhastighet (0.5-2.0) |
+| `emotion` | string | null | Emotionell ton |
+| `personality` | string | "alice" | Personlighet |
+| `pitch` | float | 1.0 | Rösttonhöjd (0.8-1.2) |
+| `volume` | float | 1.0 | Ljudvolym (0.1-1.0) |
+| `cache` | boolean | true | Använd cache |
 
 **Available Voices:**
-- `sv_SE-nst-medium` - Swedish female voice (medium quality, naturalness: 7/10)
-- `sv_SE-nst-high` - Swedish female voice (high quality, naturalness: 8/10)
-- `sv_SE-lisa-medium` - Swedish female voice (medium quality, naturalness: 8/10)
+- `sv_SE-nst-medium` - Svensk kvinnlig röst (medium kvalitet, naturalness: 7/10)
+- `sv_SE-nst-high` - Svensk kvinnlig röst (hög kvalitet, naturalness: 8/10)
+- `sv_SE-lisa-medium` - Svensk kvinnlig röst (medium kvalitet, naturalness: 8/10)
 
 **Available Emotions:**
-- `neutral` - Neutral tone
-- `happy` - Happy and energetic
-- `calm` - Calm and relaxed
-- `confident` - Confident and determined
-- `friendly` - Friendly and approachable
+- `neutral` - Neutral ton
+- `happy` - Glad och energisk
+- `calm` - Lugn och avslappnad
+- `confident` - Självsäker och bestämd
+- `friendly` - Vänlig och tillgänglig
 
 **Available Personalities:**
-- `alice` - Energetic AI assistant (speed: 1.05, pitch: 1.02)
-- `formal` - Professional and authoritative (speed: 0.95, pitch: 0.98)
-- `casual` - Relaxed and conversational (speed: 1.1, pitch: 1.05)
+- `alice` - Energisk AI-assistent (speed: 1.05, pitch: 1.02)
+- `formal` - Professionell och auktoritativ (speed: 0.95, pitch: 0.98)
+- `casual` - Avslappnad och konversationell (speed: 1.1, pitch: 1.05)
 
 **Response:**
 ```json
@@ -287,7 +285,7 @@ Content-Type: application/json
   "audio_data": "UklGRjY3AgBXQVZFZm10IBAAAAABAAEA...", 
   "format": "wav",
   "voice": "sv_SE-nst-high",
-  "text": "Hello! I'm Alice, your AI assistant.",
+  "text": "Hej! Jag är Alice, din AI-assistent.",
   "emotion": "friendly",
   "personality": "alice",
   "cached": false,
@@ -302,7 +300,7 @@ Content-Type: application/json
 ```
 
 #### GET /api/tts/voices
-Get available voice models and their properties.
+Hämta tillgängliga röstmodeller och deras egenskaper.
 
 **Response:**
 ```json
@@ -326,13 +324,13 @@ Get available voice models and their properties.
 ```
 
 #### POST /api/tts/stream
-Streaming TTS for faster response times.
+Streaming TTS för snabbare responstider.
 
-**Request:** Same as `/api/tts/synthesize`
+**Request:** Samma som `/api/tts/synthesize`
 **Response:** Streaming audio/wav data
 
 #### GET /api/tts/personality/{personality}
-Get personality-specific voice settings.
+Hämta personlighetsspecifika röstinställningar.
 
 **Response:**
 ```json
@@ -344,18 +342,18 @@ Get personality-specific voice settings.
     "emotion_bias": "friendly",
     "confidence": 0.85
   },
-  "description": "Energetic, friendly AI assistant with natural Swedish"
+  "description": "Energisk, vänlig AI-assistent med naturlig svenska"
 }
 ```
 
-**Usage in JavaScript:**
+**Användning i JavaScript:**
 ```javascript
 async function playTTSAudio() {
   const response = await fetch('/api/tts/synthesize', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
-      text: 'Hello from Alice!',
+      text: 'Hej från Alice!',
       voice: 'sv_SE-nst-medium'
     })
   });
@@ -407,11 +405,11 @@ Create ephemeral session for OpenAI Realtime API.
 **Usage in VoiceClient:**
 ```javascript
 const session = await fetch('/api/realtime/ephemeral').then(r => r.json());
-// Session used to initialize WebRTC connection
+// Session används för att initiera WebRTC connection
 ```
 
 #### POST /api/tts/openai-stream
-Stream TTS audio from OpenAI or Alice backend.
+Stream TTS audio från OpenAI eller Alice backend.
 
 **Request:**
 ```http
@@ -419,7 +417,7 @@ POST /api/tts/openai-stream
 Content-Type: application/json
 
 {
-  "text": "Hello from Alice!",
+  "text": "Hej från Alice!",
   "model": "tts-1-hd",
   "voice": "nova",
   "speed": 1.0,
@@ -429,14 +427,14 @@ Content-Type: application/json
 ```
 
 **Response:**
-Streaming audio data in MP3 or WAV format.
+Streaming audio data i MP3 eller WAV format.
 
 **Fallback Logic:**
-1. First tries Alice backend TTS (`/api/tts/synthesize`)
-2. On error, fallback to mock audio for graceful degradation
+1. Försöker först Alice backend TTS (`/api/tts/synthesize`)
+2. Vid fel, fallback till mock audio för graceful degradation
 
 #### POST /api/agent/stream
-Stream agent responses for VoiceClient integration.
+Stream agent responses för VoiceClient integration.
 
 **Request:**
 ```http
@@ -444,7 +442,7 @@ POST /api/agent/stream
 Content-Type: application/json
 
 {
-  "prompt": "play music",
+  "prompt": "spela musik",
   "model": "gpt-oss:20b",
   "provider": "local",
   "use_rag": true,
@@ -462,7 +460,7 @@ Content-Type: application/json
 ```json
 {
   "type": "chunk",
-  "content": "Playing music now!",
+  "content": "Spelar musik nu!",
   "metadata": {
     "memory_id": "mem_12345",
     "provider": "local"
@@ -471,7 +469,7 @@ Content-Type: application/json
 ```
 
 **Agent Response Types:**
-- `chunk` - Text chunk from agent response
+- `chunk` - Text chunk från agent response
 - `tool` - Tool execution result
 - `error` - Error message
 - `planning` - Agent planning phase
@@ -480,13 +478,13 @@ Content-Type: application/json
 
 ### WebRTC Voice Communication
 
-Alice VoiceClient uses WebRTC for real-time audio streaming:
+Alice VoiceClient använder WebRTC för real-time audio streaming:
 
 **WebRTC Flow:**
-1. **Session Creation** - Create ephemeral session via `/api/realtime/ephemeral`
-2. **Peer Connection** - Establish WebRTC peer connection with OpenAI
-3. **Media Stream** - Add microphone audio track
-4. **Data Channel** - Use data channel for real-time messaging
+1. **Session Creation** - Skapa ephemeral session via `/api/realtime/ephemeral`
+2. **Peer Connection** - Etablera WebRTC peer connection med OpenAI
+3. **Media Stream** - Lägg till mikrofon audio track
+4. **Data Channel** - Använd data channel för real-time messaging
 5. **Audio Processing** - Stream incoming OpenAI audio
 
 **WebRTC Configuration:**
@@ -497,7 +495,7 @@ const pcConfig = {
 
 const pc = new RTCPeerConnection(pcConfig);
 
-// Audio constraints for optimal quality
+// Audio constraints för optimal kvalitet
 const audioConstraints = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -525,7 +523,7 @@ ws.send(JSON.stringify({ type: 'ping' }));
 // Voice input from speech recognition
 ws.send(JSON.stringify({
   type: 'voice_input',
-  text: 'play music',
+  text: 'spela musik',
   timestamp: Date.now()
 }));
 ```
@@ -660,10 +658,10 @@ class AliceVoiceInterface {
 }
 ```
 
-### System & Health
+### System & Hälsa
 
 #### GET /api/health
-System health check.
+Systemhälsokontroll.
 
 **Response:**
 ```json
@@ -686,7 +684,7 @@ System health check.
 ```
 
 #### GET /api/tools/stats
-Tool statistics and usage.
+Verktygsstatistik och användning.
 
 **Response:**
 ```json
@@ -708,10 +706,10 @@ Tool statistics and usage.
 }
 ```
 
-### Memory & Context
+### Memory & Kontext
 
 #### POST /api/memory/upsert
-Store information in long-term memory.
+Lagra information i långtidsminne.
 
 **Request:**
 ```http
@@ -742,7 +740,7 @@ Content-Type: application/json
 ```
 
 #### POST /api/memory/retrieve
-Retrieve information from memory.
+Hämta information från minnet.
 
 **Request:**
 ```http
@@ -777,14 +775,14 @@ Content-Type: application/json
 ### Google Calendar Integration
 
 #### GET /api/calendar/events
-Get upcoming calendar events from Google Calendar.
+Hämta kommande kalenderhändelser från Google Calendar.
 
 **Parameters:**
-| Parameter | Type | Default | Description |
+| Parameter | Type | Default | Beskrivning |
 |-----------|------|---------|-------------|
-| `max_results` | integer | 10 | Max number of events to fetch |
-| `time_min` | string | null | Start time (ISO format) |
-| `time_max` | string | null | End time (ISO format) |
+| `max_results` | integer | 10 | Max antal händelser att hämta |
+| `time_min` | string | null | Start tid (ISO format) |
+| `time_max` | string | null | Slut tid (ISO format) |
 
 **Response:**
 ```json
@@ -793,12 +791,12 @@ Get upcoming calendar events from Google Calendar.
   "events": [
     {
       "id": "event_12345",
-      "title": "Team meeting",
+      "title": "Möte med teamet",
       "start": "2025-01-22T14:00:00+01:00",
       "end": "2025-01-22T15:00:00+01:00",
-      "description": "Weekly meeting for project status",
+      "description": "Veckomöte för projektstatus",
       "attendees": ["john@example.com"],
-      "location": "Conference room A"
+      "location": "Konferensrum A"
     }
   ],
   "total_count": 5
@@ -806,7 +804,7 @@ Get upcoming calendar events from Google Calendar.
 ```
 
 #### POST /api/calendar/events
-Create new calendar event with intelligent scheduling.
+Skapa ny kalenderhändelse med intelligent scheduling.
 
 **Request:**
 ```http
@@ -814,10 +812,10 @@ POST /api/calendar/events
 Content-Type: application/json
 
 {
-  "title": "Lunch with Anna",
+  "title": "Lunch med Anna",
   "start_time": "2025-01-23 12:00",
   "end_time": "2025-01-23 13:00",
-  "description": "Lunch at Café Linné",
+  "description": "Lunch på Café Linné",
   "attendees": ["anna@example.com"],
   "check_conflicts": true
 }
@@ -828,14 +826,14 @@ Content-Type: application/json
 {
   "success": true,
   "event_id": "event_67890",
-  "message": "Event created successfully",
+  "message": "Händelse skapad framgångsrikt",
   "conflicts_found": false,
   "calendar_url": "https://calendar.google.com/event?eid=..."
 }
 ```
 
 #### PUT /api/calendar/events
-Update existing calendar event.
+Uppdatera befintlig kalenderhändelse.
 
 **Request:**
 ```http
@@ -844,25 +842,25 @@ Content-Type: application/json
 
 {
   "event_id": "event_12345",
-  "title": "Updated meeting",
+  "title": "Uppdaterat möte",
   "start_time": "2025-01-22 15:00",
   "end_time": "2025-01-22 16:00"
 }
 ```
 
 #### DELETE /api/calendar/events/{event_id}
-Delete calendar event.
+Ta bort kalenderhändelse.
 
 **Response:**
 ```json
 {
   "success": true,
-  "message": "Event deleted"
+  "message": "Händelse borttagen"
 }
 ```
 
 #### POST /api/calendar/events/search
-Search for events with natural language.
+Sök efter händelser med naturligt språk.
 
 **Request:**
 ```http
@@ -870,7 +868,7 @@ POST /api/calendar/events/search
 Content-Type: application/json
 
 {
-  "query": "meetings with Anna next week",
+  "query": "möten med Anna nästa vecka",
   "max_results": 20
 }
 ```
@@ -882,7 +880,7 @@ Content-Type: application/json
   "results": [
     {
       "id": "event_789",
-      "title": "Project meeting with Anna",
+      "title": "Projektmöte med Anna",
       "start": "2025-01-29T10:00:00+01:00",
       "relevance_score": 0.95
     }
@@ -896,7 +894,7 @@ Content-Type: application/json
 ```
 
 #### POST /api/calendar/check-conflicts
-Check conflicts for proposed time.
+Kontrollera konflikter för föreslagen tid.
 
 **Request:**
 ```http
@@ -915,11 +913,11 @@ Content-Type: application/json
 {
   "success": true,
   "has_conflict": true,
-  "message": "Conflict found with 'Development meeting'",
+  "message": "Konflikt funnen med 'Utvecklingsmöte'",
   "conflicts": [
     {
       "id": "event_456",
-      "title": "Development meeting",
+      "title": "Utvecklingsmöte",
       "start": "2025-01-23T14:30:00+01:00",
       "end": "2025-01-23T15:30:00+01:00"
     }
@@ -928,7 +926,7 @@ Content-Type: application/json
     {
       "start_time": "2025-01-23T13:00:00+01:00",
       "end_time": "2025-01-23T14:00:00+01:00",
-      "formatted": "Today 13:00-14:00",
+      "formatted": "Idag 13:00-14:00",
       "confidence": 0.9
     }
   ]
@@ -936,7 +934,7 @@ Content-Type: application/json
 ```
 
 #### POST /api/calendar/suggest-times
-Get AI-based time suggestions for meetings.
+Få AI-baserade tidsförslag för möten.
 
 **Request:**
 ```http
@@ -960,16 +958,16 @@ Content-Type: application/json
     {
       "start_time": "2025-01-24T09:00:00+01:00",
       "end_time": "2025-01-24T10:00:00+01:00",
-      "formatted": "Tomorrow 09:00-10:00",
+      "formatted": "Imorgon 09:00-10:00",
       "confidence": 0.95,
-      "rationale": "Optimal morning time, no conflicts"
+      "rationale": "Optimal morgontid, inga konflikter"
     },
     {
       "start_time": "2025-01-24T14:00:00+01:00",
       "end_time": "2025-01-24T15:00:00+01:00",
-      "formatted": "Tomorrow 14:00-15:00",
+      "formatted": "Imorgon 14:00-15:00",
       "confidence": 0.85,
-      "rationale": "Afternoon focus, short break after lunch"
+      "rationale": "Eftermiddagsfokus, kort paus efter lunch"
     }
   ],
   "ai_insights": {
@@ -981,56 +979,56 @@ Content-Type: application/json
 ```
 
 #### GET /api/calendar/voice-commands
-Get supported Swedish voice commands for calendar.
+Hämta supporterade svenska röstkommandon för kalender.
 
 **Response:**
 ```json
 {
   "commands": {
     "view": [
-      "show calendar",
-      "what meetings do I have",
-      "check my schedule"
+      "visa kalender",
+      "vad har jag för möten",
+      "kolla mitt schema"
     ],
     "create": [
-      "book meeting tomorrow at 2 PM",
-      "create event next Friday",
-      "add lunch on Monday"
+      "boka möte imorgon kl 14",
+      "skapa händelse nästa fredag",
+      "lägg till lunch på måndag"
     ],
     "search": [
-      "when is my meeting with Anna",
-      "search for project meetings",
-      "find my Teams meetings"
+      "när har jag möte med Anna",
+      "sök efter projekt-möten",
+      "hitta mina Teams-möten"
     ]
   },
   "supported_time_expressions": [
-    "tomorrow", "next week", "at 2:30 PM",
-    "on Monday", "in an hour", "next Friday"
+    "imorgon", "nästa vecka", "kl 14:30",
+    "på måndag", "om en timme", "nästa fredag"
   ]
 }
 ```
 
-**Swedish Voice Integration:**
+**Svenska Röstintegration:**
 ```javascript
-// Usage of calendar voice commands
+// Användning av calendar voice commands
 const calendarVoiceCommands = {
-  "show calendar": () => alice.getEvents(),
-  "book meeting tomorrow at 2 PM": () => alice.createEvent({
-    title: "Meeting",
+  "visa kalender": () => alice.getEvents(),
+  "boka möte imorgon kl 14": () => alice.createEvent({
+    title: "Möte",
     start_time: "tomorrow 14:00",
     end_time: "tomorrow 15:00"
   }),
-  "when is my meeting with Anna": () => alice.searchEvents("Anna")
+  "när har jag möte med Anna": () => alice.searchEvents("Anna")
 };
 ```
 
 ### Spotify Integration
 
 #### GET /api/spotify/auth_url
-Get Spotify OAuth URL.
+Hämta Spotify OAuth URL.
 
 **Parameters:**
-| Parameter | Type | Default | Description |
+| Parameter | Type | Default | Beskrivning |
 |-----------|------|---------|-------------|
 | `scopes` | string | "user-read-playback-state,user-modify-playback-state,streaming" | OAuth scopes |
 
@@ -1044,10 +1042,10 @@ Get Spotify OAuth URL.
 ```
 
 #### GET /api/spotify/callback
-OAuth callback endpoint (used automatically).
+OAuth callback endpoint (används automatiskt).
 
 #### GET /api/spotify/devices
-List available playback devices.
+Lista tillgängliga uppspelningsenheter.
 
 **Headers:**
 ```http
@@ -1072,7 +1070,7 @@ Authorization: Bearer <spotify_access_token>
 ```
 
 #### POST /api/spotify/play
-Start playback on Spotify.
+Starta uppspelning på Spotify.
 
 **Request:**
 ```http
@@ -1107,7 +1105,7 @@ const ws = new WebSocket('ws://localhost:8000/ws/alice');
 
 ws.onopen = () => {
   console.log('Connected to Alice');
-  // Send initial configuration
+  // Skicka initial konfiguration
   ws.send(JSON.stringify({
     type: 'config',
     user_id: 'user123',
@@ -1121,9 +1119,9 @@ ws.onmessage = (event) => {
 };
 ```
 
-### Message Types
+### Meddelandetyper
 
-#### Incoming Messages
+#### Inkommande Meddelanden
 
 **System Metrics:**
 ```json
@@ -1150,7 +1148,7 @@ ws.onmessage = (event) => {
     "status": "completed",
     "args": {"level": 80},
     "execution_time_ms": 23,
-    "result": "Volume set to 80%"
+    "result": "Volym satt till 80%"
   }
 }
 ```
@@ -1161,7 +1159,7 @@ ws.onmessage = (event) => {
   "type": "chat_response", 
   "timestamp": "2025-01-20T10:30:00Z",
   "data": {
-    "text": "Music is now playing",
+    "text": "Musik spelar nu",
     "provider": "ollama",
     "confidence": 0.95,
     "user_id": "user123"
@@ -1191,7 +1189,7 @@ ws.onmessage = (event) => {
 }
 ```
 
-#### Outgoing Messages
+#### Utgående Meddelanden
 
 **Subscription Management:**
 ```json
@@ -1222,19 +1220,19 @@ ws.onmessage = (event) => {
   "type": "command",
   "action": "chat",
   "data": {
-    "prompt": "what's playing now?"
+    "prompt": "vad spelar just nu?"
   }
 }
 ```
 
 ## NLU Agent API
 
-NLU Agent runs separately on port 7071 and provides natural language understanding.
+NLU Agent körs separat på port 7071 och tillhandahåller naturlig språkförståelse.
 
 ### Base URL: `http://localhost:7071`
 
 #### POST /nlu/classify
-Classify user intent from text.
+Klassificera användarintent från text.
 
 **Request:**
 ```http
@@ -1242,7 +1240,7 @@ POST /nlu/classify
 Content-Type: application/json
 
 {
-  "text": "raise volume to 80 percent"
+  "text": "höj volymen till 80 procent"
 }
 ```
 
@@ -1252,7 +1250,7 @@ Content-Type: application/json
   "ok": true,
   "intent": "SET_VOL",
   "score": 1.0,
-  "phrase": "raise volume to 80 percent",
+  "phrase": "höj volymen till 80 procent",
   "slots": {
     "level": 80
   }
@@ -1260,7 +1258,7 @@ Content-Type: application/json
 ```
 
 #### POST /nlu/extract
-Extract specific slots from text.
+Extrahera specifika slots från text.
 
 **Request:**
 ```http
@@ -1268,7 +1266,7 @@ POST /nlu/extract
 Content-Type: application/json
 
 {
-  "text": "skip forward 30 seconds and raise volume a bit"
+  "text": "hoppa fram 30 sekunder och höj volymen lite"
 }
 ```
 
@@ -1285,7 +1283,7 @@ Content-Type: application/json
 ```
 
 #### POST /agent/route
-Complete routing from text to tool plan.
+Fullständig routing från text till verktygsplan.
 
 **Request:**
 ```http
@@ -1293,7 +1291,7 @@ POST /agent/route
 Content-Type: application/json
 
 {
-  "text": "play jazz in the kitchen"
+  "text": "spela jazz på köket"
 }
 ```
 
@@ -1316,7 +1314,7 @@ Content-Type: application/json
 
 ## Rate Limiting
 
-Alice implements rate limiting to prevent abuse:
+Alice implementerar rate limiting för att förhindra missbruk:
 
 | Endpoint Category | Limit | Window |
 |------------------|--------|---------|
@@ -1351,31 +1349,31 @@ X-RateLimit-Reset: 1642694400
 
 ### HTTP Status Codes
 
-| Code | Meaning | Common Causes |
+| Code | Betydelse | Vanliga Orsaker |
 |------|----------|----------------|
-| 200 | OK | Successful request |
-| 400 | Bad Request | Invalid input, missing parameters |
-| 401 | Unauthorized | Missing or invalid authentication |
-| 403 | Forbidden | Insufficient permissions |
-| 404 | Not Found | Endpoint or resource not found |
-| 429 | Too Many Requests | Rate limit exceeded |
-| 500 | Internal Server Error | Server or AI model error |
-| 503 | Service Unavailable | AI model or service unavailable |
+| 200 | OK | Lyckad förfrågan |
+| 400 | Bad Request | Ogiltig input, saknade parametrar |
+| 401 | Unauthorized | Saknar eller ogiltig autentisering |
+| 403 | Forbidden | Otillräckliga behörigheter |
+| 404 | Not Found | Endpoint eller resurs finns inte |
+| 429 | Too Many Requests | Rate limit överskriden |
+| 500 | Internal Server Error | Server- eller AI-modellfel |
+| 503 | Service Unavailable | AI-modell eller tjänst otillgänglig |
 
 ### Error Codes
 
-| Code | Description |
+| Code | Beskrivning |
 |------|-------------|
-| `invalid_prompt` | Empty or invalid prompt |
-| `ai_processing_failed` | AI model could not process request |
-| `tool_not_found` | Requested tool does not exist |
-| `tool_execution_failed` | Tool execution failed |
-| `invalid_tool_args` | Invalid arguments for tool |
-| `tts_synthesis_failed` | Speech synthesis failed |
-| `rate_limit_exceeded` | Too many requests |
-| `websocket_connection_failed` | WebSocket connection failed |
+| `invalid_prompt` | Tom eller ogiltig prompt |
+| `ai_processing_failed` | AI-modell kunde inte bearbeta förfrågan |
+| `tool_not_found` | Begärt verktyg existerar inte |
+| `tool_execution_failed` | Verktygsexekvering misslyckades |
+| `invalid_tool_args` | Ogiltiga argument till verktyg |
+| `tts_synthesis_failed` | Röstsyntes misslyckades |
+| `rate_limit_exceeded` | För många förfrågningar |
+| `websocket_connection_failed` | WebSocket-anslutning misslyckades |
 
-## SDK and Client Libraries
+## SDK och Client Libraries
 
 ### JavaScript/TypeScript SDK
 
@@ -1432,19 +1430,19 @@ class AliceClient {
   }
 }
 
-// Usage
+// Användning
 const alice = new AliceClient();
 
 // Chat
-const response = await alice.chat('play music');
+const response = await alice.chat('spela musik');
 console.log(response.text);
 
-// Tool execution  
+// Verktygsexekvering  
 await alice.executeTool('SET_VOLUME', {level: 75});
 
 // TTS
-const ttsData = await alice.synthesizeTTS('Hello from Alice!');
-// ... play audio data
+const ttsData = await alice.synthesizeTTS('Hej från Alice!');
+// ... spela upp ljuddata
 
 // WebSocket
 await alice.connectWebSocket();
@@ -1479,7 +1477,7 @@ class AliceClient:
             await self.session.close()
     
     async def chat(self, prompt: str, **kwargs) -> Dict[str, Any]:
-        """Send chat message to Alice."""
+        """Skicka chat-meddelande till Alice."""
         async with self.session.post(
             f"{self.base_url}/api/chat",
             json={"prompt": prompt, **kwargs}
@@ -1487,7 +1485,7 @@ class AliceClient:
             return await response.json()
     
     async def execute_tool(self, tool: str, args: Dict = None) -> Dict[str, Any]:
-        """Execute specific tool."""
+        """Exekvera specifikt verktyg."""
         async with self.session.post(
             f"{self.base_url}/api/tools/exec",
             json={"tool": tool, "args": args or {}}
@@ -1495,7 +1493,7 @@ class AliceClient:
             return await response.json()
     
     async def synthesize_tts(self, text: str, **kwargs) -> Dict[str, Any]:
-        """Generate TTS from text."""
+        """Generera TTS från text."""
         async with self.session.post(
             f"{self.base_url}/api/tts/synthesize",
             json={"text": text, **kwargs}
@@ -1504,7 +1502,7 @@ class AliceClient:
     
     async def connect_websocket(self, 
                               on_message: Callable[[Dict], None] = None):
-        """Connect to WebSocket for real-time updates."""
+        """Anslut till WebSocket för real-time uppdateringar."""
         self.ws = await websockets.connect(self.ws_url)
         
         if on_message:
@@ -1512,20 +1510,20 @@ class AliceClient:
                 data = json.loads(message)
                 on_message(data)
 
-# Usage
+# Användning
 async def main():
     async with AliceClient() as alice:
         # Chat
-        response = await alice.chat("play music")
+        response = await alice.chat("spela musik")
         print(f"Alice: {response['text']}")
         
-        # Tool execution
+        # Verktygsexekvering
         result = await alice.execute_tool("SET_VOLUME", {"level": 80})
         print(f"Tool result: {result['message']}")
         
         # TTS
-        tts_data = await alice.synthesize_tts("Hello from Alice!")
-        # ... handle audio_data
+        tts_data = await alice.synthesize_tts("Hej från Alice!")
+        # ... hantera audio_data
         
         # WebSocket
         def handle_message(msg):
@@ -1533,39 +1531,39 @@ async def main():
         
         await alice.connect_websocket(handle_message)
 
-# Run example
+# Kör exempel
 # asyncio.run(main())
 ```
 
-## Examples and Recipes
+## Exempel och Recept
 
-### Common Use Cases
+### Vanliga Användningsfall
 
-#### 1. Simple Media Playback
+#### 1. Enkel Mediauppspelning
 ```javascript
 const alice = new AliceClient();
 
-// Via natural language
-await alice.chat('play jazz music');
+// Via naturligt språk
+await alice.chat('spela jazz musik');
 
-// Via direct tool calls
+// Via direkt verktygsanrop
 await alice.executeTool('PLAY');
 await alice.executeTool('SET_VOLUME', {level: 60});
 ```
 
-#### 2. Voice Assistant Pipeline
+#### 2. Röstassistent Pipeline
 ```javascript
-// Complete voice interaction
+// Komplett röstinteraktion
 async function voiceAssistant() {
   const alice = new AliceClient();
   
-  // 1. STT (requires Web Speech API or external service)
+  // 1. STT (kräver Web Speech API eller extern tjänst)
   const userSpeech = await recognizeSpeech();
   
-  // 2. Process with Alice
+  // 2. Process med Alice
   const response = await alice.chat(userSpeech);
   
-  // 3. TTS for response
+  // 3. TTS för svar
   if (response.text) {
     const ttsData = await alice.synthesizeTTS(response.text);
     await playAudio(ttsData.audio_data);
@@ -1577,18 +1575,18 @@ async function voiceAssistant() {
 ```python
 async def smart_home_control():
     async with AliceClient() as alice:
-        # Connect Alice commands to smart home
+        # Koppla Alice-kommandon till smart home
         commands = [
-            ("turn on lights", "LIGHTS_ON"),
-            ("raise volume", "SET_VOLUME", {"level": 80}),
-            ("play morning music", "PLAY_PLAYLIST", {"name": "morning"})
+            ("tänd lamporna", "LIGHTS_ON"),
+            ("höj volymen", "SET_VOLUME", {"level": 80}),
+            ("spela morgonmusik", "PLAY_PLAYLIST", {"name": "morning"})
         ]
         
         for text, tool, *args in commands:
             response = await alice.chat(text)
             if response.get('meta', {}).get('tool'):
                 print(f"Executing: {tool}")
-                # Integrate with smart home system
+                # Integrera med smart home system
 ```
 
 #### 4. Real-time Dashboard
@@ -1624,21 +1622,21 @@ class AliceDashboard {
 }
 ```
 
-### Performance Tips
+### Prestanda Tips
 
 #### 1. Batch Requests
 ```javascript
-// Instead of multiple separate calls
+// Istället för flera separata anrop
 const responses = await Promise.all([
-  alice.chat('what is playing now?'),
+  alice.chat('vad spelar nu?'),
   alice.executeTool('GET_VOLUME'),
-  alice.chat('which devices are available?')
+  alice.chat('vilka enheter är tillgängliga?')
 ]);
 ```
 
-#### 2. WebSocket for Real-time
+#### 2. WebSocket för Real-time
 ```javascript
-// Use WebSocket for updates instead of polling
+// Använd WebSocket för uppdateringar istället för polling
 await alice.connectWebSocket();
 alice.onMessage((msg) => {
   if (msg.type === 'media_state') {
@@ -1662,28 +1660,28 @@ async function getTTSAudio(text) {
 }
 ```
 
-## Versioning
+## Versionshantering
 
-Alice API uses semantic versioning. Current version: `v1.0.0`
+Alice API använder semantic versioning. Aktuell version: `v1.0.0`
 
-### Backwards Compatibility
+### Bakåtkompatibilitet
 
 - **Major version** (v1 → v2): Breaking changes
-- **Minor version** (v1.0 → v1.1): New features, backwards compatible
-- **Patch version** (v1.0.0 → v1.0.1): Bug fixes, backwards compatible
+- **Minor version** (v1.0 → v1.1): Nya features, bakåtkompatibel
+- **Patch version** (v1.0.0 → v1.0.1): Bugfixes, bakåtkompatibel
 
 ### API Versioning
 ```http
-# Specify API version in headers
+# Specificera API-version i headers
 Accept: application/vnd.alice.v1+json
 
-# Or in URL
+# Eller i URL
 GET /api/v1/chat
 ```
 
 ## Testing
 
-### API Testing with curl
+### API Testing med curl
 
 ```bash
 # Health check
@@ -1692,7 +1690,7 @@ curl -X GET http://localhost:8000/api/health
 # Chat test
 curl -X POST http://localhost:8000/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "play music"}'
+  -d '{"prompt": "spela musik"}'
 
 # Tool execution
 curl -X POST http://localhost:8000/api/tools/exec \
@@ -1702,7 +1700,7 @@ curl -X POST http://localhost:8000/api/tools/exec \
 # TTS test
 curl -X POST http://localhost:8000/api/tts/synthesize \
   -H "Content-Type: application/json" \
-  -d '{"text": "Hello from Alice!"}' \
+  -d '{"text": "Hej från Alice!"}' \
   --output audio.json
 ```
 
@@ -1729,10 +1727,8 @@ async def test_tool_execution():
 
 ---
 
-**Complete interactive API documentation is available at:**
+**Den fullständiga interaktiva API-dokumentationen finns på:**
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
-For additional help, see [README.md](README.md) for basic usage and [DEVELOPMENT.md](DEVELOPMENT.md) for development guides.
-
-**Note on Swedish AI Identity:** While this documentation is in English for global accessibility, Alice maintains its core Swedish AI assistant identity. Voice commands, cultural references, and personality remain authentically Swedish. Swedish voice commands like "spela musik" (play music), "visa kalender" (show calendar) are preserved throughout the API to maintain Alice's unique character.
+För ytterligare hjälp, se [README.md](README.md) för grundläggande användning och [DEVELOPMENT.md](DEVELOPMENT.md) för utvecklingsguider.

@@ -10,106 +10,106 @@
 
 ──────────────────────────────
 
-# 🌟 Alice VISION - Framtidens AI-Assistent
+# 🌟 Alice VISION - The Future AI Assistant
 
-## 🎯 **Vår Vision**
+## 🎯 **Our Vision**
 
-Alice ska vara **den ultimata svenska AI-assistenten** - en intelligent, empatisk och kraftfull partner som förstår dig på djupet, lär sig dina preferenser och hjälper dig att uppnå dina mål. Allt med fokus på **integritet, lokalt körande och svenska som primärt språk**.
+Alice shall be **the ultimate Swedish AI assistant** - an intelligent, empathetic and powerful partner that understands you deeply, learns your preferences and helps you achieve your goals. All with a focus on **privacy, local operation and Swedish as the primary language**.
 
 ---
 
-## 🚀 **Kärnvärden**
+## 🚀 **Core Values**
 
 ### 🔒 **Privacy-First**
-- **Lokal AI-kraft** - Allt körs på din maskin
-- **Ingen telemetri** - Din data stannar hos dig
-- **Zero-trust arkitektur** - Säker från grunden
-- **Transparent kod** - Öppen källkod för full kontroll
+- **Local AI power** - Everything runs on your machine
+- **No telemetry** - Your data stays with you
+- **Zero-trust architecture** - Secure from the ground up
+- **Transparent code** - Open source for full control
 
-### 🇸🇪 **Svenska-Native**
-- **Perfekt språkförståelse** - Svensk kontext och nyanser
-- **Kulturspecifik intelligens** - Förstår svenska värderingar
-- **Dialektstöd** - Hanterar olika svenska dialekter
-- **Svenska kommandon** - Naturlig interaktion på svenska
+### 🇸🇪 **Swedish-Native**
+- **Perfect language understanding** - Swedish context and nuances
+- **Culture-specific intelligence** - Understands Swedish values
+- **Dialect support** - Handles different Swedish dialects
+- **Swedish commands** - Natural interaction in Swedish
 
 ### 🧠 **Supersmart Intelligence**
-- **Lokal GPT-OSS:20B** - 20 miljarder parametrar lokalt
-- **Avancerad RAG** - Intelligent minneshantering
-- **Kontextförståelse** - Långa konversationer med minne
-- **Prediktiv intelligens** - Lär sig dina mönster
+- **Local GPT-OSS:20B** - 20 billion parameters locally
+- **Advanced RAG** - Intelligent memory management
+- **Context understanding** - Long conversations with memory
+- **Predictive intelligence** - Learns your patterns
 
 ---
 
-## 🎨 **Användarupplevelse**
+## 🎨 **User Experience**
 
-### 🖥️ **Futuristisk HUD-Design**
-- **Cyan/Blue tema** - Modern, elegant design
-- **Real-time metrics** - CPU, RAM, nätverk live
-- **Modulära paneler** - Kalender, mail, finans, påminnelser
-- **Responsiv layout** - Fungerar på alla enheter
+### 🖥️ **Futuristic HUD Design**
+- **Cyan/Blue theme** - Modern, elegant design
+- **Real-time metrics** - CPU, RAM, network live
+- **Modular panels** - Calendar, mail, finance, reminders
+- **Responsive layout** - Works on all devices
 
-### 🎭 **Naturlig Interaktion**
-- **Röststyrning** - Whisper STT + Piper TTS
-- **Chat-interface** - ChatGPT-liknande upplevelse
-- **Gesture control** - Framtida touch/gesture-stöd
-- **Adaptiv UI** - Lär sig dina preferenser
+### 🎭 **Natural Interaction**
+- **Voice control** - Whisper STT + Piper TTS
+- **Chat interface** - ChatGPT-like experience
+- **Gesture control** - Future touch/gesture support
+- **Adaptive UI** - Learns your preferences
 
-### 🔧 **Smart Verktygsintegration**
-- **Spotify** - Musikuppspelning och kontroll
-- **Gmail** - E-posthantering och sökning
-- **Google Calendar** - Kalenderhantering
-- **IoT-kontroll** - Smart hem-integration (framtida)
+### 🔧 **Smart Tool Integration**
+- **Spotify** - Music playback and control
+- **Gmail** - Email management and search
+- **Google Calendar** - Calendar management
+- **IoT control** - Smart home integration (future)
 
 ---
 
-## 🏗️ **Teknisk Arkitektur**
+## 🏗️ **Technical Architecture**
 
 ### 🐍 **Backend (FastAPI)**
-- **Modulär design** - Enkelt att utöka
-- **Real-time WebSocket** - Live uppdateringar
-- **AI-kärna** - Harmony-adapter med lokal LLM
-- **Verktygsregister** - Pydantic-validering
-- **Memory system** - SQLite med embeddings
+- **Modular design** - Easy to extend
+- **Real-time WebSocket** - Live updates
+- **AI core** - Harmony adapter with local LLM
+- **Tool registry** - Pydantic validation
+- **Memory system** - SQLite with embeddings
 
 ### ⚛️ **Frontend (Next.js)**
-- **React 18** - Modern komponentarkitektur
-- **TypeScript** - Typesäker utveckling
-- **Tailwind CSS** - Responsiv design
-- **PWA-stöd** - Offline-funktionalitet
+- **React 18** - Modern component architecture
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Responsive design
+- **PWA support** - Offline functionality
 
 ### 🤖 **AI & NLU**
-- **Ollama integration** - Lokal gpt-oss:20B
-- **Svensk NLU** - 89% accuracy på kommandon
-- **Router-first** - Snabb intent-klassificering
-- **Fallback till LLM** - När router är osäker
+- **Ollama integration** - Local gpt-oss:20B
+- **Swedish NLU** - 89% accuracy on commands
+- **Router-first** - Fast intent classification
+- **LLM fallback** - When router is uncertain
 
 ---
 
-## 🌟 **Framtida Funktioner**
+## 🌟 **Future Features**
 
 ### 🔮 **Phase 1: Core Intelligence**
-- [x] Lokal AI med Ollama
-- [x] Svenska NLU-system
-- [x] HUD-baserat gränssnitt
-- [x] Grundläggande verktyg
-- [ ] Avancerad minneshantering
-- [ ] Prediktiv intelligens
+- [x] Local AI with Ollama
+- [x] Swedish NLU system
+- [x] HUD-based interface
+- [x] Basic tools
+- [ ] Advanced memory management
+- [ ] Predictive intelligence
 
 ### 🚀 **Phase 2: Smart Integration**
-- [x] Spotify-integration
-- [x] Gmail-integration
+- [x] Spotify integration
+- [x] Gmail integration
 - [ ] Google Calendar
-- [ ] Smart hem-kontroll
-- [ ] Dokumentanalys
-- [ ] Workflow-automation
+- [ ] Smart home control
+- [ ] Document analysis
+- [ ] Workflow automation
 
 ### 🌍 **Phase 3: Multi-Modal**
-- [ ] Bild- och videoförståelse
-- [ ] Dokumentbehandling
+- [ ] Image and video understanding
+- [ ] Document processing
 - [ ] Screen capture analysis
 - [ ] Voice emotion recognition
 - [ ] Multi-language support
-- [ ] IoT-sensor integration
+- [ ] IoT sensor integration
 
 ### 🎯 **Phase 4: Enterprise**
 - [ ] Multi-user support
@@ -123,72 +123,72 @@ Alice ska vara **den ultimata svenska AI-assistenten** - en intelligent, empatis
 
 ## 🎯 **Success Metrics**
 
-### 📊 **Tekniska KPI:er**
-- **Response Time**: <500ms för 95% av queries
-- **Accuracy**: ≥95% på NLU intent classification
+### 📊 **Technical KPIs**
+- **Response Time**: <500ms for 95% of queries
+- **Accuracy**: ≥95% on NLU intent classification
 - **Uptime**: ≥99.9% availability
 - **Memory Usage**: <2GB RAM
 - **Tool Success Rate**: ≥98%
 
-### 👥 **Användarupplevelse**
-- **Task Completion**: ≥90% av påbörjade tasks
+### 👥 **User Experience**
+- **Task Completion**: ≥90% of started tasks
 - **User Satisfaction**: ≥4.5/5 rating
-- **Learning Curve**: <15 minuter
-- **Voice Recognition**: ≥95% svenska accuracy
+- **Learning Curve**: <15 minutes
+- **Voice Recognition**: ≥95% Swedish accuracy
 - **Conversation Quality**: Natural dialog
 
 ---
 
-## 🛡️ **Säkerhet & Integritet**
+## 🛡️ **Security & Privacy**
 
-### 🔐 **Säkerhetsprinciper**
-- **Local-first** - Ingen data lämnar din maskin
-- **Zero-trust** - Verifierar allt
-- **Transparent** - Öppen källkod
-- **Auditable** - Full spårbarhet
+### 🔐 **Security Principles**
+- **Local-first** - No data leaves your machine
+- **Zero-trust** - Verifies everything
+- **Transparent** - Open source
+- **Auditable** - Full traceability
 
-### 🚫 **Vad vi INTE gör**
-- **Ingen telemetri** - Spårar inte användare
-- **Ingen datainsamling** - Samlar inte in personlig data
-- **Ingen molnlagring** - Allt lokalt
-- **Ingen tredjepartstracking** - Ren lokal AI
-
----
-
-## 🌍 **Community & Bidrag**
-
-### 🤝 **Öppet Projekt**
-- **MIT License** - Fri att använda och modifiera
-- **GitHub** - Öppen utveckling
-- **Community** - Välkomna bidrag
-- **Transparent** - All kod synlig
-
-### 🚀 **Bidra till Alice**
-- **Bug-rapporter** - Hjälp oss förbättra
-- **Feature-förslag** - Dela dina idéer
-- **Code contributions** - Pull requests välkomna
-- **Documentation** - Hjälp andra användare
+### 🚫 **What we DON'T do**
+- **No telemetry** - Don't track users
+- **No data collection** - Don't collect personal data
+- **No cloud storage** - Everything local
+- **No third-party tracking** - Pure local AI
 
 ---
 
-## 🎯 **Slutmål**
+## 🌍 **Community & Contributions**
 
-Alice ska vara **den bästa svenska AI-assistenten** - en intelligent, empatisk och kraftfull partner som:
+### 🤝 **Open Project**
+- **MIT License** - Free to use and modify
+- **GitHub** - Open development
+- **Community** - Contributions welcome
+- **Transparent** - All code visible
 
-- 🧠 **Förstår dig** - Perfekt svenska, kontext och nyanser
-- 🔒 **Skyddar dig** - Lokal, privat, säker
-- 🚀 **Hjälper dig** - Smart verktyg, automation, insights
-- 🌟 **Lär sig** - Anpassar sig till dina behov
-- 🎨 **Inspirerar** - Vacker, modern design
-
----
-
-## 🏁 **Vår Mission**
-
-> *"Att skapa världens bästa svenska AI-assistent - en intelligent, empatisk och kraftfull partner som hjälper dig att uppnå dina mål, allt med fokus på integritet, lokalt körande och svenska som primärt språk."*
+### 🚀 **Contribute to Alice**
+- **Bug reports** - Help us improve
+- **Feature suggestions** - Share your ideas
+- **Code contributions** - Pull requests welcome
+- **Documentation** - Help other users
 
 ---
 
-**Alice** - Din supersmarta svenska AI-assistent för framtiden! 🚀
+## 🎯 **End Goal**
 
-*"Din personliga AI. Lokal. Privat. Obegränsad."*
+Alice shall be **the best Swedish AI assistant** - an intelligent, empathetic and powerful partner that:
+
+- 🧠 **Understands you** - Perfect Swedish, context and nuances
+- 🔒 **Protects you** - Local, private, secure
+- 🚀 **Helps you** - Smart tools, automation, insights
+- 🌟 **Learns** - Adapts to your needs
+- 🎨 **Inspires** - Beautiful, modern design
+
+---
+
+## 🏁 **Our Mission**
+
+> *"To create the world's best Swedish AI assistant - an intelligent, empathetic and powerful partner that helps you achieve your goals, all with a focus on privacy, local operation and Swedish as the primary language."*
+
+---
+
+**Alice** - Your supersmart Swedish AI assistant for the future! 🚀
+
+*"Your personal AI. Local. Private. Unlimited."*
