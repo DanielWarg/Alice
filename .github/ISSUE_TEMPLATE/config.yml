@@ -1,0 +1,23 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Community Discussions
+    url: https://github.com/DanielWarg/Alice/discussions
+    about: Ask questions, share ideas, and discuss Alice with the community
+  - name: 🆘 Support & Help
+    url: https://github.com/DanielWarg/Alice/discussions/categories/q-a
+    about: Get help with installation, configuration, or usage questions
+  - name: 🚀 Feature Ideas & Feedback
+    url: https://github.com/DanielWarg/Alice/discussions/categories/ideas
+    about: Share feature requests and provide feedback on Alice's development
+  - name: 🇸🇪 Swedish Language Discussion
+    url: https://github.com/DanielWarg/Alice/discussions/categories/swedish-language
+    about: Discuss Swedish language features, improvements, and regional considerations
+  - name: 📚 Documentation Portal
+    url: https://github.com/DanielWarg/Alice/wiki
+    about: Browse comprehensive documentation, guides, and tutorials
+  - name: ⚡ Real-time Chat (Discord)
+    url: https://discord.gg/alice-ai
+    about: Join our Discord community for real-time support and discussions
+  - name: 🐛 Security Issues
+    url: mailto:security@alice-ai.dev
+    about: Report security vulnerabilities privately (do not create public issues)

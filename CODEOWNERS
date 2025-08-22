@@ -1,0 +1,217 @@
+# Alice AI Assistant - Code Ownership Rules
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# ==========================================
+# GLOBAL FALLBACK OWNERSHIP
+# ==========================================
+# Global fallback - all files not matching specific patterns
+* @DanielWarg
+
+# ==========================================
+# CRITICAL SYSTEM FILES
+# ==========================================
+# These files require multiple reviewers due to their critical nature
+
+# Core configuration and security
+/.env.example @DanielWarg @alice-security-team
+/SECURITY.md @DanielWarg @alice-security-team
+/CODE_OF_CONDUCT.md @DanielWarg @alice-maintainers
+/CONTRIBUTING.md @DanielWarg @alice-maintainers
+/LICENSE @DanielWarg @alice-maintainers
+
+# Core startup and deployment scripts
+/start_alice.sh @DanielWarg @alice-devops-team
+/DEPLOYMENT.md @DanielWarg @alice-devops-team
+/STARTUP.md @DanielWarg @alice-devops-team
+
+# Docker and infrastructure
+/Dockerfile @DanielWarg @alice-devops-team
+/docker-compose.yml @DanielWarg @alice-devops-team
+/.dockerignore @DanielWarg @alice-devops-team
+
+# ==========================================
+# BACKEND COMPONENTS
+# ==========================================
+
+# FastAPI Core Server
+/server/ @DanielWarg @alice-backend-team
+/server/app.py @DanielWarg @alice-backend-team
+/server/run.py @DanielWarg @alice-backend-team
+/server/requirements.txt @DanielWarg @alice-backend-team
+
+# Agent Core System - Critical AI orchestration
+/server/core/ @DanielWarg @alice-ai-team @alice-backend-team
+/server/core/agent_orchestrator.py @DanielWarg @alice-ai-team
+/server/core/agent_planner.py @DanielWarg @alice-ai-team
+/server/core/agent_executor.py @DanielWarg @alice-ai-team
+/server/core/agent_critic.py @DanielWarg @alice-ai-team
+
+# Voice Processing Pipeline
+/server/voice_*.py @DanielWarg @alice-voice-team
+/server/audio_processor.py @DanielWarg @alice-voice-team
+/server/models/tts/ @DanielWarg @alice-voice-team
+
+# Swedish NLU and Language Processing
+/server/nlu/ @DanielWarg @alice-swedish-team @alice-ai-team
+/server/voice_calendar_nlu.py @DanielWarg @alice-swedish-team
+/server/prompts/system_prompts.py @DanielWarg @alice-swedish-team @alice-ai-team
+
+# External Integrations
+/server/core/calendar_service.py @DanielWarg @alice-integrations-team
+/server/core/gmail_service.py @DanielWarg @alice-integrations-team
+
+# Database and Memory Management
+/server/memory.py @DanielWarg @alice-backend-team
+/server/data/ @DanielWarg @alice-backend-team
+
+# Testing Infrastructure
+/server/tests/ @DanielWarg @alice-backend-team @alice-qa-team
+/server/*test*.py @DanielWarg @alice-backend-team @alice-qa-team
+/server/evals/ @DanielWarg @alice-qa-team @alice-ai-team
+
+# ==========================================
+# FRONTEND COMPONENTS
+# ==========================================
+
+# Next.js Core Application
+/web/ @DanielWarg @alice-frontend-team
+/web/package.json @DanielWarg @alice-frontend-team
+/web/next.config.mjs @DanielWarg @alice-frontend-team
+/web/tailwind.config.js @DanielWarg @alice-frontend-team
+
+# Main Application Pages
+/web/app/ @DanielWarg @alice-frontend-team
+/web/app/page.jsx @DanielWarg @alice-frontend-team
+/web/app/layout.js @DanielWarg @alice-frontend-team
+
+# Voice Interface Components
+/web/components/VoiceBox.tsx @DanielWarg @alice-voice-team @alice-frontend-team
+/web/components/VoiceInterface.tsx @DanielWarg @alice-voice-team @alice-frontend-team
+/web/components/VoiceClient.tsx @DanielWarg @alice-voice-team @alice-frontend-team
+/web/app/voice/ @DanielWarg @alice-voice-team @alice-frontend-team
+
+# Calendar Integration Components
+/web/components/calendar/ @DanielWarg @alice-integrations-team @alice-frontend-team
+/web/lib/calendar-service.ts @DanielWarg @alice-integrations-team @alice-frontend-team
+
+# Core Libraries and Utilities
+/web/lib/ @DanielWarg @alice-frontend-team
+/web/lib/voice-*.js @DanielWarg @alice-voice-team @alice-frontend-team
+
+# PWA and Service Worker
+/web/public/sw.js @DanielWarg @alice-frontend-team @alice-devops-team
+/web/public/manifest.json @DanielWarg @alice-frontend-team
+
+# ==========================================
+# AI TOOLS AND PACKAGES
+# ==========================================
+
+# Alice Tools Package
+/alice-tools/ @DanielWarg @alice-ai-team
+/alice-tools/src/ @DanielWarg @alice-ai-team
+/alice-tools/src/llm/ @DanielWarg @alice-ai-team
+/alice-tools/src/router/ @DanielWarg @alice-ai-team @alice-swedish-team
+
+# NLU Agent Package
+/nlu-agent/ @DanielWarg @alice-swedish-team @alice-ai-team
+
+# ==========================================
+# DOCUMENTATION
+# ==========================================
+
+# Core Documentation
+/README.md @DanielWarg @alice-docs-team
+/ALICE_ROADMAP.md @DanielWarg @alice-maintainers
+/VISION.md @DanielWarg @alice-maintainers
+/API.md @DanielWarg @alice-docs-team @alice-backend-team
+/AGENT_CORE.md @DanielWarg @alice-docs-team @alice-ai-team
+
+# Technical Documentation
+/DEVELOPMENT.md @DanielWarg @alice-docs-team
+/TROUBLESHOOTING.md @DanielWarg @alice-docs-team
+/VOICE_SETUP.md @DanielWarg @alice-docs-team @alice-voice-team
+
+# Integration Guides
+/server/CALENDAR_SETUP.md @DanielWarg @alice-docs-team @alice-integrations-team
+/server/GMAIL_SETUP.md @DanielWarg @alice-docs-team @alice-integrations-team
+
+# Component Documentation
+/web/README.md @DanielWarg @alice-docs-team @alice-frontend-team
+/web/components/README.md @DanielWarg @alice-docs-team @alice-frontend-team
+
+# ==========================================
+# GITHUB CONFIGURATION
+# ==========================================
+
+# GitHub Templates and Workflows
+/.github/ @DanielWarg @alice-maintainers
+/.github/ISSUE_TEMPLATE/ @DanielWarg @alice-maintainers
+/.github/PULL_REQUEST_TEMPLATE.md @DanielWarg @alice-maintainers
+/.github/workflows/ @DanielWarg @alice-devops-team @alice-maintainers
+
+# Code Ownership Rules
+/CODEOWNERS @DanielWarg @alice-maintainers
+
+# ==========================================
+# LANGUAGE-SPECIFIC FILES
+# ==========================================
+
+# Swedish Language Data and Configuration
+**/*swedish* @DanielWarg @alice-swedish-team
+**/*sv_SE* @DanielWarg @alice-swedish-team
+**/lexicon/ @DanielWarg @alice-swedish-team @alice-ai-team
+
+# ==========================================
+# CONFIGURATION FILES
+# ==========================================
+
+# TypeScript Configuration
+/web/tsconfig.json @DanielWarg @alice-frontend-team
+/alice-tools/tsconfig.json @DanielWarg @alice-ai-team
+/nlu-agent/tsconfig.json @DanielWarg @alice-swedish-team
+
+# ESLint and Code Quality
+/web/eslint.config.mjs @DanielWarg @alice-frontend-team
+/web/.eslintrc* @DanielWarg @alice-frontend-team
+
+# Package Configuration
+/tools/package.json @DanielWarg @alice-devops-team
+
+# ==========================================
+# SPECIAL OWNERSHIP RULES
+# ==========================================
+
+# Files that affect Swedish language processing require Swedish language experts
+**/*nlu* @DanielWarg @alice-swedish-team
+**/*calendar*swedish* @DanielWarg @alice-swedish-team @alice-integrations-team
+**/*voice*swedish* @DanielWarg @alice-swedish-team @alice-voice-team
+
+# Critical performance files require multiple reviewers
+**/agent_orchestrator.py @DanielWarg @alice-ai-team @alice-performance-team
+**/voice_stream.py @DanielWarg @alice-voice-team @alice-performance-team
+
+# Security-sensitive files require security team review
+**/*auth* @DanielWarg @alice-security-team
+**/*token* @DanielWarg @alice-security-team
+**/*credential* @DanielWarg @alice-security-team
+**/*secret* @DanielWarg @alice-security-team
+
+# ==========================================
+# TEAM DEFINITIONS (for reference)
+# ==========================================
+# 
+# @alice-maintainers - Core project maintainers
+# @alice-backend-team - Python/FastAPI backend developers
+# @alice-frontend-team - React/Next.js frontend developers
+# @alice-voice-team - Voice processing and audio specialists
+# @alice-swedish-team - Swedish language and NLU experts
+# @alice-ai-team - AI/LLM integration specialists
+# @alice-integrations-team - External API integration developers
+# @alice-devops-team - Infrastructure and deployment specialists
+# @alice-docs-team - Documentation writers and maintainers
+# @alice-qa-team - Quality assurance and testing specialists
+# @alice-security-team - Security reviewers and auditors
+# @alice-performance-team - Performance optimization specialists
+#
+# Note: Until team structure is established, @DanielWarg serves as primary reviewer
+# for all components with team assignments as secondary reviewers when available.

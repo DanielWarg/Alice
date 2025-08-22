@@ -1,0 +1,62 @@
+name: "Alice JavaScript/TypeScript CodeQL Configuration"
+
+# Disable default queries and use custom query suites
+disable-default-queries: false
+
+# Query suites to run
+queries:
+  - uses: security-and-quality
+  - uses: security-extended
+
+# Paths to include in analysis
+paths:
+  - "web/"
+  - "alice-tools/"
+  - "nlu-agent/"
+  - "tools/"
+
+# Paths to exclude from analysis
+paths-ignore:
+  - "web/node_modules/"
+  - "web/.next/"
+  - "alice-tools/node_modules/"
+  - "alice-tools/dist/"
+  - "nlu-agent/node_modules/" 
+  - "nlu-agent/dist/"
+  - "tools/node_modules/"
+  - "web/public/lib/"
+  - "**/node_modules/"
+  - "**/dist/"
+  - "**/build/"
+  - "**/*.min.js"
+  - "**/*.bundle.js"
+
+# Additional packs to download
+packs:
+  - "codeql/javascript-queries"
+  - "codeql/javascript-all"
+
+# Query filters for Alice-specific security concerns
+query-filters:
+  - exclude:
+      # Exclude some noisy rules
+      id:
+        - "js/unused-local-variable"
+        - "js/debugger-statement"
+  - include:
+      # Focus on security-critical areas for web applications
+      tags:
+        - "security"
+        - "external/cwe/cwe-079"  # XSS
+        - "external/cwe/cwe-089"  # SQL Injection (if applicable)
+        - "external/cwe/cwe-022"  # Path Traversal
+        - "external/cwe/cwe-352"  # CSRF
+        - "external/cwe/cwe-094"  # Code Injection
+        - "external/cwe/cwe-295"  # Certificate Validation
+        - "external/cwe/cwe-327"  # Crypto
+        - "external/cwe/cwe-502"  # Deserialization
+        - "external/cwe/cwe-434"  # File Upload
+        - "external/cwe/cwe-601"  # Open Redirect
+
+# Alice-specific analysis configuration
+query-timeout: 900  # 15 minutes per query

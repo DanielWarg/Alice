@@ -1,0 +1,476 @@
+name: Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Is this a pre-release?'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Validate release conditions
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      is-prerelease: ${{ steps.get-version.outputs.is-prerelease }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version information
+        id: get-version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+            if [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              IS_PRERELEASE="false"
+            else
+              IS_PRERELEASE="true"
+            fi
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+          echo "Pre-release: $IS_PRERELEASE"
+
+      - name: Validate version format
+        run: |
+          if [[ ! "${{ steps.get-version.outputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-.*)?$ ]]; then
+            echo "Invalid version format: ${{ steps.get-version.outputs.version }}"
+            echo "Expected format: v1.0.0 or v1.0.0-beta.1"
+            exit 1
+          fi
+
+  # Run full CI pipeline for release
+  ci-for-release:
+    name: CI for Release
+    uses: ./.github/workflows/ci.yml
+    needs: validate-release
+
+  # Build and test all components
+  build-artifacts:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: [validate-release, ci-for-release]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'web/package-lock.json'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg portaudio19-dev python3-pyaudio
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r server/requirements.txt
+          pip install build wheel
+
+      - name: Install Node.js dependencies
+        run: |
+          cd web && npm ci
+          cd ../alice-tools && npm ci
+          cd ../nlu-agent && npm ci
+
+      - name: Build Python distribution
+        run: |
+          cd server
+          # Create setup.py for distribution
+          cat > setup.py << EOF
+          from setuptools import setup, find_packages
+          
+          setup(
+              name="alice-ai-assistant",
+              version="${{ needs.validate-release.outputs.version }}".lstrip('v'),
+              description="Alice AI Assistant - Swedish Voice AI Agent",
+              packages=find_packages(),
+              python_requires=">=3.9",
+              install_requires=[
+                  line.strip() 
+                  for line in open("requirements.txt").readlines() 
+                  if line.strip() and not line.startswith("#")
+              ],
+              entry_points={
+                  "console_scripts": [
+                      "alice=run:main",
+                  ],
+              },
+          )
+          EOF
+          python -m build
+
+      - name: Build TypeScript packages
+        run: |
+          cd alice-tools && npm run build
+          cd ../nlu-agent && npm run build
+
+      - name: Build web application
+        run: |
+          cd web
+          npm run build
+
+      - name: Create release archive
+        run: |
+          mkdir -p release-artifacts
+          
+          # Create server distribution
+          cp -r server release-artifacts/
+          
+          # Create web build
+          cp -r web/.next release-artifacts/web-build
+          cp web/package.json release-artifacts/web-build/
+          
+          # Create tools builds
+          cp -r alice-tools/dist release-artifacts/alice-tools-build
+          cp alice-tools/package.json release-artifacts/alice-tools-build/
+          
+          cp -r nlu-agent/dist release-artifacts/nlu-agent-build
+          cp nlu-agent/package.json release-artifacts/nlu-agent-build/
+          
+          # Create installation scripts
+          cat > release-artifacts/install.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "Installing Alice AI Assistant..."
+          
+          # Install Python dependencies
+          if command -v python3 &> /dev/null; then
+              cd server
+              pip3 install -r requirements.txt
+              cd ..
+          else
+              echo "Python 3 not found. Please install Python 3.9 or later."
+              exit 1
+          fi
+          
+          # Install Node.js dependencies and build
+          if command -v npm &> /dev/null; then
+              cd web-build && npm install --production
+              cd ../alice-tools-build && npm install --production
+              cd ../nlu-agent-build && npm install --production
+          else
+              echo "npm not found. Please install Node.js 18 or later."
+              exit 1
+          fi
+          
+          echo "Alice AI Assistant installed successfully!"
+          echo "Run 'python3 server/run.py' to start the server."
+          EOF
+          
+          chmod +x release-artifacts/install.sh
+          
+          # Create archive
+          tar -czf alice-ai-assistant-${{ needs.validate-release.outputs.version }}.tar.gz -C release-artifacts .
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            alice-ai-assistant-${{ needs.validate-release.outputs.version }}.tar.gz
+            server/dist/
+          retention-days: 30
+
+  # Build Docker images
+  build-docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [validate-release, ci-for-release]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Dockerfile for Alice Backend
+        run: |
+          cat > Dockerfile.backend << 'EOF'
+          FROM python:3.10-slim
+          
+          WORKDIR /app
+          
+          # Install system dependencies
+          RUN apt-get update && apt-get install -y \
+              ffmpeg \
+              portaudio19-dev \
+              python3-pyaudio \
+              && rm -rf /var/lib/apt/lists/*
+          
+          # Copy requirements and install Python dependencies
+          COPY server/requirements.txt .
+          RUN pip install --no-cache-dir -r requirements.txt
+          
+          # Copy application code
+          COPY server/ ./server/
+          
+          # Create data directory
+          RUN mkdir -p server/data
+          
+          EXPOSE 8000
+          
+          CMD ["python", "server/run.py"]
+          EOF
+
+      - name: Create Dockerfile for Alice Frontend
+        run: |
+          cat > Dockerfile.frontend << 'EOF'
+          FROM node:20-alpine AS builder
+          
+          WORKDIR /app
+          
+          # Copy package files
+          COPY web/package*.json ./
+          RUN npm ci
+          
+          # Copy source code and build
+          COPY web/ ./
+          RUN npm run build
+          
+          FROM node:20-alpine AS runner
+          WORKDIR /app
+          
+          ENV NODE_ENV production
+          
+          RUN addgroup --system --gid 1001 nodejs
+          RUN adduser --system --uid 1001 nextjs
+          
+          COPY --from=builder /app/public ./public
+          COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+          COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+          
+          USER nextjs
+          
+          EXPOSE 3000
+          
+          ENV PORT 3000
+          
+          CMD ["node", "server.js"]
+          EOF
+
+      - name: Extract metadata for backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Extract metadata for frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.backend
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.frontend
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Generate changelog
+  generate-changelog:
+    name: Generate Changelog
+    runs-on: ubuntu-latest
+    needs: validate-release
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          CURRENT_TAG="${{ needs.validate-release.outputs.version }}"
+          
+          echo "## Changes in $CURRENT_TAG" > changelog.md
+          echo "" >> changelog.md
+          
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            echo "### Commits since $PREVIOUS_TAG:" >> changelog.md
+            git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD >> changelog.md
+          else
+            echo "### All commits:" >> changelog.md
+            git log --pretty=format:"- %s (%h)" >> changelog.md
+          fi
+          
+          echo "" >> changelog.md
+          echo "### Component Versions:" >> changelog.md
+          echo "- Backend: Python $(python3 --version | cut -d' ' -f2)" >> changelog.md
+          echo "- Frontend: Node.js $(node --version)" >> changelog.md
+          echo "- Alice Tools: $(cat alice-tools/package.json | grep '"version"' | cut -d'"' -f4)" >> changelog.md
+          echo "- NLU Agent: $(cat nlu-agent/package.json | grep '"version"' | cut -d'"' -f4)" >> changelog.md
+          
+          CHANGELOG=$(cat changelog.md)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  # Create GitHub release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-artifacts, build-docker, generate-changelog]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: ./artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.validate-release.outputs.version }}
+          name: Alice AI Assistant ${{ needs.validate-release.outputs.version }}
+          body: |
+            # Alice AI Assistant ${{ needs.validate-release.outputs.version }}
+            
+            ${{ needs.generate-changelog.outputs.changelog }}
+            
+            ## Installation
+            
+            ### Quick Start with Docker
+            ```bash
+            # Backend
+            docker pull ghcr.io/${{ github.repository }}-backend:${{ needs.validate-release.outputs.version }}
+            
+            # Frontend
+            docker pull ghcr.io/${{ github.repository }}-frontend:${{ needs.validate-release.outputs.version }}
+            ```
+            
+            ### Manual Installation
+            1. Download the source archive below
+            2. Extract and run `./install.sh`
+            3. Start the server with `python3 server/run.py`
+            
+            ## Features in this Release
+            - Swedish Voice AI Assistant
+            - FastAPI backend with advanced NLU
+            - Next.js frontend with voice interface
+            - Ollama and OpenAI integration
+            - Calendar and Gmail integration
+            - Real-time voice processing
+            
+            ## Docker Images
+            - Backend: `ghcr.io/${{ github.repository }}-backend:${{ needs.validate-release.outputs.version }}`
+            - Frontend: `ghcr.io/${{ github.repository }}-frontend:${{ needs.validate-release.outputs.version }}`
+            
+          files: |
+            artifacts/alice-ai-assistant-${{ needs.validate-release.outputs.version }}.tar.gz
+          prerelease: ${{ needs.validate-release.outputs.is-prerelease }}
+          draft: false
+
+  # Post-release tasks
+  post-release:
+    name: Post Release Tasks
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-release]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update version badges
+        run: |
+          echo "## Release Complete" >> $GITHUB_STEP_SUMMARY
+          echo "Successfully released Alice AI Assistant ${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Release Assets" >> $GITHUB_STEP_SUMMARY
+          echo "- Source archive with installation script" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker images for backend and frontend" >> $GITHUB_STEP_SUMMARY
+          echo "- Automated changelog generation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Badges for README" >> $GITHUB_STEP_SUMMARY
+          echo '```markdown' >> $GITHUB_STEP_SUMMARY
+          echo "![Version](https://img.shields.io/github/v/release/${{ github.repository }})" >> $GITHUB_STEP_SUMMARY
+          echo "![Docker Backend](https://img.shields.io/badge/docker-backend--${{ needs.validate-release.outputs.version }}-blue)" >> $GITHUB_STEP_SUMMARY
+          echo "![Docker Frontend](https://img.shields.io/badge/docker-frontend--${{ needs.validate-release.outputs.version }}-blue)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

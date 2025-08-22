@@ -1,0 +1,52 @@
+name: "Alice Python CodeQL Configuration"
+
+# Disable default queries and use custom query suites
+disable-default-queries: false
+
+# Query suites to run
+queries:
+  - uses: security-and-quality
+  - uses: security-extended
+
+# Paths to include in analysis
+paths:
+  - "server/"
+
+# Paths to exclude from analysis  
+paths-ignore:
+  - "server/data/"
+  - "server/models/tts/"
+  - "server/test_*.py"
+  - "server/**/test_*.py"
+  - "server/tests/debug_*.py"
+  - "server/**/__pycache__/"
+  - "server/.venv/"
+  - "server/venv/"
+
+# Additional packs to download
+packs:
+  - "codeql/python-queries"
+  - "codeql/python-all"
+
+# Query filters for Alice-specific security concerns
+query-filters:
+  - exclude:
+      # Exclude some noisy rules that don't apply to our use case
+      id: 
+        - "py/unused-import"
+        - "py/unused-local-variable"
+  - include:
+      # Focus on security-critical areas for AI assistants
+      tags:
+        - "security"
+        - "external/cwe/cwe-079"  # XSS
+        - "external/cwe/cwe-089"  # SQL Injection  
+        - "external/cwe/cwe-022"  # Path Traversal
+        - "external/cwe/cwe-352"  # CSRF
+        - "external/cwe/cwe-094"  # Code Injection
+        - "external/cwe/cwe-295"  # Certificate Validation
+        - "external/cwe/cwe-327"  # Crypto
+        - "external/cwe/cwe-502"  # Deserialization
+
+# Alice-specific analysis configuration
+query-timeout: 900  # 15 minutes per query

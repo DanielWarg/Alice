@@ -1,0 +1,361 @@
+name: Health Check & Performance Monitoring
+
+on:
+  schedule:
+    # Run health checks every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to check'
+        required: false
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+        - development
+
+env:
+  PYTHON_VERSION: "3.10"
+  NODE_VERSION: "20"
+
+jobs:
+  # System health checks
+  system-health:
+    name: System Health Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg portaudio19-dev python3-pyaudio curl
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r server/requirements.txt
+          pip install psutil memory-profiler
+
+      - name: Install Node.js dependencies
+        run: |
+          cd web && npm ci --production
+          cd ../alice-tools && npm ci --production
+          cd ../nlu-agent && npm ci --production
+
+      - name: Check Python environment health
+        run: |
+          echo "## 🐍 Python Environment Health" >> $GITHUB_STEP_SUMMARY
+          echo "Python version: $(python --version)" >> $GITHUB_STEP_SUMMARY
+          echo "Pip version: $(pip --version)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check critical imports
+          python -c "
+          import sys
+          critical_modules = [
+              'fastapi', 'uvicorn', 'httpx', 'pydantic', 
+              'faster_whisper', 'requests', 'google'
+          ]
+          
+          print('### Critical Module Check:')
+          for module in critical_modules:
+              try:
+                  __import__(module)
+                  print(f'✅ {module}')
+              except ImportError as e:
+                  print(f'❌ {module}: {e}')
+                  sys.exit(1)
+          "
+          
+          echo "All critical Python modules are available ✅" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check Node.js environment health
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🟢 Node.js Environment Health" >> $GITHUB_STEP_SUMMARY
+          echo "Node.js version: $(node --version)" >> $GITHUB_STEP_SUMMARY
+          echo "NPM version: $(npm --version)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check package integrity
+          cd web && npm ls --depth=0 > /dev/null 2>&1 && echo "✅ Web dependencies OK" || echo "❌ Web dependencies issues"
+          cd ../alice-tools && npm ls --depth=0 > /dev/null 2>&1 && echo "✅ Alice-tools dependencies OK" || echo "❌ Alice-tools dependencies issues"
+          cd ../nlu-agent && npm ls --depth=0 > /dev/null 2>&1 && echo "✅ NLU-agent dependencies OK" || echo "❌ NLU-agent dependencies issues"
+          
+          echo "Node.js environments checked ✅" >> $GITHUB_STEP_SUMMARY
+
+      - name: Test build performance
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ⚡ Build Performance Check" >> $GITHUB_STEP_SUMMARY
+          
+          # Time Python import performance
+          PYTHON_IMPORT_TIME=$(python -c "
+          import time
+          start = time.time()
+          import fastapi, uvicorn, httpx, pydantic
+          end = time.time()
+          print(f'{end - start:.2f}')
+          ")
+          
+          # Time TypeScript compilation
+          cd alice-tools
+          TS_BUILD_START=$(date +%s)
+          npm run build > /dev/null 2>&1
+          TS_BUILD_END=$(date +%s)
+          TS_BUILD_TIME=$((TS_BUILD_END - TS_BUILD_START))
+          
+          cd ../nlu-agent
+          NLU_BUILD_START=$(date +%s)
+          npm run build > /dev/null 2>&1
+          NLU_BUILD_END=$(date +%s)
+          NLU_BUILD_TIME=$((NLU_BUILD_END - NLU_BUILD_START))
+          
+          cd ../web
+          WEB_BUILD_START=$(date +%s)
+          npm run build > /dev/null 2>&1
+          WEB_BUILD_END=$(date +%s)
+          WEB_BUILD_TIME=$((WEB_BUILD_END - WEB_BUILD_START))
+          
+          echo "- Python imports: ${PYTHON_IMPORT_TIME}s" >> $GITHUB_STEP_SUMMARY
+          echo "- Alice-tools build: ${TS_BUILD_TIME}s" >> $GITHUB_STEP_SUMMARY
+          echo "- NLU-agent build: ${NLU_BUILD_TIME}s" >> $GITHUB_STEP_SUMMARY
+          echo "- Web build: ${WEB_BUILD_TIME}s" >> $GITHUB_STEP_SUMMARY
+
+      - name: Memory usage analysis
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 💾 Memory Usage Analysis" >> $GITHUB_STEP_SUMMARY
+          
+          # Check memory usage of key processes
+          python -c "
+          import psutil
+          import os
+          
+          # Get system memory info
+          memory = psutil.virtual_memory()
+          print(f'System Memory: {memory.total // (1024**3)}GB total, {memory.available // (1024**3)}GB available')
+          
+          # Estimate Alice components memory usage
+          print('Estimated Alice Memory Requirements:')
+          print('- FastAPI server: ~50-100MB')
+          print('- Next.js frontend: ~200-300MB')
+          print('- Whisper STT: ~1-2GB (depending on model)')
+          print('- TTS models: ~100-500MB')
+          print('- Database: ~10-50MB')
+          print('')
+          print(f'Total estimated: ~1.5-3GB')
+          
+          if memory.available < 4 * 1024**3:  # Less than 4GB available
+              print('⚠️  Warning: Low available memory for optimal Alice performance')
+          else:
+              print('✅ Sufficient memory available')
+          " >> memory_report.txt
+          
+          cat memory_report.txt >> $GITHUB_STEP_SUMMARY
+
+  # Security health check
+  security-health:
+    name: Security Health Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for sensitive files
+        run: |
+          echo "## 🔒 Security Health Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for common sensitive file patterns
+          sensitive_patterns=(
+            "*.key"
+            "*.pem"
+            "*.p12"
+            "*.jks"
+            "config.json"
+            ".env.local"
+            ".env.production"
+            "secrets.json"
+            "private.json"
+          )
+          
+          echo "### Sensitive File Scan:" >> $GITHUB_STEP_SUMMARY
+          found_sensitive=false
+          
+          for pattern in "${sensitive_patterns[@]}"; do
+            if find . -name "$pattern" -not -path "./node_modules/*" -not -path "./.git/*" | grep -q .; then
+              echo "⚠️  Found potential sensitive files: $pattern" >> $GITHUB_STEP_SUMMARY
+              found_sensitive=true
+            fi
+          done
+          
+          if [ "$found_sensitive" = false ]; then
+            echo "✅ No sensitive files found in repository" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check dependencies for known vulnerabilities
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Dependency Vulnerability Check:" >> $GITHUB_STEP_SUMMARY
+          
+          # Check Python packages (using safety if available)
+          if command -v safety &> /dev/null; then
+            safety check --json || echo "❌ Python: Vulnerabilities found"
+          else
+            echo "ℹ️  Python: Safety not available, check manually"
+          fi
+          
+          # Check Node.js packages
+          cd web && npm audit --audit-level=moderate --json | jq -r '.metadata.vulnerabilities | if . == {} then "✅ Web: No vulnerabilities" else "❌ Web: Vulnerabilities found" end' || echo "ℹ️  Web: Audit data unavailable"
+          cd ../alice-tools && npm audit --audit-level=moderate --json | jq -r '.metadata.vulnerabilities | if . == {} then "✅ Alice-tools: No vulnerabilities" else "❌ Alice-tools: Vulnerabilities found" end' || echo "ℹ️  Alice-tools: Audit data unavailable"
+          cd ../nlu-agent && npm audit --audit-level=moderate --json | jq -r '.metadata.vulnerabilities | if . == {} then "✅ NLU-agent: No vulnerabilities" else "❌ NLU-agent: Vulnerabilities found" end' || echo "ℹ️  NLU-agent: Audit data unavailable"
+
+  # Integration health check
+  integration-health:
+    name: Integration Health Check
+    runs-on: ubuntu-latest
+    needs: [system-health, security-health]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg portaudio19-dev python3-pyaudio
+          python -m pip install --upgrade pip
+          pip install -r server/requirements.txt
+
+      - name: Test critical integrations
+        run: |
+          echo "## 🔗 Integration Health Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          cd server
+          
+          # Test database connection
+          python -c "
+          import sqlite3
+          import os
+          
+          try:
+              # Create test database
+              conn = sqlite3.connect(':memory:')
+              cursor = conn.cursor()
+              cursor.execute('CREATE TABLE test (id INTEGER PRIMARY KEY)')
+              cursor.execute('INSERT INTO test (id) VALUES (1)')
+              result = cursor.fetchone()
+              conn.close()
+              print('✅ Database: SQLite connection OK')
+          except Exception as e:
+              print(f'❌ Database: {e}')
+          " >> integration_test.txt
+          
+          # Test audio system availability
+          python -c "
+          try:
+              import pyaudio
+              p = pyaudio.PyAudio()
+              device_count = p.get_device_count()
+              p.terminate()
+              print(f'✅ Audio: {device_count} audio devices available')
+          except Exception as e:
+              print(f'❌ Audio: {e}')
+          " >> integration_test.txt
+          
+          # Test HTTP client
+          python -c "
+          import httpx
+          import asyncio
+          
+          async def test_http():
+              try:
+                  async with httpx.AsyncClient() as client:
+                      response = await client.get('https://httpbin.org/status/200', timeout=5.0)
+                      if response.status_code == 200:
+                          print('✅ HTTP: Client working correctly')
+                      else:
+                          print(f'❌ HTTP: Unexpected status {response.status_code}')
+              except Exception as e:
+                  print(f'❌ HTTP: {e}')
+          
+          asyncio.run(test_http())
+          " >> integration_test.txt
+          
+          cat integration_test.txt >> $GITHUB_STEP_SUMMARY
+
+      - name: Performance baseline
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Performance Baseline:" >> $GITHUB_STEP_SUMMARY
+          echo "- FastAPI import: ~$(python -c 'import time; s=time.time(); import fastapi; print(f\"{time.time()-s:.3f}s\")')" >> $GITHUB_STEP_SUMMARY
+          echo "- Database query: ~$(python -c 'import time, sqlite3; s=time.time(); c=sqlite3.connect(\":memory:\"); c.execute(\"SELECT 1\"); print(f\"{time.time()-s:.3f}s\")')" >> $GITHUB_STEP_SUMMARY
+          echo "- HTTP client ready: ~$(python -c 'import time; s=time.time(); import httpx; print(f\"{time.time()-s:.3f}s\")')" >> $GITHUB_STEP_SUMMARY
+
+  # Health check summary
+  health-summary:
+    name: Health Check Summary
+    runs-on: ubuntu-latest
+    needs: [system-health, security-health, integration-health]
+    if: always()
+    
+    steps:
+      - name: Generate health report
+        run: |
+          echo "# 🏥 Alice Health Check Report" >> $GITHUB_STEP_SUMMARY
+          echo "*Generated on $(date)*" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Overall Status" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.system-health.result }}" == "success" && "${{ needs.security-health.result }}" == "success" && "${{ needs.integration-health.result }}" == "success" ]]; then
+            echo "🟢 **HEALTHY** - All systems operational" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.system-health.result }}" == "failure" || "${{ needs.integration-health.result }}" == "failure" ]]; then
+            echo "🔴 **CRITICAL** - System or integration issues detected" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🟡 **WARNING** - Security or performance concerns" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Component Status" >> $GITHUB_STEP_SUMMARY
+          echo "- System Health: ${{ needs.system-health.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Security Health: ${{ needs.security-health.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Integration Health: ${{ needs.integration-health.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Next Actions" >> $GITHUB_STEP_SUMMARY
+          echo "- Review any failed checks above" >> $GITHUB_STEP_SUMMARY
+          echo "- Update dependencies if security issues found" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor system resources for performance" >> $GITHUB_STEP_SUMMARY
+          echo "- Schedule next health check: $(date -d '+6 hours' '+%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create issue on failure
+        if: needs.system-health.result == 'failure' || needs.integration-health.result == 'failure'
+        run: |
+          echo "Critical health check failure detected. Consider creating a GitHub issue for investigation." >> $GITHUB_STEP_SUMMARY

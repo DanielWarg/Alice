@@ -2,7 +2,7 @@ name: Verify Tool Surface
 
 on:
   push:
-    branches: [ main, feature/harmony ]
+    branches: [ main ]
     paths:
       - 'server/tools/**'
       - 'server/app.py'

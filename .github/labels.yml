@@ -1,0 +1,344 @@
+# Alice AI Assistant - GitHub Labels Configuration
+# This file defines the standard labels used across the Alice project
+# Can be used with GitHub CLI or label management actions
+
+# ==========================================
+# BUG AND ISSUE LABELS
+# ==========================================
+- name: "bug"
+  color: "d73a4a"
+  description: "Something isn't working"
+
+- name: "critical"
+  color: "b60205"
+  description: "Critical issue that breaks core functionality"
+
+- name: "regression"
+  color: "d93f0b"
+  description: "Bug that worked before but is now broken"
+
+- name: "needs-reproduction"
+  color: "fef2c0"
+  description: "Issue needs steps to reproduce"
+
+- name: "confirmed"
+  color: "0e8a16"
+  description: "Issue has been confirmed and reproduced"
+
+# ==========================================
+# FEATURE AND ENHANCEMENT LABELS
+# ==========================================
+- name: "enhancement"
+  color: "a2eeef"
+  description: "New feature or request"
+
+- name: "feature-request"
+  color: "7057ff"
+  description: "Request for new functionality"
+
+- name: "improvement"
+  color: "a2eeef"
+  description: "Enhancement to existing functionality"
+
+- name: "breaking-change"
+  color: "d73a4a"
+  description: "Change that breaks backward compatibility"
+
+# ==========================================
+# COMPONENT LABELS - BACKEND
+# ==========================================
+- name: "backend"
+  color: "0052cc"
+  description: "Python/FastAPI backend code"
+
+- name: "agent-core"
+  color: "1d76db"
+  description: "Agent orchestration and AI workflow system"
+
+- name: "voice"
+  color: "ff6b9d"
+  description: "Voice processing, STT, TTS, or audio pipeline"
+
+- name: "ai"
+  color: "8a2be2"
+  description: "AI/LLM integration, Ollama, or OpenAI"
+
+- name: "nlu"
+  color: "9b59b6"
+  description: "Natural Language Understanding processing"
+
+- name: "integration"
+  color: "0366d6"
+  description: "External API integrations (Google, Spotify, etc.)"
+
+- name: "database"
+  color: "5319e7"
+  description: "Database schema, queries, or data handling"
+
+- name: "api"
+  color: "0052cc"
+  description: "REST API endpoints and backend services"
+
+# ==========================================
+# COMPONENT LABELS - FRONTEND
+# ==========================================
+- name: "frontend"
+  color: "61dafb"
+  description: "React/Next.js frontend code"
+
+- name: "ui"
+  color: "e91e63"
+  description: "User interface components and styling"
+
+- name: "ux"
+  color: "ff4081"
+  description: "User experience and interaction design"
+
+- name: "mobile"
+  color: "795548"
+  description: "Mobile responsiveness and PWA features"
+
+- name: "accessibility"
+  color: "00acc1"
+  description: "Accessibility improvements and compliance"
+
+- name: "performance"
+  color: "ff9800"
+  description: "Performance optimization and improvements"
+
+# ==========================================
+# LANGUAGE AND LOCALIZATION
+# ==========================================
+- name: "swedish"
+  color: "ffeb3b"
+  description: "Swedish language functionality and NLU"
+
+- name: "localization"
+  color: "ffc107"
+  description: "Internationalization and language support"
+
+- name: "translation"
+  color: "ff9800"
+  description: "Translation work and multilingual support"
+
+# ==========================================
+# PRIORITY LABELS
+# ==========================================
+- name: "priority-critical"
+  color: "b60205"
+  description: "Highest priority - immediate attention required"
+
+- name: "priority-high"
+  color: "d93f0b"
+  description: "High priority - should be addressed soon"
+
+- name: "priority-medium"
+  color: "fbca04"
+  description: "Medium priority - normal development cycle"
+
+- name: "priority-low"
+  color: "0e8a16"
+  description: "Low priority - can be addressed later"
+
+# ==========================================
+# STATUS AND WORKFLOW LABELS
+# ==========================================
+- name: "needs-triage"
+  color: "ededed"
+  description: "Issue needs initial review and categorization"
+
+- name: "ready-for-dev"
+  color: "0e8a16"
+  description: "Issue is ready to be worked on"
+
+- name: "in-progress"
+  color: "fbca04"
+  description: "Someone is actively working on this"
+
+- name: "blocked"
+  color: "d73a4a"
+  description: "Progress is blocked by external dependencies"
+
+- name: "needs-review"
+  color: "0366d6"
+  description: "Code is ready for review"
+
+- name: "needs-testing"
+  color: "f9d0c4"
+  description: "Changes need testing before merge"
+
+- name: "awaiting-feedback"
+  color: "cc317c"
+  description: "Waiting for feedback from reporter or reviewers"
+
+# ==========================================
+# TESTING AND QUALITY LABELS
+# ==========================================
+- name: "testing"
+  color: "d4c5f9"
+  description: "Testing infrastructure and test cases"
+
+- name: "qa"
+  color: "e4b429"
+  description: "Quality assurance and validation"
+
+- name: "security"
+  color: "b60205"
+  description: "Security-related issues and improvements"
+
+- name: "dependencies"
+  color: "0366d6"
+  description: "External dependencies and package updates"
+
+# ==========================================
+# DOCUMENTATION LABELS
+# ==========================================
+- name: "documentation"
+  color: "0075ca"
+  description: "Documentation improvements or additions"
+
+- name: "examples"
+  color: "0052cc"
+  description: "Code examples and tutorials"
+
+- name: "readme"
+  color: "1d76db"
+  description: "README file updates"
+
+- name: "api-docs"
+  color: "0366d6"
+  description: "API documentation and references"
+
+# ==========================================
+# COMMUNITY AND CONTRIBUTION LABELS
+# ==========================================
+- name: "good-first-issue"
+  color: "7057ff"
+  description: "Good for newcomers to the project"
+
+- name: "help-wanted"
+  color: "008672"
+  description: "Extra attention is needed - community help welcome"
+
+- name: "question"
+  color: "d876e3"
+  description: "Further information is requested"
+
+- name: "discussion"
+  color: "cc317c"
+  description: "Topic for community discussion"
+
+- name: "feedback-wanted"
+  color: "ff6b9d"
+  description: "Looking for community feedback on approach"
+
+# ==========================================
+# AREA-SPECIFIC LABELS
+# ==========================================
+- name: "calendar"
+  color: "4caf50"
+  description: "Google Calendar integration functionality"
+
+- name: "gmail"
+  color: "f44336"
+  description: "Gmail integration functionality"
+
+- name: "spotify"
+  color: "1db954"
+  description: "Spotify integration and music control"
+
+- name: "webrtc"
+  color: "ff5722"
+  description: "WebRTC real-time communication features"
+
+- name: "rag"
+  color: "673ab7"
+  description: "Retrieval-Augmented Generation system"
+
+- name: "memory"
+  color: "607d8b"
+  description: "Memory management and persistence"
+
+# ==========================================
+# MAINTENANCE AND INFRASTRUCTURE
+# ==========================================
+- name: "maintenance"
+  color: "fef2c0"
+  description: "Routine maintenance and housekeeping"
+
+- name: "refactor"
+  color: "e4b429"
+  description: "Code refactoring without functionality changes"
+
+- name: "cleanup"
+  color: "fef2c0"
+  description: "Code cleanup and organization"
+
+- name: "build"
+  color: "1f77b4"
+  description: "Build system and compilation issues"
+
+- name: "ci-cd"
+  color: "2e7d32"
+  description: "Continuous integration and deployment"
+
+- name: "docker"
+  color: "0db7ed"
+  description: "Docker containerization and deployment"
+
+# ==========================================
+# RESOLUTION LABELS
+# ==========================================
+- name: "duplicate"
+  color: "cfd3d7"
+  description: "This issue or pull request already exists"
+
+- name: "wontfix"
+  color: "ffffff"
+  description: "This will not be worked on"
+
+- name: "invalid"
+  color: "e4e669"
+  description: "This doesn't seem right or is not applicable"
+
+- name: "fixed"
+  color: "0e8a16"
+  description: "Issue has been resolved"
+
+- name: "completed"
+  color: "0e8a16"
+  description: "Feature or task has been completed"
+
+# ==========================================
+# SPECIAL PURPOSE LABELS
+# ==========================================
+- name: "hackathon"
+  color: "ff6b9d"
+  description: "Issues suitable for hackathons or events"
+
+- name: "student-project"
+  color: "7057ff"
+  description: "Suitable for student projects or theses"
+
+- name: "research"
+  color: "8a2be2"
+  description: "Research-oriented tasks and investigations"
+
+- name: "experiment"
+  color: "ff9800"
+  description: "Experimental features and proof-of-concepts"
+
+# ==========================================
+# AUTOMATION LABELS
+# ==========================================
+- name: "auto-merge"
+  color: "0e8a16"
+  description: "Approved for automatic merging"
+
+- name: "auto-close"
+  color: "d73a4a"
+  description: "Can be automatically closed by bot"
+
+- name: "stale"
+  color: "fef2c0"
+  description: "No recent activity - candidate for closure"

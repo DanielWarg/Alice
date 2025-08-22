@@ -1,0 +1,104 @@
+name: Dependabot Auto-Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [develop]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  auto-merge:
+    name: Auto-merge Dependabot PRs
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]' && !github.event.pull_request.draft
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get PR details
+        id: pr-details
+        run: |
+          echo "title=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
+          echo "body=${{ github.event.pull_request.body }}" >> $GITHUB_OUTPUT
+          echo "head_sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Check if patch update
+        id: check-patch
+        run: |
+          # Check if this is a patch update (only patch version bumps)
+          if echo "${{ steps.pr-details.outputs.title }}" | grep -E "(patch|security|chore)" || \
+             echo "${{ steps.pr-details.outputs.body }}" | grep -E "Update.*from.*[0-9]+\.[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+\.[0-9]+"; then
+            echo "is_patch=true" >> $GITHUB_OUTPUT
+            echo "This appears to be a patch update"
+          else
+            echo "is_patch=false" >> $GITHUB_OUTPUT
+            echo "This appears to be a major/minor update"
+          fi
+
+      - name: Wait for CI to complete
+        if: steps.check-patch.outputs.is_patch == 'true'
+        uses: lewagon/wait-on-check-action@v1.3.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: 'CI Status'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success
+
+      - name: Check CI status
+        if: steps.check-patch.outputs.is_patch == 'true'
+        id: ci-status
+        run: |
+          # Get the latest status of the CI check
+          CI_STATUS=$(gh api repos/${{ github.repository }}/commits/${{ steps.pr-details.outputs.head_sha }}/status --jq '.state')
+          echo "ci_status=$CI_STATUS" >> $GITHUB_OUTPUT
+          echo "CI Status: $CI_STATUS"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auto-approve patch updates
+        if: steps.check-patch.outputs.is_patch == 'true' && steps.ci-status.outputs.ci_status == 'success'
+        run: |
+          gh pr review ${{ github.event.pull_request.number }} --approve --body "Auto-approving patch update after successful CI"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge for patch updates
+        if: steps.check-patch.outputs.is_patch == 'true' && steps.ci-status.outputs.ci_status == 'success'
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} --auto --squash --delete-branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on non-patch updates
+        if: steps.check-patch.outputs.is_patch == 'false'
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "🔍 **Manual Review Required**
+          
+          This dependency update appears to be a major or minor version bump that requires manual review.
+          
+          **Review Checklist:**
+          - [ ] Check changelog for breaking changes
+          - [ ] Test Alice's voice processing functionality
+          - [ ] Verify Swedish NLU components still work
+          - [ ] Test API integrations (OpenAI, Ollama, Google)
+          - [ ] Validate web interface functionality
+          
+          After review, approve and merge manually if safe."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## Dependabot Auto-Merge Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**PR**: ${{ steps.pr-details.outputs.title }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Type**: $([ '${{ steps.check-patch.outputs.is_patch }}' = 'true' ] && echo 'Patch Update' || echo 'Major/Minor Update')" >> $GITHUB_STEP_SUMMARY
+          echo "**CI Status**: ${{ steps.ci-status.outputs.ci_status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Action**: $([ '${{ steps.check-patch.outputs.is_patch }}' = 'true' ] && [ '${{ steps.ci-status.outputs.ci_status }}' = 'success' ] && echo 'Auto-merged' || echo 'Manual review required')" >> $GITHUB_STEP_SUMMARY
