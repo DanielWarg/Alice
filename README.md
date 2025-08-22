@@ -52,6 +52,7 @@ Alice/
 - **Spotify** - Musikuppspelning och kontroll
 - **Gmail** - E-posthantering och sökning  
 - **Google Calendar** - Komplett kalenderhantering med röst
+- **Document Upload** - Ladda upp dokument för Alice's AI-kontext
 - **20+ verktyg** registrerade och redo för expansion
 
 ### 🎨 **HUD & UI**
@@ -75,6 +76,13 @@ Alice/
 - ✅ CalendarWidget i HUD (kompakt + full modal)
 - ✅ Intelligent scheduling med conflict detection
 - ✅ Svenska datum/tid-parsing (imorgon, kl 14, etc.)
+
+### **📁 Document Management**
+- ✅ Document upload system (.txt, .md, .pdf, .docx, .html)
+- ✅ Automatisk RAG-integration med chunking och embeddings
+- ✅ Alice kan svara på frågor baserat på uppladdade dokument
+- ✅ Drag & drop interface i HUD med real-time feedback
+- ✅ Intelligent document parsing och text extraction
 
 ### **🖥️ Backend (FastAPI)**
 - ✅ FastAPI server startar på port 8000
@@ -103,6 +111,16 @@ Alice/
 - ✅ Gmail integration
 - ✅ Kalender integration
 - ✅ Röststyrning
+
+### **Agent Core v1 - Autonomous Workflows** 🤖
+- ✅ **AgentPlanner** - Bryter ner mål i exekverbara steg
+- ✅ **AgentExecutor** - Utför actions med dependencies & parallellisering  
+- ✅ **AgentCritic** - Analyserar resultat & föreslår förbättringar
+- ✅ **AgentOrchestrator** - Koordinerar Planning→Execution→Criticism→Improvement cycles
+- ✅ **100 tester** med full test coverage
+- ✅ **Autonomous multi-step task execution**
+- ✅ **Adaptive improvement strategies**
+- ✅ **Progress tracking & monitoring**
 
 ---
 

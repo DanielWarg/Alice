@@ -30,6 +30,31 @@ from .preflight import (
     log_preflight_results
 )
 
+from .agent_executor import (
+    AgentExecutor,
+    ExecutionStatus,
+    ExecutionResult,
+    ExecutionPlan
+)
+
+from .agent_critic import (
+    AgentCritic,
+    CriticLevel,
+    RecommendationType,
+    CriticInsight,
+    CriticRecommendation,
+    CriticReport
+)
+
+from .agent_orchestrator import (
+    AgentOrchestrator,
+    WorkflowStatus,
+    ImprovementStrategy,
+    WorkflowConfig,
+    WorkflowIteration,
+    WorkflowResult
+)
+
 __all__ = [
     # Tool specs
     "TOOL_SPECS",
@@ -52,5 +77,27 @@ __all__ = [
     "run_preflight_checks",
     "check_tool_surface_consistency",
     "check_environment_variables",
-    "log_preflight_results"
+    "log_preflight_results",
+    
+    # Agent Executor
+    "AgentExecutor",
+    "ExecutionStatus", 
+    "ExecutionResult",
+    "ExecutionPlan",
+    
+    # Agent Critic
+    "AgentCritic",
+    "CriticLevel",
+    "RecommendationType",
+    "CriticInsight",
+    "CriticRecommendation",
+    "CriticReport",
+    
+    # Agent Orchestrator
+    "AgentOrchestrator",
+    "WorkflowStatus",
+    "ImprovementStrategy",
+    "WorkflowConfig",
+    "WorkflowIteration",
+    "WorkflowResult"
 ]
