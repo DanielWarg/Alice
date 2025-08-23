@@ -221,13 +221,18 @@
 
 ---
 
-## 🔟 **Röstkedja & Audio**
+## 🔟 **Hybrid Röstkedja & Audio**
 
 - [x] Wake-word param/tuning dokumenterat; test eller manuell checklista för latens/precision
 - [x] STT (Whisper): svensk modellversion, latensmål och fallback-väg (CPU/GPU)
 - [x] TTS (Piper): licenser för röster dokumenterade, cache-policy klar, volym/latensmål
 - [x] VoiceBox i HUD har data-testid och e2e-test som verifierar rendering
 - [x] Resilience: rimlig hantering av mikrofonfel, ingen UI-crash, loggat tydligt
+- [x] Hybrid arkitektur: Intent routing för Fast Path (<300ms) vs Think Path (<2000ms)
+- [x] OpenAI Realtime API integration med privacy-first boundaries dokumenterad
+- [x] Offline fallback när OpenAI API är otillgängligt (automatisk switching till lokalt)
+- [x] Cost monitoring och budget alerts för OpenAI API användning implementerat
+- [x] Privacy boundaries: enkla rösttranskriptioner vs känslig data separat dokumenterat
 
 ---
 
@@ -249,6 +254,21 @@
 - [x] Sandbox för högrisk-verktyg (ingen filradering utanför whitelists)
 - [x] Tydliga felmeddelanden när ett verktyg nekas eller saknar konfiguration
 - [x] Demo-mode ersätter riktiga anrop med stubbar (för första intryck)
+
+---
+
+## 1️⃣2️⃣.5️⃣ **Hybrid Architecture Quality Assurance**
+
+- [x] Intent routing accuracy ≥90% med automatisk testning av Fast vs Think Path beslut
+- [x] Response latency monitoring: Fast Path <300ms, Think Path <2000ms
+- [x] Privacy boundary validation: ingen känslig data läcker till OpenAI Realtime API
+- [x] Cost optimization: Fast/Think ratio ~60/40 för optimal cost/performance balance
+- [x] Offline fallback funktionalitet testad och verifierad (automatisk degradation)
+- [x] Hybrid configuration validation i CI pipeline (.env exempel + runtime checks)
+- [x] OpenAI API error handling och automatic retry logic implementerat
+- [x] Swedish language quality maintained i både Fast Path och Think Path responses
+- [x] User control över privacy settings (strict/balanced/performance modes)
+- [x] Monitoring dashboard för hybrid metrics (latency, cost, privacy, accuracy)
 
 ---
 
@@ -406,9 +426,10 @@
 | 7. CI/CD | 6/6 | ✅ Complete | 10h |
 | 8. Test Strategy | 8/8 | ✅ Complete | 16h |
 | 9. NLU/ML Quality | 7/7 | ✅ Complete | 12h |
-| 10. Voice Chain & Audio | 5/5 | ✅ Complete | 8h |
+| 10. Hybrid Voice Chain & Audio | 10/10 | ✅ Complete | 12h |
 | 11. Backend & API | 7/7 | ✅ Complete | 10h |
 | 12. Tool Router & Permissions | 4/4 | ✅ Complete | 6h |
+| 12.5. Hybrid Architecture QA | 10/10 | ✅ Complete | 8h |
 | 13. Integrations | 0/5 | 🟡 High | 8h |
 | 14. Frontend HUD | 10/10 | ✅ Complete | 12h |
 | 15. Performance & Resources | 0/4 | 🟡 High | 8h |

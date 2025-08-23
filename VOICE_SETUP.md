@@ -1,6 +1,6 @@
-# 🎤 Alice Voice Pipeline Setup Guide
+# 🎤 Alice Hybrid Voice Pipeline Setup Guide
 
-Comprehensive guide for setting up Alice's advanced voice pipeline with OpenAI Realtime integration and dual voice system.
+Comprehensive guide for setting up Alice's hybrid voice pipeline - fast responses via OpenAI Realtime API + local thinking with gpt-oss:20B for optimal performance and privacy.
 
 > **🇸🇪 Svenska:** [docs/sv/VOICE_SETUP.md](docs/sv/VOICE_SETUP.md) - Full Swedish version available
 
@@ -11,8 +11,24 @@ Comprehensive guide for setting up Alice's advanced voice pipeline with OpenAI R
 - **Python 3.9+** with pip
 - **Node.js 18+** with npm
 - **Ollama** with gpt-oss:20B model
-- **OpenAI API Key** (for advanced voice features)
+- **OpenAI API Key** (required for hybrid voice features)
 - **HTTPS environment** (for microphone access in production)
+
+### Privacy-First Hybrid Design
+
+Alice's hybrid architecture balances speed with privacy:
+
+**What goes to OpenAI Realtime API:**
+- Simple voice transcripts for fast responses (greetings, weather, time)
+- Basic conversational queries that don't involve personal data
+- Audio streams for real-time processing (<300ms response time)
+
+**What stays local (gpt-oss:20B):**
+- All complex reasoning and multi-step workflows
+- Tool execution (calendar, Gmail, Spotify integration)
+- Personal data processing and document RAG
+- Sensitive information and private conversations
+- All Swedish cultural context and personality
 
 ### Basic Installation
 
@@ -697,4 +713,4 @@ After successful setup:
 
 For support and questions, check the project documentation or create an issue in the repository.
 
-**Note on Swedish Voice Features:** Alice's voice pipeline is optimized for Swedish language interaction. All voice commands, TTS personalities, and speech recognition are designed to work seamlessly with Swedish pronunciation, grammar, and cultural context. Commands like "Hej Alice" (Hello Alice), "spela musik" (play music), and "visa kalender" (show calendar) maintain Alice's authentic Swedish AI assistant character even in international deployments.
+**Note on Swedish Voice Features & Privacy:** Alice's hybrid voice pipeline is optimized for Swedish language interaction with privacy-first design. All Swedish cultural context, personality, and complex reasoning remain local using gpt-oss:20B, while simple voice transcripts may use OpenAI Realtime for optimal response speed. Commands like "Hej Alice" (Hello Alice), "spela musik" (play music), and "visa kalender" (show calendar) maintain Alice's authentic Swedish AI assistant character. Users have full control over privacy settings and can choose full offline mode if preferred.

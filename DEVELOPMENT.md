@@ -1,6 +1,6 @@
-# 🛠️ Alice Development Guide
+# 🛠️ Alice Hybrid Development Guide
 
-Complete development guide for the Alice AI Assistant Platform. This guide covers everything from local development environment to production deployment.
+Complete development guide for the Alice Hybrid AI Assistant Platform. This guide covers everything from hybrid architecture development to production deployment with privacy-first design.
 
 > **🇸🇪 Svenska:** [docs/sv/DEVELOPMENT.md](docs/sv/DEVELOPMENT.md) - Full Swedish version available
 
@@ -11,7 +11,7 @@ Complete development guide for the Alice AI Assistant Platform. This guide cover
 - **Node.js 18+** - Frontend and build tools
 - **Git** - Version control
 - **Ollama** - Local AI model (gpt-oss:20B)
-- **OpenAI API Key** - For advanced voice pipeline (optional)
+- **OpenAI API Key** - For hybrid voice pipeline (required for fast responses)
 - **HTTPS development environment** - For microphone/WebRTC features
 
 ### Local Development Environment
@@ -48,6 +48,52 @@ ollama pull gpt-oss:20b
 
 # Start Ollama
 ollama serve
+```
+
+## 🔄 **Hybrid Development Philosophy**
+
+Alice's hybrid architecture balances performance, privacy, and user experience. Understanding this philosophy is crucial for effective development:
+
+### Core Principles
+
+**🚀 Speed Where It Matters**
+- Simple queries (greetings, weather, time) use OpenAI Realtime API for <300ms responses
+- Complex reasoning and tool execution happen locally for privacy and control
+- Smart intent routing ensures optimal performance for each interaction type
+
+**🔒 Privacy-First Design** 
+- Sensitive data never leaves the local system
+- Personal information, documents, and complex conversations stay local
+- Clear boundaries: only simple voice transcripts go to OpenAI
+- User maintains full control over data sharing preferences
+
+**🇸🇪 Swedish Cultural Authenticity**
+- All Swedish language processing, cultural context, and personality remain local
+- Local AI (gpt-oss:20B) handles cultural nuances and complex Swedish interactions
+- OpenAI integration used only for basic conversational elements
+
+### Development Guidelines
+
+**When developing new features, consider:**
+
+1. **Data Classification**: Is this personal/sensitive data? → Keep local
+2. **Response Time**: Does this need <300ms response? → Consider fast path
+3. **Complexity**: Multi-step reasoning or tool use? → Think path (local)
+4. **Privacy Impact**: Could this compromise user privacy? → Always local
+
+**Example Decision Tree:**
+```
+User Request: "Boka möte med Anna imorgon kl 14"
+├── Contains personal data (Anna, calendar)? ✅ Yes
+├── Requires tool execution (calendar)? ✅ Yes  
+├── Complex multi-step process? ✅ Yes
+└── Route Decision: 🏠 Think Path (Local AI + Tools)
+
+User Request: "Vad är klockan?"
+├── Simple factual query? ✅ Yes
+├── No personal data? ✅ Correct
+├── No tools needed? ✅ Correct
+└── Route Decision: ☁️ Fast Path (OpenAI Realtime)
 ```
 
 ## 🏗️ **Project Structure**

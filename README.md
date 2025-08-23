@@ -37,7 +37,7 @@
 
 ## 🎯 Why Choose Alice?
 
-Alice is the **world's first production-ready AI assistant** designed specifically for Swedish users, combining cutting-edge AI technology with uncompromising privacy and deep cultural understanding.
+Alice is the **world's first production-ready AI assistant** designed specifically for Swedish users, combining cutting-edge hybrid AI technology with privacy-first design and deep cultural understanding.
 
 ### 🌟 What makes Alice special:
 
@@ -46,15 +46,17 @@ Alice is the **world's first production-ready AI assistant** designed specifical
 - Understands "lagom", "fika", and Swedish communication patterns
 - Optimized for Swedish grammar, syntax, and regional dialects
 
-**🔒 Privacy-First Architecture**
-- 100% local processing - zero data ever leaves your system
-- No telemetry, tracking, or cloud dependencies
-- GDPR-compliant by design with zero external API calls
+**🔒 Hybrid Privacy-First Architecture**
+- Fast voice responses via OpenAI Realtime API for optimal user experience
+- All complex reasoning, tools, and sensitive data processing stays local with gpt-oss:20B
+- Privacy boundaries clearly defined - simple voice transcripts via API, everything else local
+- GDPR-compliant by design with user control over data sharing
 
 **⚡ Real-Time Performance**
-- <100ms voice response latency via WebRTC streaming
+- <300ms voice response latency via OpenAI Realtime API for simple queries
+- <2000ms response time for complex local AI processing and tool execution
+- Intelligent routing: fast cloud responses + deep local thinking
 - 3-10x faster TTS with intelligent MD5 caching
-- Instant UI updates through WebSocket communication
 
 **🤖 Autonomous Intelligence**
 - Agent Core v1 for complex multi-step task orchestration
@@ -130,12 +132,12 @@ cd ../web && npm install && npm run dev
 - **👂 Wake-word Detection** - "Hej Alice" for hands-free activation
 - **⚡ Smart Caching** - MD5-based response caching for 3-10x speed boost
 
-### 🧠 **Local AI & Privacy**
-- **🏠 gpt-oss:20B Local** - 20 billion parameters running on your hardware
-- **🎯 89% Swedish NLU** - Advanced intent classification and slot extraction
-- **📚 Document RAG** - 85.7% success rate with intelligent context retrieval
-- **🔒 Zero Telemetry** - Absolutely no data ever leaves your system
-- **🛡️ GDPR Compliant** - Privacy by design and default
+### 🧠 **Hybrid AI & Privacy**
+- **🏠 gpt-oss:20B Local** - Complex reasoning, tools, and sensitive data processing entirely local
+- **☁️ OpenAI Realtime** - Fast voice responses for simple queries with clear privacy boundaries
+- **🎯 89% Swedish NLU** - Advanced intent classification and smart routing between local/cloud
+- **📚 Document RAG** - 85.7% success rate with all personal data staying local
+- **🛡️ Privacy-First Design** - User control over what data is shared vs. processed locally
 
 ### 🤖 **Agent Core v1 - Autonomous Workflows**
 - **📋 AgentPlanner** - Intelligent task decomposition into executable steps
@@ -187,19 +189,19 @@ graph TB
 |-------|------------|---------|
 | **🎨 Frontend** | Next.js 15 + React 19 + TypeScript | Modern, responsive UI with PWA support |
 | **⚡ Backend** | FastAPI + Python 3.9+ | High-performance API with 25+ endpoints |
-| **🧠 AI Engine** | Ollama (gpt-oss:20B) + OpenAI | Local LLM + cloud voice processing |
-| **🎤 Voice** | Whisper STT + Piper TTS + WebRTC | Real-time speech processing pipeline |
+| **🧠 AI Engine** | Hybrid: gpt-oss:20B + OpenAI Realtime | Local reasoning + cloud voice for optimal performance |
+| **🎤 Voice** | OpenAI Realtime + Whisper STT + Piper TTS | Hybrid voice pipeline with intelligent routing |
 | **💾 Data** | SQLite + Vector DB | Efficient local storage with embeddings |
 | **🔗 Integrations** | Google APIs + Spotify Web API | Calendar, Gmail, and music streaming |
 
 ### 🌊 **Data Flow**
 1. **Voice Input** → WebRTC captures audio with <100ms latency
-2. **STT Processing** → Whisper converts speech to Swedish text
-3. **NLU Analysis** → Router classifies intent with 89% accuracy
-4. **Agent Execution** → Core v1 orchestrates multi-step workflows
-5. **Tool Integration** → Calendar, Spotify, Gmail APIs activated
-6. **Response Generation** → Local LLM crafts contextual Swedish response
-7. **TTS Output** → Piper synthesizes natural Swedish speech
+2. **Intent Routing** → Smart classification: Fast Path (OpenAI) vs Think Path (Local)
+3. **Fast Path** → Simple queries get <300ms responses via OpenAI Realtime
+4. **Think Path** → Complex requests processed locally with gpt-oss:20B
+5. **Tool Integration** → Calendar, Spotify, Gmail APIs executed entirely locally
+6. **Response Generation** → Hybrid: Quick cloud responses + deep local analysis
+7. **TTS Output** → Piper synthesizes natural Swedish speech locally
 8. **UI Updates** → Real-time WebSocket pushes to HUD interface
 
 ---
@@ -214,8 +216,9 @@ graph TB
 |-----------|----------------|---------------------|
 | **🇸🇪 Swedish NLU Accuracy** | **89%** | ~75% (competitors) |
 | **📚 Document RAG Success** | **85.7%** | ~70% (typical) |
-| **⚡ TTS Response Time** | **3-10x faster** | Standard baseline |
-| **🎤 Voice Latency** | **<100ms** | <200ms (WebRTC) |
+| **⚡ Fast Response Time** | **<300ms** | <500ms (typical cloud) |
+| **🧠 Think Response Time** | **<2000ms** | <5000ms (local AI) |
+| **🎤 Voice Latency** | **<300ms** | <500ms (hybrid) |
 | **🧪 Test Coverage** | **100+ tests** | ~80% (industry) |
 | **⏰ System Uptime** | **99.9%** | 99.5% (target) |
 | **💾 Memory Usage** | **<2GB RAM** | ~4GB (typical AI) |
@@ -298,16 +301,21 @@ Create `.env` file in the root directory:
 # Core Configuration
 USE_HARMONY=true              # Enable Harmony AI adapter
 USE_TOOLS=true                # Enable agent tool system
-VOICE_PIPELINE_MODE=dual      # dual|voicebox|voiceclient
+VOICE_PIPELINE_MODE=hybrid    # hybrid|dual|voicebox|voiceclient
+
+# Hybrid Voice Configuration
+OPENAI_API_KEY=sk-...         # Required for fast voice responses
+VOICE_ARCHITECTURE=hybrid     # Enable hybrid architecture
+INTENT_ROUTER_TIMEOUT_MS=50   # Smart routing decision time
 
 # Optional Integrations
-OPENAI_API_KEY=sk-...         # Advanced voice features
 GOOGLE_CALENDAR_CREDENTIALS=  # Calendar integration
 SPOTIFY_CLIENT_ID=            # Music control
 GMAIL_CREDENTIALS=            # Email management
 
 # Performance
-ENABLE_WEBRTC=true            # Real-time streaming
+FAST_RESPONSE_TIMEOUT_MS=300  # OpenAI response timeout
+THINK_RESPONSE_TIMEOUT_MS=2000 # Local AI response timeout
 CACHE_TTL=3600               # Response caching
 LOG_LEVEL=INFO               # Debug verbosity
 ```
@@ -494,10 +502,11 @@ Alice is released under the **MIT License**, providing maximum freedom for:
 - ✅ **Private use** - Use internally without restrictions
 
 ### 🛡️ **Privacy & Security**
-- **🔒 Local-first** - No data collection or tracking
-- **🌍 GDPR Compliant** - Privacy by design and default  
+- **🔒 Privacy-First Hybrid** - Clear boundaries: simple voice transcripts via API, sensitive data local
+- **🌍 GDPR Compliant** - Privacy by design with user control over data sharing
 - **🔍 Transparent** - Full source code auditing available
 - **🛡️ Security** - Regular dependency updates and vulnerability scans
+- **👤 User Control** - Choose between full offline mode or hybrid performance
 
 ```
 Copyright (c) 2024 Alice AI Project

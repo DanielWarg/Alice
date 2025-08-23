@@ -1,18 +1,34 @@
-# 🎤 Alice Voice Pipeline Setup Guide
+# 🎤 Alice Hybrid Röstpipeline Setup Guide
 
-Comprehensive guide for setting up Alice's advanced voice pipeline with OpenAI Realtime integration and dual voice system.
+Omfattande guide för att sätta upp Alice's hybridröstpipeline - snabba svar via OpenAI Realtime API + lokal tänkning med gpt-oss:20B för optimal prestanda och integritet.
 
-## 🚀 **Quick Start**
+## 🚀 **Snabbstart**
 
-### Prerequisites
+### Förutsättningar
 
-- **Python 3.9+** with pip
-- **Node.js 18+** with npm
-- **Ollama** with gpt-oss:20B model
-- **OpenAI API Key** (for advanced voice features)
-- **HTTPS environment** (for microphone access in production)
+- **Python 3.9+** med pip
+- **Node.js 18+** med npm
+- **Ollama** med gpt-oss:20B modell
+- **OpenAI API Key** (krävs för hybridröstfunktioner)
+- **HTTPS-miljö** (för mikrofonåtkomst i produktion)
 
-### Basic Installation
+### Privacy-First Hybrid Design
+
+Alice's hybridarkitektur balanserar hastighet med integritet:
+
+**Vad som går till OpenAI Realtime API:**
+- Enkla rösttranskriptioner för snabba svar (hälsningar, väder, tid)
+- Grundläggande konversationsfrågor som inte involverar personlig data
+- Ljudströmmar för realtidsbearbetning (<300ms svarstid)
+
+**Vad som stannar lokalt (gpt-oss:20B):**
+- All komplex reasoning och flerstegarbetsflöden
+- Verktygsutförande (kalender, Gmail, Spotify integration)
+- Personlig databearbetning och dokument RAG
+- Känslig information och privata konversationer
+- All svensk kulturell kontext och personlighet
+
+### Grundinstallation
 
 ```bash
 # 1. Clone repository

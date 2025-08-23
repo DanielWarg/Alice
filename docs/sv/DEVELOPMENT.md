@@ -1,6 +1,6 @@
-# 🛠️ Alice Development Guide
+# 🛠️ Alice Hybrid Development Guide
 
-Komplett utvecklingsguide för Alice AI Assistant Platform. Denna guide täcker allt från lokal utvecklingsmiljö till production deployment.
+Komplett utvecklingsguide för Alice Hybrid AI Assistant Platform. Denna guide täcker allt från hybrid arkitekturutveckling till production deployment med privacy-first design.
 
 ## 🚀 **Snabbstart för Utvecklare**
 
@@ -9,7 +9,7 @@ Komplett utvecklingsguide för Alice AI Assistant Platform. Denna guide täcker 
 - **Node.js 18+** - Frontend och build-tools
 - **Git** - Versionshantering
 - **Ollama** - Lokal AI-modell (gpt-oss:20B)
-- **OpenAI API Key** - För avancerad voice pipeline (valfritt)
+- **OpenAI API Key** - För hybrid voice pipeline (krävs för snabba svar)
 - **HTTPS-utvecklingsmiljö** - För mikrofon/WebRTC-funktioner
 
 ### Lokal Utvecklingsmiljö
@@ -46,6 +46,52 @@ ollama pull gpt-oss:20b
 
 # Starta Ollama
 ollama serve
+```
+
+## 🔄 **Hybrid Utvecklingsfilosofi**
+
+Alice's hybridarkitektur balanserar prestanda, integritet och användarupplevelse. Att förstå denna filosofi är avgörande för effektiv utveckling:
+
+### Grundprinciper
+
+**🚀 Hastighet Där Det Spelar Roll**
+- Enkla frågor (hälsningar, väder, tid) använder OpenAI Realtime API för <300ms svar
+- Komplex reasoning och verktygsutförande sker lokalt för integritet och kontroll
+- Smart intent routing säkerställer optimal prestanda för varje interaktionstyp
+
+**🔒 Privacy-First Design** 
+- Känslig data lämnar aldrig det lokala systemet
+- Personlig information, dokument och komplexa konversationer förblir lokala
+- Tydliga gränser: endast enkla rösttranskriptioner går till OpenAI
+- Användaren behåller full kontroll över datadelningspreferenser
+
+**🇸🇪 Svensk Kulturell Autenticitet**
+- All svensk språkbearbetning, kulturell kontext och personlighet förblir lokal
+- Lokal AI (gpt-oss:20B) hanterar kulturella nyanser och komplexa svenska interaktioner
+- OpenAI-integration används endast för grundläggande konversationselement
+
+### Utvecklingsriktlinjer
+
+**När du utvecklar nya funktioner, överväg:**
+
+1. **Dataklassificering**: Är detta personlig/känslig data? → Håll lokalt
+2. **Svarstid**: Behöver detta <300ms svar? → Överväg snabb väg
+3. **Komplexitet**: Flersteg-reasoning eller verktygsanvändning? → Think path (lokalt)
+4. **Integritetsimpakt**: Skulle detta kunna kompromissa användarintegritet? → Alltid lokalt
+
+**Exempel Beslutsträd:**
+```
+Användarförfrågan: "Boka möte med Anna imorgon kl 14"
+├── Innehåller personlig data (Anna, kalender)? ✅ Ja
+├── Kräver verktygsutförande (kalender)? ✅ Ja  
+├── Komplex flerstegprocess? ✅ Ja
+└── Routingbeslut: 🏠 Think Path (Lokal AI + Verktyg)
+
+Användarförfrågan: "Vad är klockan?"
+├── Enkel faktafråga? ✅ Ja
+├── Ingen personlig data? ✅ Korrekt
+├── Inga verktyg behövs? ✅ Korrekt
+└── Routingbeslut: ☁️ Fast Path (OpenAI Realtime)
 ```
 
 ## 🏗️ **Projektstruktur**
