@@ -2724,12 +2724,57 @@ async def spotify_callback(code: Optional[str] = None, state: Optional[str] = No
             r = await client.post(SPOTIFY_TOKEN_URL, data=data)
             r.raise_for_status()
             token = r.json()
-    except Exception:
-        logger.exception("spotify token exchange failed")
-        return {"ok": False, "error": "token_exchange_failed"}
+    except httpx.TimeoutException:
+        logger.error("Spotify token exchange timeout - service may be slow")
+        return {
+            "ok": False, 
+            "error": "spotify_timeout",
+            "user_message": "Spotify-tjänsten svarar inte just nu. Försök igen senare.",
+            "retry_after": 30
+        }
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Spotify API error {e.response.status_code}: {e.response.text}")
+        if e.response.status_code == 429:
+            return {
+                "ok": False,
+                "error": "rate_limited", 
+                "user_message": "För många förfrågningar till Spotify. Vänta en stund innan du försöker igen.",
+                "retry_after": 60
+            }
+        elif e.response.status_code >= 500:
+            return {
+                "ok": False,
+                "error": "spotify_server_error",
+                "user_message": "Spotify har tekniska problem just nu. Försök igen senare.",
+                "retry_after": 120
+            }
+        else:
+            return {
+                "ok": False,
+                "error": "spotify_auth_error", 
+                "user_message": "Problem med Spotify-autentisering. Kontrollera dina inställningar.",
+                "retry_after": None
+            }
+    except httpx.NetworkError:
+        logger.error("Network error connecting to Spotify")
+        return {
+            "ok": False,
+            "error": "network_error",
+            "user_message": "Nätverksfel vid anslutning till Spotify. Kontrollera din internetanslutning.",
+            "retry_after": 30
+        }
+    except Exception as e:
+        logger.exception(f"Unexpected error during Spotify token exchange: {e}")
+        return {
+            "ok": False, 
+            "error": "token_exchange_failed",
+            "user_message": "Ett oväntat fel uppstod. Försök igen eller kontakta support om problemet kvarstår.",
+            "retry_after": 60
+        }
     try:
         memory.append_event("spotify.tokens", json.dumps({"received": True}))
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to log Spotify token event to memory: {e}")
         pass
     return {"ok": True, "token": token}
 

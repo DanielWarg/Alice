@@ -339,14 +339,73 @@ function HUDProvider({ children }) {
 // Overlay + moduler
 function Overlay() { const { state, dispatch } = useHUD(); if (!state.overlayOpen || !state.currentModule) return null; return (<div className="fixed inset-0 z-50 grid place-items-center pointer-events-none"><div className="pointer-events-auto relative w-[min(90vw,920px)] rounded-2xl border border-cyan-400/30 bg-cyan-950/60 backdrop-blur-xl p-5 shadow-[0_0_80px_-20px_rgba(34,211,238,.6)]"><button aria-label="Stäng" onClick={() => dispatch({ type: "HIDE_OVERLAY" })} className="absolute right-3 top-3 rounded-lg border border-cyan-400/30 px-2 py-1 text-xs hover:bg-cyan-400/10">Stäng</button>{state.currentModule === "calendar" && <CalendarView />}{state.currentModule === "mail" && <MailView />}{state.currentModule === "finance" && <FinanceView />}{state.currentModule === "reminders" && <RemindersView />}{state.currentModule === "wallet" && <WalletView />}{state.currentModule === "video" && <VideoView source={state.videoSource} />}</div></div>); }
 function CalendarView() { 
-  const handleEventCreate = (event) => {
-    console.log('Creating event:', event);
-    // TODO: Integrera med backend API
+  const handleEventCreate = async (event) => {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Creating event:', event);
+      }
+      
+      const response = await fetch('/api/calendar/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: event.title,
+          start_time: event.start,
+          end_time: event.end,
+          description: event.description,
+          attendees: event.attendees || []
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Calendar API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Event created successfully:', result);
+      }
+      
+      // Trigger refresh or update UI state here
+      
+    } catch (error) {
+      console.error('Failed to create calendar event:', error);
+      // Could add toast notification here
+    }
   };
 
-  const handleEventClick = (event) => {
-    console.log('Event clicked:', event);
-    // TODO: Öppna event-detaljer
+  const handleEventClick = async (event) => {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Event clicked:', event);
+      }
+      
+      // Fetch detailed event information
+      const response = await fetch(`/api/calendar/events/${event.id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch event details: ${response.status}`);
+      }
+
+      const eventDetails = await response.json();
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Event details fetched:', eventDetails);
+      }
+      
+      // TODO: Open event details modal or navigate to details view
+      // For now, could dispatch to HUD state to show event details
+      
+    } catch (error) {
+      console.error('Failed to fetch event details:', error);
+      // Fallback to basic event display
+    }
   };
 
   return (
@@ -435,7 +494,9 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
   });
   
   const handleVoiceInput = async (text) => {
-    console.log('Alice Core received voice input:', text);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Alice Core received voice input:', text);
+    }
     setVoiceInput(text);
     
     if (UI_ONLY) return;
@@ -969,7 +1030,7 @@ function HUDInner() {
               <IconSearch className="h-4 w-4 text-cyan-300/70" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={async (e) => {
                 if (e.key === "Enter" && query.trim()) {
-                  console.log('Enter pressed, query:', query); // Debug logging
+                  // Debug logging removed for production
                   if (UI_ONLY) { setQuery(""); return; }
                   const q = query.trim();
                   setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`You: ${q}`}, ...J].slice(0,100));
@@ -1005,7 +1066,9 @@ function HUDInner() {
                       provider,
                       context: contextData 
                     };
-                    console.log('Sending chat payload:', { provider, context: contextData });
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('Sending chat payload:', { provider, context: contextData });
+                    }
                     
                     // Create streaming message entry with typewriter effect
                     const messageId = safeUUID();
@@ -1020,7 +1083,9 @@ function HUDInner() {
                     });
                     
                     const j = await res.json().catch(()=>null);
-                    console.log('Chat API response:', j); 
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('Chat API response:', j);
+                    } 
                     
                     if (j && j.text) {
                       // Typewriter effect
@@ -1062,7 +1127,7 @@ function HUDInner() {
                 }
               }} placeholder="Fråga Alice…" className="w-full bg-transparent text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none" />
               <button aria-label="Sök" onClick={async ()=> {
-                console.log('Send button clicked, query:', query); // Debug logging
+                // Debug logging removed for production
                 if (!query.trim()) return;
                 if (UI_ONLY) { setQuery(""); return; }
                 const q = query.trim();
@@ -1085,7 +1150,9 @@ function HUDInner() {
                     provider,
                     context: contextData 
                   };
-                  console.log('Sending chat payload (send button):', { provider, context: contextData });
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Sending chat payload (send button):', { provider, context: contextData });
+                  }
                   
                   // Create streaming message entry with typewriter effect
                   const messageId = safeUUID();
@@ -1301,12 +1368,12 @@ function HUDInner() {
               compact={true}
               showCreateButton={true}
               onEventCreate={(event) => {
-                console.log('Quick calendar event:', event);
+                // Quick calendar event handling
                 // Open full calendar for detailed creation
                 dispatch({ type: "SHOW_MODULE", module: "calendar" });
               }}
               onEventClick={(event) => {
-                console.log('Calendar event clicked:', event);
+                // Calendar event clicked
                 dispatch({ type: "SHOW_MODULE", module: "calendar" });
               }}
             />
@@ -1318,7 +1385,9 @@ function HUDInner() {
               onUploadComplete={(result) => {
                 if (result.ok) {
                   // Success feedback
-                  console.log('Document uploaded successfully:', result);
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Document uploaded successfully:', result);
+                  }
                   // Refresh memories if needed
                   (async () => {
                     try {
