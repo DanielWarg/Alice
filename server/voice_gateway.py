@@ -1,8 +1,17 @@
 """
-Alice Voice-Gateway - Hybrid Voice Architecture Phase 1
+Alice Voice-Gateway - Hybrid Voice Architecture Phase 2
 Central orchestration hub for all voice interactions
 
-Combines OpenAI Realtime API with local AI thinking for optimal performance
+Integrates OpenAI Realtime API for blixtsnabb responses (<300ms) while keeping
+complex reasoning local with gpt-oss:20B for privacy-first processing.
+
+Phase 2 Features:
+- OpenAI Realtime API integration for fast path responses
+- Local gpt-oss:20B via Ollama for think path processing  
+- Smart routing based on intent complexity and confidence
+- Swedish language optimization for both paths
+- Barge-in support with real-time audio streaming
+- Cost monitoring and privacy boundary enforcement
 """
 
 import asyncio
@@ -22,6 +31,11 @@ import logging
 from core.router import classify
 from core.tool_registry import validate_and_execute_tool, enabled_tools
 from memory import MemoryStore
+
+# Phase 2 imports
+from fast_path_handler import FastPathHandler, FastPathRequest, FastPathDecision, get_fast_path_handler
+from think_path_handler import ThinkPathHandler, ThinkPathRequest, get_think_path_handler
+from openai_realtime_client import OpenAIRealtimeClient, create_realtime_client
 
 logger = logging.getLogger("alice.voice_gateway")
 
@@ -87,6 +101,11 @@ class VoiceGatewayManager:
         self.active_sessions = {}
         self.api_client = httpx.AsyncClient(timeout=30.0)
         
+        # Phase 2: Initialize path handlers
+        self.fast_path_handler: Optional[FastPathHandler] = None
+        self.think_path_handler: Optional[ThinkPathHandler] = None
+        self._phase2_initialized = False
+        
         # Audio processing configuration
         self.audio_config = {
             "sample_rate": 24000,
@@ -115,6 +134,67 @@ class VoiceGatewayManager:
         # Audio buffers and state
         self.audio_buffers = {}
         self.vad_states = {}
+        
+        # Phase 2: Performance monitoring
+        self.phase2_metrics = {
+            "total_requests": 0,
+            "fast_path_requests": 0,
+            "think_path_requests": 0,
+            "fast_path_successes": 0,
+            "think_path_successes": 0,
+            "average_fast_latency_ms": 0.0,
+            "average_think_latency_ms": 0.0,
+            "openai_cost_usd": 0.0,
+            "cache_hits": 0,
+            "fallbacks": 0
+        }
+    
+    async def initialize_phase2(self) -> bool:
+        """
+        Initialize Phase 2 components (Fast Path and Think Path handlers)
+        
+        Returns:
+            bool: True if initialization successful, False otherwise
+        """
+        if self._phase2_initialized:
+            return True
+            
+        try:
+            logger.info("Initializing Voice-Gateway Phase 2 components...")
+            
+            # Initialize Fast Path Handler
+            self.fast_path_handler = get_fast_path_handler(self.memory)
+            fast_init_success = await self.fast_path_handler.initialize()
+            
+            if not fast_init_success:
+                logger.warning("Fast Path Handler initialization failed - continuing with Think Path only")
+            
+            # Initialize Think Path Handler  
+            self.think_path_handler = get_think_path_handler(self.memory)
+            think_init_success = await self.think_path_handler.initialize()
+            
+            if not think_init_success:
+                logger.error("Think Path Handler initialization failed")
+                return False
+            
+            # Set up event handlers for streaming responses
+            if self.fast_path_handler:
+                self.fast_path_handler.on_response_ready = self._handle_fast_path_response
+                self.fast_path_handler.on_audio_chunk = self._handle_fast_path_audio_chunk
+                self.fast_path_handler.on_fallback_required = self._handle_fast_path_fallback
+                
+            if self.think_path_handler:
+                self.think_path_handler.on_confirmation = self._handle_think_path_confirmation
+                self.think_path_handler.on_response_chunk = self._handle_think_path_chunk
+                self.think_path_handler.on_response_complete = self._handle_think_path_complete
+            
+            self._phase2_initialized = True
+            logger.info(f"Phase 2 initialized - Fast Path: {fast_init_success}, Think Path: {think_init_success}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Phase 2 initialization failed: {e}")
+            return False
         
     async def handle_voice_gateway_session(self, websocket: WebSocket, session_id: str):
         """Handle Voice-Gateway WebSocket session with enhanced features"""
@@ -406,8 +486,12 @@ class VoiceGatewayManager:
                 "latency_ms": (time.time() - start_time) * 1000
             })
             
-            # Perform intent classification and routing
-            intent_result = await self._classify_and_route_intent(transcription)
+            # Initialize Phase 2 if not already done
+            if not self._phase2_initialized:
+                await self.initialize_phase2()
+            
+            # Perform enhanced intent classification and routing (Phase 2)
+            intent_result = await self._enhanced_classify_and_route(transcription, session_id)
             
             # Update session state
             session = self.active_sessions[session_id]
@@ -421,13 +505,13 @@ class VoiceGatewayManager:
                 0.0, intent_result.path, intent_result.confidence
             )
             
-            # Route to appropriate processing path
+            # Route to appropriate processing path (Phase 2)
             if intent_result.path == ProcessingPath.FAST:
-                await self._handle_fast_path(websocket, session_id, transcription, intent_result)
+                await self._handle_phase2_fast_path(websocket, session_id, transcription, intent_result)
             elif intent_result.path == ProcessingPath.THINK:
-                await self._handle_think_path(websocket, session_id, transcription, intent_result)
-            else:  # HYBRID
-                await self._handle_hybrid_path(websocket, session_id, transcription, intent_result)
+                await self._handle_phase2_think_path(websocket, session_id, transcription, intent_result)
+            else:  # HYBRID - start with fast, escalate if needed
+                await self._handle_phase2_fast_path(websocket, session_id, transcription, intent_result)
                 
         except Exception as e:
             logger.error(f"Error in transcription and processing: {e}")
@@ -676,6 +760,282 @@ class VoiceGatewayManager:
                 "timestamp": time.time()
             }
         })
+    
+    # ==================== PHASE 2 METHODS ====================
+    
+    async def _handle_fast_path_response(self, response_text: str):
+        """Handle fast path response ready"""
+        logger.debug(f"Fast path response ready: {response_text[:50]}")
+    
+    async def _handle_fast_path_audio_chunk(self, audio_chunk: bytes):
+        """Handle streaming audio from fast path"""
+        logger.debug(f"Fast path audio chunk: {len(audio_chunk)} bytes")
+    
+    async def _handle_fast_path_fallback(self, reason: str):
+        """Handle fast path fallback to think path"""
+        logger.info(f"Fast path fallback: {reason}")
+        self.phase2_metrics["fallbacks"] += 1
+    
+    async def _handle_think_path_confirmation(self, confirmation: str):
+        """Handle think path confirmation message"""
+        logger.debug(f"Think path confirmation: {confirmation}")
+    
+    async def _handle_think_path_chunk(self, chunk: str):
+        """Handle think path streaming chunk"""
+        logger.debug(f"Think path chunk: {chunk[:50]}")
+    
+    async def _handle_think_path_complete(self, final_response: str):
+        """Handle think path completion"""
+        logger.debug(f"Think path complete: {final_response[:50]}")
+    
+    async def _enhanced_classify_and_route(self, text: str, session_id: str) -> IntentResult:
+        """
+        Enhanced intent classification with Phase 2 routing logic
+        
+        Args:
+            text: User input text
+            session_id: Session identifier
+            
+        Returns:
+            IntentResult with enhanced routing decision
+        """
+        start_time = time.time()
+        self.phase2_metrics["total_requests"] += 1
+        
+        # Use existing classification system
+        router_result = classify(text)
+        
+        if not router_result:
+            # No classification result - route to think path
+            return IntentResult(
+                intent="GENERAL",
+                confidence=0.0,
+                path=ProcessingPath.THINK,
+                reasoning="no_classification_result"
+            )
+        
+        intent = router_result.get("tool", "GENERAL")
+        confidence = router_result.get("confidence", 0.0)
+        
+        # Phase 2: Enhanced routing logic using Fast Path Handler
+        if self.fast_path_handler:
+            fast_decision = self.fast_path_handler.should_use_fast_path(text, intent, confidence)
+            
+            if fast_decision == FastPathDecision.APPROVED:
+                self.phase2_metrics["fast_path_requests"] += 1
+                return IntentResult(
+                    intent=intent,
+                    confidence=confidence,
+                    path=ProcessingPath.FAST,
+                    reasoning="approved_for_fast_path",
+                    slots=router_result.get("args", {})
+                )
+            elif fast_decision == FastPathDecision.ESCALATE:
+                return IntentResult(
+                    intent=intent,
+                    confidence=confidence,
+                    path=ProcessingPath.HYBRID,
+                    reasoning="hybrid_path_escalation",
+                    slots=router_result.get("args", {})
+                )
+        
+        # Default to think path
+        self.phase2_metrics["think_path_requests"] += 1
+        return IntentResult(
+            intent=intent,
+            confidence=confidence,
+            path=ProcessingPath.THINK,
+            reasoning="routed_to_think_path",
+            slots=router_result.get("args", {})
+        )
+    
+    async def _handle_phase2_fast_path(self, websocket: WebSocket, session_id: str, text: str, intent: IntentResult):
+        """
+        Handle fast path processing using OpenAI Realtime API
+        
+        Args:
+            websocket: WebSocket connection
+            session_id: Session identifier  
+            text: User input text
+            intent: Intent classification result
+        """
+        if not self.fast_path_handler:
+            # Fallback to think path
+            await self._handle_phase2_think_path(websocket, session_id, text, intent)
+            return
+        
+        try:
+            # Create fast path request
+            fast_request = FastPathRequest(
+                session_id=session_id,
+                text=text,
+                intent=intent.intent,
+                confidence=intent.confidence
+            )
+            
+            # Process through fast path
+            start_time = time.time()
+            response = await self.fast_path_handler.process_request(fast_request)
+            processing_time = (time.time() - start_time) * 1000
+            
+            if response.success:
+                # Fast path success
+                self.phase2_metrics["fast_path_successes"] += 1
+                self.phase2_metrics["average_fast_latency_ms"] = (
+                    (self.phase2_metrics["average_fast_latency_ms"] * (self.phase2_metrics["fast_path_successes"] - 1) + processing_time)
+                    / self.phase2_metrics["fast_path_successes"]
+                )
+                
+                # Update session state
+                session = self.active_sessions[session_id]
+                session["voice_state"] = VoiceState.SPEAKING
+                
+                # Send response to client
+                await websocket.send_json({
+                    "type": "response",
+                    "text": response.response_text,
+                    "path": "fast",
+                    "latency_ms": response.latency_ms,
+                    "cached": response.cached,
+                    "final": True
+                })
+                
+                # Update telemetry
+                await self._send_telemetry(websocket, session_id, VoiceState.SPEAKING, 0.0, ProcessingPath.FAST, intent.confidence, response.latency_ms)
+                
+                # TTS and return to idle will be handled by frontend
+                
+            else:
+                # Fast path failed - fallback to think path
+                logger.info(f"Fast path fallback for session {session_id}: {response.fallback_reason}")
+                await self._handle_phase2_think_path(websocket, session_id, text, intent)
+                
+        except Exception as e:
+            logger.error(f"Fast path processing error: {e}")
+            # Fallback to think path
+            await self._handle_phase2_think_path(websocket, session_id, text, intent)
+    
+    async def _handle_phase2_think_path(self, websocket: WebSocket, session_id: str, text: str, intent: IntentResult):
+        """
+        Handle think path processing using local gpt-oss:20B
+        
+        Args:
+            websocket: WebSocket connection
+            session_id: Session identifier
+            text: User input text
+            intent: Intent classification result
+        """
+        if not self.think_path_handler:
+            # No think path handler - send error
+            await websocket.send_json({
+                "type": "error",
+                "message": "Think path handler not available"
+            })
+            return
+        
+        try:
+            # Create think path request
+            think_request = ThinkPathRequest(
+                session_id=session_id,
+                text=text,
+                intent=intent.intent,
+                confidence=intent.confidence,
+                tools_available=enabled_tools()
+            )
+            
+            # Update session state
+            session = self.active_sessions[session_id]
+            session["voice_state"] = VoiceState.THINKING
+            
+            # Send thinking status
+            await websocket.send_json({
+                "type": "thinking",
+                "message": "Alice tänker med lokal AI...",
+                "path": "think",
+                "intent": intent.intent,
+                "confidence": intent.confidence
+            })
+            
+            # Process through think path with streaming
+            start_time = time.time()
+            final_response = ""
+            
+            async for response_chunk in self.think_path_handler.process_request(think_request):
+                if response_chunk.success:
+                    if response_chunk.response_text:
+                        final_response = response_chunk.response_text
+                        
+                        # Send streaming response
+                        await websocket.send_json({
+                            "type": "response_chunk",
+                            "text": response_chunk.response_text,
+                            "path": "think",
+                            "final": False,
+                            "reasoning_steps": response_chunk.reasoning_steps,
+                            "tools_used": response_chunk.tools_used
+                        })
+                else:
+                    # Error in think path
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": response_chunk.error_message or "Think path processing error",
+                        "path": "think"
+                    })
+                    return
+            
+            # Calculate processing time
+            processing_time = (time.time() - start_time) * 1000
+            
+            # Update metrics
+            self.phase2_metrics["think_path_successes"] += 1
+            self.phase2_metrics["average_think_latency_ms"] = (
+                (self.phase2_metrics["average_think_latency_ms"] * (self.phase2_metrics["think_path_successes"] - 1) + processing_time)
+                / self.phase2_metrics["think_path_successes"]
+            )
+            
+            # Send final response
+            await websocket.send_json({
+                "type": "response",
+                "text": final_response,
+                "path": "think",
+                "latency_ms": processing_time,
+                "final": True
+            })
+            
+            # Update telemetry
+            await self._send_telemetry(websocket, session_id, VoiceState.SPEAKING, 0.0, ProcessingPath.THINK, intent.confidence, processing_time)
+            
+        except Exception as e:
+            logger.error(f"Think path processing error: {e}")
+            await websocket.send_json({
+                "type": "error",
+                "message": "Ett fel uppstod vid lokal AI-bearbetning",
+                "path": "think"
+            })
+    
+    def get_phase2_metrics(self) -> Dict[str, Any]:
+        """Get Phase 2 performance metrics"""
+        metrics = self.phase2_metrics.copy()
+        
+        # Add handler-specific metrics
+        if self.fast_path_handler:
+            metrics["fast_path_details"] = self.fast_path_handler.get_performance_metrics()
+        
+        if self.think_path_handler:
+            metrics["think_path_details"] = self.think_path_handler.get_performance_metrics()
+        
+        return metrics
+    
+    async def shutdown_phase2(self):
+        """Shutdown Phase 2 components"""
+        if self.fast_path_handler:
+            await self.fast_path_handler.shutdown()
+        
+        if self.think_path_handler:
+            await self.think_path_handler.shutdown()
+        
+        self._phase2_initialized = False
+        logger.info("Phase 2 components shutdown completed")
 
 
 class AudioBuffer:

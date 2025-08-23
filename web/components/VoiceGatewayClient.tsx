@@ -195,7 +195,11 @@ export default function VoiceGatewayClient({
         break
         
       case 'response':
-        handleResponse(data.text, data.path, data.final)
+        handleResponse(data.text, data.path, data.final, data.latency_ms, data.cached)
+        break
+        
+      case 'response_chunk':
+        handleResponseChunk(data.text, data.path, data.final, data.reasoning_steps, data.tools_used)
         break
         
       case 'interrupted':
@@ -291,14 +295,45 @@ export default function VoiceGatewayClient({
   }
 
   // Handle final responses
-  const handleResponse = (text: string, path: ProcessingPath, isFinal: boolean) => {
+  const handleResponse = (text: string, path: ProcessingPath, isFinal: boolean, latencyMs?: number, cached?: boolean) => {
     if (isFinal) {
       setCurrentResponse(text)
       setIsThinking(false)
       setVoiceState('speaking')
       
+      // Update latency metrics
+      if (latencyMs) {
+        setLatencyMetrics(prev => ({
+          ...prev,
+          [path + '_response']: latencyMs
+        }))
+      }
+      
+      // Show cache indicator if response was cached
+      if (cached) {
+        console.log('Fast path cache hit')
+      }
+      
       // Synthesize and play response
       synthesizeAndPlay(text)
+    }
+  }
+  
+  // Handle streaming response chunks (Phase 2)
+  const handleResponseChunk = (text: string, path: ProcessingPath, isFinal: boolean, reasoningSteps?: string[], toolsUsed?: string[]) => {
+    if (!isFinal) {
+      // Append to current response for streaming effect
+      setCurrentResponse(prev => prev + text)
+      
+      // Log reasoning steps for development
+      if (reasoningSteps && reasoningSteps.length > 0) {
+        console.log('Reasoning steps:', reasoningSteps)
+      }
+      
+      // Log tools used
+      if (toolsUsed && toolsUsed.length > 0) {
+        console.log('Tools used:', toolsUsed)
+      }
     }
   }
 
@@ -784,26 +819,47 @@ export default function VoiceGatewayClient({
           </div>
         </div>
 
-        {/* Performance Metrics */}
+        {/* Performance Metrics - Enhanced for Phase 2 */}
         {Object.keys(latencyMetrics).length > 0 && (
           <div className="mb-4 p-3 bg-black/20 rounded-xl border border-green-500/20">
-            <h4 className="text-sm font-medium text-green-300 mb-2">Prestanda</h4>
+            <h4 className="text-sm font-medium text-green-300 mb-2">Prestanda Mätningar</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-              {Object.entries(latencyMetrics).map(([key, value]) => (
-                <div key={key} className="text-zinc-400">
-                  <span className="text-green-400">{key}:</span> {Math.round(value)}ms
-                </div>
-              ))}
+              {Object.entries(latencyMetrics).map(([key, value]) => {
+                const isGoodLatency = key.includes('fast') ? value < 300 : value < 2000
+                const colorClass = isGoodLatency ? 'text-green-400' : 'text-yellow-400'
+                
+                return (
+                  <div key={key} className="text-zinc-400">
+                    <span className={colorClass}>{key}:</span> {Math.round(value)}ms
+                    {key.includes('fast') && value < 300 && <span className="text-green-400 ml-1">⚡</span>}
+                    {key.includes('think') && value < 2000 && <span className="text-purple-400 ml-1">🧠</span>}
+                  </div>
+                )
+              })}
+            </div>
+            {/* Phase 2 Performance Indicators */}
+            <div className="mt-2 pt-2 border-t border-green-500/20">
+              <div className="flex items-center gap-4 text-xs">
+                <span className="text-green-400">⚡ &lt;300ms (Blixtsnabb)</span>
+                <span className="text-purple-400">🧠 &lt;2000ms (Tänker)</span>
+                <span className="text-blue-400">💾 Cache träff</span>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Settings */}
-        <div className="flex items-center justify-center gap-4 text-xs text-zinc-400 mb-4">
+        {/* Settings - Enhanced for Phase 2 */}
+        <div className="flex items-center justify-center gap-4 text-xs text-zinc-400 mb-4 flex-wrap">
           <span>Personlighet: <span className="text-cyan-400">{personality}</span></span>
           <span>Känsla: <span className="text-purple-400">{emotion}</span></span>
           <span>Kvalitet: <span className="text-green-400">{voiceQuality}</span></span>
           <span>Energi: <span className="text-yellow-400">{Math.round(energyLevel * 100)}%</span></span>
+          <span>Arkitektur: <span className="text-blue-400">Hybrid Phase 2</span></span>
+          {currentPath && (
+            <span>Aktiv väg: <span className={currentPath === 'fast' ? 'text-green-400' : 'text-purple-400'}>
+              {currentPath === 'fast' ? '⚡ Snabb' : '🧠 Tänk'}
+            </span></span>
+          )}
         </div>
 
         {/* Error Display */}
