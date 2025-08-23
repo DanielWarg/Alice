@@ -13,3 +13,14 @@ google-auth-oauthlib
 pytz
 faster-whisper
 cryptography
+
+# Authentication & Security
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+pyotp
+qrcode[pil]
+email-validator
+
+# Additional security
+bcrypt

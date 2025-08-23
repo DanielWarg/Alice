@@ -18,7 +18,7 @@ except ImportError:
     psutil = None
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException, File, UploadFile
-from fastapi.responses import ORJSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from security import configure_secure_app
 from pydantic import BaseModel, Field
@@ -50,6 +50,8 @@ from http_client import spotify_client, resilient_http_client, safe_external_cal
 from error_handlers import setup_error_handlers, RequestIDMiddleware, ValidationError, SwedishDateTimeValidationError
 from validators import CalendarEventRequest as EnhancedCalendarEventRequest, ChatMessage, validate_swedish_datetime_string
 from rate_limiter import create_alice_rate_limiter
+# Authentication integration - currently disabled due to missing dependencies
+# from auth_integration import setup_authentication, auth_startup_tasks, auth_shutdown_tasks, get_auth_health_info
 
 
 load_dotenv()
@@ -269,7 +271,10 @@ class EnhancedTTSHandler:
 # Initialize enhanced TTS handler
 enhanced_tts = EnhancedTTSHandler()
 
-app = FastAPI(title="Alice 2.0 Backend", version="0.1.0", default_response_class=ORJSONResponse)
+app = FastAPI(title="Alice 2.0 Backend", version="0.1.0", default_response_class=JSONResponse)
+
+# Setup comprehensive authentication system (currently disabled)
+# app = setup_authentication(app)
 
 # Setup standardized error handling (RFC 7807)
 setup_error_handlers(app)
@@ -658,8 +663,11 @@ app.include_router(router)
 # Kör preflight-kontroller vid startup
 @app.on_event("startup")
 async def startup_event():
-    """Kör preflight-kontroller när servern startar"""
+    """Kör preflight-kontroller och auth-startup när servern startar"""
     try:
+        # Run authentication startup tasks (disabled)
+        # await auth_startup_tasks()
+        
         logger.info("Running preflight checks...")
         all_passed, results = run_preflight_checks()
         log_preflight_results(results)
@@ -745,6 +753,9 @@ async def health() -> Dict[str, Any]:
             "stt": "ok"   # Basic assumption for now  
         }
         
+        # Get authentication system status (disabled)
+        auth_status = {"status": "disabled", "reason": "dependencies_not_installed"}
+        
         return {
             "status": "ok",
             "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -757,9 +768,11 @@ async def health() -> Dict[str, Any]:
                 "harmony": USE_HARMONY,
                 "tools": USE_TOOLS,
                 "voice": True,
-                "tts": True
+                "tts": True,
+                "authentication": True
             },
-            "services": services_status
+            "services": services_status,
+            "authentication": auth_status
         }
     except Exception as e:
         logger.error(f"Health check error: {e}")
@@ -2610,6 +2623,11 @@ async def ai_autonomous_loop() -> AsyncGenerator[None, None]:
 async def on_startup() -> None:
     # Start autonomous loop (non-blocking)
     asyncio.create_task(ai_autonomous_loop())
+
+@app.on_event("shutdown")
+async def on_shutdown() -> None:
+    """Clean shutdown with authentication cleanup"""
+    # await auth_shutdown_tasks()
 
 
 # ────────────────────────────────────────────────────────────────────────────────

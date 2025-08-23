@@ -7,11 +7,12 @@ from __future__ import annotations
 
 import os
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Generator
 from dataclasses import dataclass, field
 from enum import Enum
 import httpx
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 
 # Load environment variables
 load_dotenv()
@@ -296,6 +297,26 @@ def load_openai_env() -> Dict[str, str]:
 def check_openai_env() -> bool:
     """Snabb kontroll om OpenAI är konfigurerat"""
     return bool(os.getenv("OPENAI_API_KEY"))
+
+
+# Database session dependency
+def get_db_session() -> Generator[Session, None, None]:
+    """
+    FastAPI dependency for database sessions
+    Creates a new session for each request and closes it when done
+    """
+    try:
+        from database import SessionLocal
+        db = SessionLocal()
+        yield db
+    except Exception as e:
+        logger.error(f"Database session error: {e}")
+        if 'db' in locals():
+            db.rollback()
+        raise
+    finally:
+        if 'db' in locals():
+            db.close()
 
 
 if __name__ == "__main__":

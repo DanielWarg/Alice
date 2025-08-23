@@ -54,11 +54,12 @@ export default function VoiceClient({
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
   const [session, setSession] = useState<RealtimeSession | null>(null)
   
-  // Audio and WebRTC refs
-  const pcRef = useRef<RTCPeerConnection | null>(null)
+  // Audio refs
   const audioContextRef = useRef<AudioContext | null>(null)
   const micStreamRef = useRef<MediaStream | null>(null)
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const isRecordingRef = useRef<boolean>(false)
   
   // Transcript and response state
   const [transcripts, setTranscripts] = useState<TranscriptSegment[]>([])
@@ -68,19 +69,21 @@ export default function VoiceClient({
   // Error state
   const [error, setError] = useState<string | null>(null)
   
-  // SSE connection for agent responses
-  const sseRef = useRef<EventSource | null>(null)
+  // Recognition for voice input
+  const recognitionRef = useRef<any>(null)
   
-  // WebRTC audio handling
-  const setupWebRTC = useCallback(async (sessionData: RealtimeSession) => {
-    try {
-      // Create peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      })
-      pcRef.current = pc
+  // WebSocket connection for voice streaming
+  const wsRef = useRef<WebSocket | null>(null)
+  const sessionIdRef = useRef<string | null>(null)
 
-      // Get user media
+  // Voice WebSocket setup
+  const setupWebSocket = useCallback(async (sessionData: RealtimeSession) => {
+    try {
+      // Generate session ID
+      const sessionId = `voice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      sessionIdRef.current = sessionId
+
+      // Get user media for audio input
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -92,231 +95,282 @@ export default function VoiceClient({
       })
       micStreamRef.current = stream
 
-      // Add audio track to peer connection
-      stream.getAudioTracks().forEach(track => {
-        pc.addTrack(track, stream)
-      })
-
-      // Handle incoming audio stream
-      pc.ontrack = (event) => {
-        console.log('Received remote audio stream')
-        const remoteStream = event.streams[0]
-        if (remoteStream) {
-          playAudioStream(remoteStream)
-        }
-      }
-
       // Create audio context for processing
       const audioContext = new AudioContext({ sampleRate: 24000 })
       audioContextRef.current = audioContext
       
-      // Connect to OpenAI Realtime API via WebRTC
-      await connectToRealtimeAPI(pc, sessionData)
+      // Connect to backend WebSocket
+      await connectToVoiceWebSocket(sessionId)
+      
+      // Setup voice input handling
+      setupVoiceInput(stream)
       
       setConnectionState('connected')
       onConnectionChange?.(true)
     } catch (err) {
-      console.error('WebRTC setup failed:', err)
-      setError(`WebRTC setup failed: ${err instanceof Error ? err.message : String(err)}`)
+      console.error('Voice WebSocket setup failed:', err)
+      setError(`Voice connection failed: ${err instanceof Error ? err.message : String(err)}`)
       setConnectionState('error')
       onConnectionChange?.(false)
     }
   }, [onConnectionChange])
 
-  // Connect to OpenAI Realtime API
-  const connectToRealtimeAPI = async (pc: RTCPeerConnection, sessionData: RealtimeSession) => {
-    // Create offer
-    const offer = await pc.createOffer()
-    await pc.setLocalDescription(offer)
-
-    // Send offer to OpenAI Realtime API
-    const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${sessionData.client_secret.value}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: sessionData.model,
-        voice: sessionData.voice,
-        type: 'session.update',
-        session: {
-          modalities: ['text', 'audio'],
-          instructions: `You are Alice, a Swedish AI assistant. Respond in Swedish with ${personality} personality and ${emotion} emotional tone.`,
-          voice: sessionData.voice,
-          input_audio_format: 'pcm16',
-          output_audio_format: 'pcm16',
-          input_audio_transcription: {
-            model: 'whisper-1'
-          }
-        }
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to connect to Realtime API: ${response.statusText}`)
-    }
-
-    // Handle WebRTC data channel for real-time communication
-    const dataChannel = pc.createDataChannel('realtime', { ordered: true })
+  // Connect to backend Voice WebSocket
+  const connectToVoiceWebSocket = async (sessionId: string) => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host
+    const wsUrl = `${protocol}//${host}/ws/voice/${sessionId}`
     
-    dataChannel.onopen = () => {
-      console.log('Data channel opened')
+    console.log('Connecting to voice WebSocket:', wsUrl)
+    
+    const ws = new WebSocket(wsUrl)
+    wsRef.current = ws
+
+    ws.onopen = () => {
+      console.log('Voice WebSocket connected')
+      
+      // Send initial configuration
+      ws.send(JSON.stringify({
+        type: 'config',
+        personality,
+        emotion,
+        voiceQuality,
+        language: 'svenska'
+      }))
+      
+      setVoiceState('idle')
     }
 
-    dataChannel.onmessage = (event) => {
+    ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
-        handleRealtimeMessage(data)
+        handleVoiceMessage(data)
       } catch (err) {
-        console.error('Failed to parse realtime message:', err)
+        console.error('Failed to parse voice message:', err)
       }
+    }
+    
+    ws.onclose = () => {
+      console.log('Voice WebSocket closed')
+      setConnectionState('disconnected')
+      setVoiceState('idle')
+      onConnectionChange?.(false)
+    }
+    
+    ws.onerror = (error) => {
+      console.error('Voice WebSocket error:', error)
+      setError('WebSocket connection failed')
+      setConnectionState('error')
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('WebSocket connection timeout'))
+      }, 10000)
+      
+      ws.onopen = () => {
+        clearTimeout(timeout)
+        console.log('Voice WebSocket connected')
+        ws.send(JSON.stringify({
+          type: 'config',
+          personality,
+          emotion,
+          voiceQuality,
+          language: 'svenska'
+        }))
+        setVoiceState('idle')
+        resolve()
+      }
+    })
+  }
+  
+  // Setup voice input with both browser API and MediaRecorder fallback
+  const setupVoiceInput = (stream: MediaStream) => {
+    try {
+      // Try to use Web Speech API for fast recognition
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        const recognition = new SpeechRecognition()
+        
+        recognition.continuous = true
+        recognition.interimResults = true
+        recognition.lang = 'sv-SE'  // Swedish
+        
+        recognition.onresult = (event: any) => {
+          let finalTranscript = ''
+          let interimTranscript = ''
+          
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript
+            } else {
+              interimTranscript += event.results[i][0].transcript
+            }
+          }
+          
+          if (finalTranscript.trim()) {
+            sendVoiceInput(finalTranscript.trim(), 'browser_api')
+          }
+        }
+        
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error)
+          // Fallback to manual recording
+          setupMediaRecorder(stream)
+        }
+        
+        recognitionRef.current = recognition
+        
+        // Start continuous recognition
+        recognition.start()
+        setVoiceState('listening')
+        
+      } else {
+        // Fallback to MediaRecorder
+        setupMediaRecorder(stream)
+      }
+    } catch (err) {
+      console.error('Voice input setup failed:', err)
+      setupMediaRecorder(stream)
+    }
+  }
+  
+  // Setup MediaRecorder for audio capture
+  const setupMediaRecorder = (stream: MediaStream) => {
+    try {
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      })
+      mediaRecorderRef.current = mediaRecorder
+      
+      const audioChunks: Blob[] = []
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data)
+        }
+      }
+      
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' })
+        await sendAudioForTranscription(audioBlob)
+        audioChunks.length = 0  // Clear chunks
+      }
+      
+      // Start recording in chunks for real-time processing
+      mediaRecorder.start(3000)  // 3 second chunks
+      isRecordingRef.current = true
+      setVoiceState('listening')
+      
+    } catch (err) {
+      console.error('MediaRecorder setup failed:', err)
+      setError('Voice input setup failed')
+    }
+  }
+  
+  // Send voice input to backend WebSocket
+  const sendVoiceInput = (text: string, source: string = 'browser_api') => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'voice_input',
+        text,
+        source,
+        timestamp: Date.now()
+      }))
+    }
+  }
+  
+  // Send audio blob for server-side transcription
+  const sendAudioForTranscription = async (audioBlob: Blob) => {
+    try {
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'recording.webm')
+      
+      const response = await fetch('/api/voice/transcribe', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.text && result.text.trim()) {
+          sendVoiceInput(result.text.trim(), 'whisper')
+        }
+      }
+    } catch (err) {
+      console.error('Audio transcription failed:', err)
     }
   }
 
-  // Handle messages from OpenAI Realtime API
-  const handleRealtimeMessage = (data: any) => {
+  // Handle messages from backend Voice WebSocket
+  const handleVoiceMessage = (data: any) => {
     switch (data.type) {
-      case 'input_audio_buffer.speech_started':
-        setVoiceState('listening')
-        break
-      
-      case 'input_audio_buffer.speech_stopped':
+      case 'heard':
+        // User's voice was heard and transcribed
+        const transcript: TranscriptSegment = {
+          id: `transcript_${Date.now()}`,
+          text: data.text,
+          isFinal: true,
+          timestamp: Date.now()
+        }
+        
+        setTranscripts(prev => [...prev, transcript])
+        onTranscript?.(data.text, true)
         setVoiceState('processing')
         break
-
-      case 'conversation.item.input_audio_transcription.completed':
-        if (data.transcript) {
-          const transcript: TranscriptSegment = {
-            id: data.item_id,
-            text: data.transcript,
-            isFinal: true,
-            timestamp: Date.now()
-          }
-          
-          setTranscripts(prev => [...prev, transcript])
-          onTranscript?.(data.transcript, true)
-          
-          // Send to Alice agent for processing
-          sendToAliceAgent(data.transcript)
-        }
+      
+      case 'acknowledge':
+        // Alice acknowledged the command
+        setIsThinking(false)
+        setCurrentResponse(data.message)
+        setVoiceState('speaking')
+        
+        // Synthesize and play acknowledgment
+        synthesizeAndPlay(data.message)
         break
 
-      case 'response.audio.delta':
-        // Handle real-time audio chunks from OpenAI
-        if (data.delta) {
-          playAudioChunk(data.delta)
+      case 'speak':
+        // Alice is speaking (streaming response)
+        if (data.partial) {
+          setCurrentResponse(prev => prev + data.text + ' ')
+        } else if (data.final) {
+          setCurrentResponse(prev => prev + data.text)
+          setVoiceState('speaking')
+          
+          // Synthesize and play final response
+          synthesizeAndPlay(data.text)
         }
         break
-
-      case 'response.done':
+        
+      case 'tool_success':
+      case 'calendar_success':
+        setIsThinking(false)
+        setCurrentResponse(data.message)
+        setVoiceState('speaking')
+        synthesizeAndPlay(data.message)
+        break
+        
+      case 'tool_error':
+      case 'calendar_error':
+        setIsThinking(false)
+        setError(data.message)
         setVoiceState('idle')
         break
-
-      case 'error':
-        console.error('Realtime API error:', data.error)
-        setError(`Realtime API error: ${data.error.message}`)
-        break
-    }
-  }
-
-  // Send transcript to Alice agent via SSE
-  const sendToAliceAgent = async (transcript: string) => {
-    try {
-      setIsThinking(true)
-      setCurrentResponse('')
-      
-      // Close existing SSE connection
-      if (sseRef.current) {
-        sseRef.current.close()
-      }
-
-      // Create new SSE connection to Alice agent
-      const eventSource = new EventSource('/api/agent/stream', {
-        withCredentials: false
-      })
-      sseRef.current = eventSource
-
-      // Send request to agent
-      const response = await fetch('/api/agent/stream', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          prompt: transcript,
-          model: 'gpt-oss:20b',
-          provider: 'local',
-          use_rag: true,
-          use_tools: true,
-          language: 'svenska',
-          context: {
-            personality,
-            emotion,
-            voice_quality: voiceQuality
-          }
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error(`Agent request failed: ${response.statusText}`)
-      }
-
-      // Handle SSE events
-      eventSource.onmessage = (event) => {
-        try {
-          const data: AgentResponse = JSON.parse(event.data)
-          handleAgentResponse(data)
-        } catch (err) {
-          console.error('Failed to parse SSE data:', err)
-        }
-      }
-
-      eventSource.onerror = (err) => {
-        console.error('SSE connection error:', err)
-        setError('Lost connection to Alice agent')
-        eventSource.close()
-        setIsThinking(false)
-      }
-
-    } catch (err) {
-      console.error('Failed to send to Alice agent:', err)
-      setError(`Failed to communicate with Alice: ${err instanceof Error ? err.message : String(err)}`)
-      setIsThinking(false)
-    }
-  }
-
-  // Handle agent response chunks
-  const handleAgentResponse = (data: AgentResponse) => {
-    switch (data.type) {
-      case 'planning':
-        setIsThinking(true)
-        break
-
-      case 'chunk':
-        setIsThinking(false)
-        setCurrentResponse(prev => prev + data.content)
-        break
-
-      case 'done':
-        setIsThinking(false)
-        // Convert response to speech
-        if (currentResponse.trim()) {
-          synthesizeAndPlay(currentResponse)
-        }
+        
+      case 'pong':
+        // Keep-alive response
         break
 
       case 'error':
-        setIsThinking(false)
-        setError(`Agent error: ${data.content}`)
-        break
-
-      case 'tool':
-        // Handle tool execution results
-        console.log('Tool result:', data.content)
+        console.error('Voice WebSocket error:', data)
+        setError(data.message || 'Voice connection error')
+        setVoiceState('idle')
         break
     }
   }
+
+  // Note: Agent communication now happens through WebSocket
+  // The backend handles agent integration internally
 
   // Synthesize and play TTS
   const synthesizeAndPlay = async (text: string) => {
@@ -403,40 +457,7 @@ export default function VoiceClient({
     }
   }
 
-  // Play audio stream from WebRTC
-  const playAudioStream = (stream: MediaStream) => {
-    const audio = new Audio()
-    audio.srcObject = stream
-    audio.autoplay = true
-    currentAudioRef.current = audio
-  }
-
-  // Play audio chunk (for real-time OpenAI audio)
-  const playAudioChunk = (chunk: string) => {
-    // Convert base64 audio chunk to playable format
-    try {
-      const audioData = atob(chunk)
-      const audioArray = new Uint8Array(audioData.length)
-      for (let i = 0; i < audioData.length; i++) {
-        audioArray[i] = audioData.charCodeAt(i)
-      }
-      
-      // Play via Web Audio API for real-time streaming
-      const audioContext = audioContextRef.current
-      if (audioContext) {
-        audioContext.decodeAudioData(audioArray.buffer).then(buffer => {
-          const source = audioContext.createBufferSource()
-          source.buffer = buffer
-          source.connect(audioContext.destination)
-          source.start()
-        }).catch(err => {
-          console.error('Audio decode error:', err)
-        })
-      }
-    } catch (err) {
-      console.error('Failed to play audio chunk:', err)
-    }
-  }
+  // Audio playback is now handled by synthesizeAndPlay function
 
   // Create ephemeral session
   const createEphemeralSession = async (): Promise<RealtimeSession> => {
@@ -464,8 +485,8 @@ export default function VoiceClient({
       const sessionData = await createEphemeralSession()
       setSession(sessionData)
       
-      // Setup WebRTC
-      await setupWebRTC(sessionData)
+      // Setup WebSocket connection
+      await setupWebSocket(sessionData)
       
       setVoiceState('idle')
     } catch (err) {
@@ -484,10 +505,17 @@ export default function VoiceClient({
       currentAudioRef.current = null
     }
 
-    // Close peer connection
-    if (pcRef.current) {
-      pcRef.current.close()
-      pcRef.current = null
+    // Stop speech recognition
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
+      recognitionRef.current = null
+    }
+    
+    // Stop media recorder
+    if (mediaRecorderRef.current && isRecordingRef.current) {
+      mediaRecorderRef.current.stop()
+      mediaRecorderRef.current = null
+      isRecordingRef.current = false
     }
 
     // Stop microphone
@@ -502,10 +530,10 @@ export default function VoiceClient({
       audioContextRef.current = null
     }
 
-    // Close SSE connection
-    if (sseRef.current) {
-      sseRef.current.close()
-      sseRef.current = null
+    // Close WebSocket connection
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
     }
 
     setConnectionState('disconnected')
@@ -513,6 +541,7 @@ export default function VoiceClient({
     setSession(null)
     setIsThinking(false)
     setCurrentResponse('')
+    sessionIdRef.current = null
     onConnectionChange?.(false)
   }
 
