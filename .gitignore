@@ -171,3 +171,4 @@ conda-meta/
 local/
 
 .env
+server/models/

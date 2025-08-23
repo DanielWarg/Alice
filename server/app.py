@@ -42,8 +42,10 @@ from core import (
 )
 from harmony_test_endpoint import HarmonyTestBatchRequest, HarmonyTestBatchResponse, run_harmony_test_case
 from voice_stream import get_voice_manager
+from voice_gateway import get_voice_gateway_manager
+from intent_router import get_intent_router
 from voice_stt import transcribe_audio_file, get_stt_status
-from audio_processor import audio_processor
+from audio_processor import audio_processor, voice_gateway_audio_processor
 from deps import get_global_openai_settings, OpenAIClient, validate_openai_config
 from agents.bridge import AliceAgentBridge, AgentBridgeRequest, StreamChunk, create_alice_bridge
 from http_client import spotify_client, resilient_http_client, safe_external_call
@@ -1974,6 +1976,22 @@ async def voice_websocket(websocket: WebSocket, session_id: str):
     voice_mgr = get_voice_manager(memory)
     await voice_mgr.handle_voice_session(websocket, session_id)
 
+# WebSocket endpoint for Voice-Gateway (Hybrid Voice Architecture Phase 1)
+@app.websocket("/ws/voice-gateway/{session_id}")
+async def voice_gateway_websocket(websocket: WebSocket, session_id: str):
+    """
+    Voice-Gateway WebSocket endpoint for Alice's Hybrid Voice Architecture.
+    
+    Handles:
+    - Audio chunk processing with VAD
+    - Intent routing (fast vs think path)  
+    - Energy level telemetry for UI
+    - Barge-in support
+    - Swedish intent classification
+    """
+    voice_gateway_mgr = get_voice_gateway_manager(memory)
+    await voice_gateway_mgr.handle_voice_gateway_session(websocket, session_id)
+
 
 class ActBody(BaseModel):
     prompt: Optional[str] = ""
@@ -3434,6 +3452,112 @@ async def api_voice_status():
         return status
     except Exception as e:
         logger.error(f"Voice status API error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ========== Voice-Gateway API Endpoints (Hybrid Architecture Phase 1) ==========
+
+@app.get("/api/voice-gateway/status")
+async def voice_gateway_status():
+    """Get Voice-Gateway status and configuration"""
+    try:
+        voice_gateway_mgr = get_voice_gateway_manager(memory)
+        intent_router = get_intent_router()
+        
+        return {
+            "status": "active",
+            "voice_gateway": {
+                "active_sessions": len(voice_gateway_mgr.active_sessions),
+                "audio_config": voice_gateway_mgr.audio_config,
+                "vad_config": voice_gateway_mgr.vad_config,
+                "routing_config": voice_gateway_mgr.routing_config
+            },
+            "intent_router": intent_router.get_routing_stats(),
+            "audio_processor": voice_gateway_audio_processor.get_processing_stats()
+        }
+    except Exception as e:
+        logger.error(f"Voice-Gateway status error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/voice-gateway/configure")
+async def configure_voice_gateway(config: Dict[str, Any]):
+    """Update Voice-Gateway configuration"""
+    try:
+        voice_gateway_mgr = get_voice_gateway_manager(memory)
+        intent_router = get_intent_router()
+        
+        # Update configurations
+        if "audio" in config:
+            voice_gateway_mgr.audio_config.update(config["audio"])
+            
+        if "vad" in config:
+            voice_gateway_mgr.vad_config.update(config["vad"])
+            
+        if "routing" in config:
+            voice_gateway_mgr.routing_config.update(config["routing"])
+            intent_router.update_config(config["routing"])
+        
+        return {
+            "success": True,
+            "message": "Voice-Gateway configuration updated",
+            "updated_config": {
+                "audio": voice_gateway_mgr.audio_config,
+                "vad": voice_gateway_mgr.vad_config,
+                "routing": voice_gateway_mgr.routing_config
+            }
+        }
+    except Exception as e:
+        logger.error(f"Voice-Gateway configuration error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/voice-gateway/test-intent")
+async def test_intent_classification(request: Dict[str, Any]):
+    """Test intent classification with Swedish text"""
+    try:
+        text = request.get("text", "")
+        audio_features = request.get("audio_features")
+        
+        intent_router = get_intent_router()
+        result = await intent_router.route_intent(text, audio_features)
+        
+        return {
+            "success": True,
+            "text": text,
+            "classification": {
+                "path": result.path.value,
+                "reason": result.reason,
+                "confidence": result.confidence,
+                "intent_category": result.intent_category.value,
+                "estimated_latency_ms": result.estimated_latency_ms,
+                "slots": result.slots
+            }
+        }
+    except Exception as e:
+        logger.error(f"Intent classification test error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/voice-gateway/sessions")
+async def list_voice_gateway_sessions():
+    """List active Voice-Gateway sessions"""
+    try:
+        voice_gateway_mgr = get_voice_gateway_manager(memory)
+        
+        sessions = []
+        for session_id, session_data in voice_gateway_mgr.active_sessions.items():
+            sessions.append({
+                "session_id": session_id,
+                "start_time": session_data["start_time"].isoformat(),
+                "voice_state": session_data["voice_state"].value,
+                "processing_path": session_data["processing_path"].value if session_data["processing_path"] else None,
+                "conversation_turns": len(session_data["conversation_context"])
+            })
+        
+        return {
+            "success": True,
+            "active_sessions": len(sessions),
+            "sessions": sessions
+        }
+    except Exception as e:
+        logger.error(f"Voice-Gateway sessions list error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
