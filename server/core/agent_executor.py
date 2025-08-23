@@ -338,8 +338,82 @@ class AgentExecutor:
         if previous_result.retry_count >= max_retries:
             return previous_result
         
-        # Hitta original action (skulle behöva referens till ursprungsplanen)
-        # För nu, returnera bara previous_result
-        # TODO: Implementera retry-logik med original action data
+        # Implementera retry-logik med original action data
+        try:
+            # Extract original action from step context
+            original_action = None
+            if hasattr(step, 'original_plan_step'):
+                original_action = step.original_plan_step
+            elif hasattr(step, 'action_context'):
+                original_action = step.action_context.get('original_action')
+            
+            if original_action:
+                logger.info(f"Retrying step {step.step_id} with original action data")
+                
+                # Create retry context with original parameters
+                retry_context = {
+                    'retry_attempt': getattr(step, 'retry_count', 0) + 1,
+                    'previous_error': previous_result.error_message if hasattr(previous_result, 'error_message') else None,
+                    'original_params': getattr(original_action, 'parameters', {}),
+                    'execution_mode': 'retry'
+                }
+                
+                # Add retry context to step
+                if hasattr(step, 'context'):
+                    step.context.update(retry_context)
+                else:
+                    step.context = retry_context
+                
+                # Attempt retry with modified parameters (e.g., increased timeout, different approach)
+                modified_step = self._create_retry_step(step, original_action, retry_context)
+                
+                # Execute the retry
+                retry_result = await self._execute_step(modified_step, context)
+                
+                # If retry succeeds, return the result
+                if retry_result.success:
+                    logger.info(f"Retry successful for step {step.step_id}")
+                    return retry_result
+                else:
+                    logger.warning(f"Retry failed for step {step.step_id}: {retry_result.error_message}")
+            
+            # If no original action or retry failed, return enhanced error info
+            enhanced_result = previous_result
+            if hasattr(enhanced_result, 'metadata'):
+                enhanced_result.metadata['retry_attempted'] = original_action is not None
+                enhanced_result.metadata['original_action_available'] = original_action is not None
+            
+            return enhanced_result
+            
+        except Exception as e:
+            logger.error(f"Error during retry logic: {e}")
+            return previous_result
+    
+    def _create_retry_step(self, original_step: AgentStep, original_action: Any, retry_context: Dict[str, Any]) -> AgentStep:
+        """Skapa en modifierad version av steget för retry"""
+        # Clone the original step
+        retry_step = AgentStep(
+            step_id=f"{original_step.step_id}_retry_{retry_context['retry_attempt']}",
+            step_type=original_step.step_type,
+            parameters=original_step.parameters.copy() if original_step.parameters else {},
+            expected_outputs=original_step.expected_outputs
+        )
         
-        return previous_result
+        # Modify parameters for retry (increase timeouts, change strategy)
+        if retry_step.parameters:
+            # Increase timeout if available
+            if 'timeout' in retry_step.parameters:
+                retry_step.parameters['timeout'] = min(
+                    retry_step.parameters['timeout'] * 1.5, 
+                    30.0  # Max 30 seconds
+                )
+            
+            # Add retry-specific parameters
+            retry_step.parameters['retry_attempt'] = retry_context['retry_attempt']
+            retry_step.parameters['previous_error'] = retry_context['previous_error']
+        
+        # Preserve original action reference
+        retry_step.original_plan_step = original_action
+        retry_step.context = retry_context
+        
+        return retry_step

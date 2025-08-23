@@ -587,9 +587,129 @@ class AgentCritic:
         execution_result: ExecutionPlan, 
         context: Optional[Dict[str, Any]]
     ) -> List[CriticInsight]:
-        """Utför AI-baserad analys (placeholder för framtida implementation)"""
-        # TODO: Implementera AI-baserad analys med Ollama/OpenAI
+        """Utför AI-baserad analys med OpenAI/Ollama för att identifiera förbättringsområden"""
+        if not self.enable_ai_analysis:
+            return []
+            
+        try:
+            import os
+            import httpx
+            import json
+            
+            # Check if OpenAI is available
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if not openai_key:
+                logger.warning("OpenAI API key not available for AI analysis")
+                return []
+            
+            # Prepare analysis data
+            analysis_data = {
+                "plan_steps": len(plan.steps) if plan.steps else 0,
+                "execution_success": execution_result.success,
+                "execution_time": execution_result.total_time_ms,
+                "step_results": []
+            }
+            
+            # Add step information
+            if execution_result.step_results:
+                for step in execution_result.step_results:
+                    analysis_data["step_results"].append({
+                        "step_type": step.step_type,
+                        "success": step.success,
+                        "time_ms": step.execution_time_ms,
+                        "error": step.error_message if not step.success else None
+                    })
+            
+            # Build analysis prompt
+            analysis_prompt = f"""
+            Analysera följande agent-execution och identifiera förbättringsområden:
+            
+            Plan: {analysis_data['plan_steps']} steg
+            Framgång: {'Ja' if analysis_data['execution_success'] else 'Nej'}
+            Total tid: {analysis_data['execution_time']}ms
+            
+            Steg-resultat:
+            {json.dumps(analysis_data['step_results'], indent=2)}
+            
+            Ge konkreta insikter inom:
+            1. Prestandaoptimering
+            2. Felhantering
+            3. Processhastighet
+            4. Systemstabilitet
+            
+            Format som JSON-lista med objekt: {{"type": "performance|error|speed|stability", "insight": "beskrivning", "priority": "high|medium|low"}}
+            """
+            
+            # Call OpenAI for analysis
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {openai_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                        "messages": [
+                            {"role": "system", "content": "Du är en expert på AI-agent optimering. Analysera execution-data och ge konkreta förbättringsförslag på svenska."},
+                            {"role": "user", "content": analysis_prompt}
+                        ],
+                        "temperature": 0.3,
+                        "max_tokens": 800
+                    }
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    ai_response = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    return self._parse_ai_insights(ai_response)
+                else:
+                    logger.error(f"OpenAI API error: {response.status_code}")
+                    
+        except Exception as e:
+            logger.error(f"AI analysis failed: {e}")
+            
         return []
+    
+    def _parse_ai_insights(self, ai_text: str) -> List[CriticInsight]:
+        """Parse AI-genererade insikter"""
+        insights = []
+        
+        try:
+            # Try to parse as JSON first
+            import json
+            import re
+            
+            # Extract JSON from response
+            json_match = re.search(r'\[.*\]', ai_text, re.DOTALL)
+            if json_match:
+                ai_insights = json.loads(json_match.group(0))
+                
+                for item in ai_insights[:5]:  # Limit to top 5
+                    if isinstance(item, dict) and 'insight' in item:
+                        insights.append(CriticInsight(
+                            category=item.get('type', 'general'),
+                            description=item.get('insight', ''),
+                            severity=item.get('priority', 'medium'),
+                            recommendation=f"Förbättringsområde: {item.get('insight', '')}"
+                        ))
+            
+        except (json.JSONDecodeError, AttributeError) as e:
+            logger.debug(f"Could not parse AI insights as JSON, trying text parsing: {e}")
+            
+            # Fallback to text parsing
+            lines = ai_text.split('\n')
+            for line in lines[:5]:
+                line = line.strip()
+                if line and len(line) > 10:
+                    insights.append(CriticInsight(
+                        category="ai_analysis",
+                        description=line,
+                        severity="medium",
+                        recommendation=f"Förbättring: {line}"
+                    ))
+        
+        return insights
     
     def create_improvement_plan(self, report: CriticReport) -> List[CriticRecommendation]:
         """Skapa prioriterad förbättringsplan baserat på rapport"""

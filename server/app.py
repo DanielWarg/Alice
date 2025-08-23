@@ -50,8 +50,13 @@ from http_client import spotify_client, resilient_http_client, safe_external_cal
 from error_handlers import setup_error_handlers, RequestIDMiddleware, ValidationError, SwedishDateTimeValidationError
 from validators import CalendarEventRequest as EnhancedCalendarEventRequest, ChatMessage, validate_swedish_datetime_string
 from rate_limiter import create_alice_rate_limiter
-# Authentication integration - currently disabled due to missing dependencies
-# from auth_integration import setup_authentication, auth_startup_tasks, auth_shutdown_tasks, get_auth_health_info
+# Authentication integration - enabled
+try:
+    from auth_integration import setup_authentication, auth_startup_tasks, auth_shutdown_tasks, get_auth_health_info
+    AUTH_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Authentication system disabled due to import error: {e}")
+    AUTH_AVAILABLE = False
 
 
 load_dotenv()
@@ -273,8 +278,12 @@ enhanced_tts = EnhancedTTSHandler()
 
 app = FastAPI(title="Alice 2.0 Backend", version="0.1.0", default_response_class=JSONResponse)
 
-# Setup comprehensive authentication system (currently disabled)
-# app = setup_authentication(app)
+# Setup comprehensive authentication system
+if AUTH_AVAILABLE:
+    app = setup_authentication(app)
+    logger.info("Authentication system enabled")
+else:
+    logger.warning("Authentication system disabled - running in open mode")
 
 # Setup standardized error handling (RFC 7807)
 setup_error_handlers(app)
@@ -290,11 +299,13 @@ USE_HARMONY = (os.getenv("USE_HARMONY", "false").lower() == "true")
 USE_TOOLS = (os.getenv("USE_TOOLS", "false").lower() == "true")
 try:
     HARMONY_TEMPERATURE_COMMANDS = float(os.getenv("HARMONY_TEMPERATURE_COMMANDS", "0.2"))
-except Exception:
+except (ValueError, TypeError) as e:
+    logger.warning(f"Invalid HARMONY_TEMPERATURE_COMMANDS value, using default: {e}")
     HARMONY_TEMPERATURE_COMMANDS = 0.2
 try:
     NLU_CONFIDENCE_THRESHOLD = float(os.getenv("NLU_CONFIDENCE_THRESHOLD", "0.9"))
-except Exception:
+except (ValueError, TypeError) as e:
+    logger.warning(f"Invalid NLU_CONFIDENCE_THRESHOLD value, using default: {e}")
     NLU_CONFIDENCE_THRESHOLD = 0.9
 NLU_AGENT_URL = os.getenv("NLU_AGENT_URL", "http://127.0.0.1:7071")
 
@@ -337,7 +348,8 @@ def _extract_final(text: str) -> str:
         end = text.find("[/FINAL]")
         if start != -1 and end != -1 and end > start:
             return text[start + len("[FINAL]"):end].strip()
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Error extracting [FINAL] tags from text: {e}")
         pass
     return (text or "").strip()
 
@@ -366,7 +378,8 @@ def _maybe_parse_tool_call(text: str) -> Optional[Dict[str, Any]]:
             args = candidate.get("args") or {}
             if isinstance(args, dict):
                 return {"tool": candidate["tool"], "args": args}
-    except Exception:
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        logger.debug(f"Failed to parse tool call from text: {e}")
         return None
     return None
 
@@ -395,7 +408,8 @@ async def _router_first_try(prompt: str) -> Optional[Dict[str, Any]]:
             conf = float(j.get("confidence") or 0.0)
             if plan and conf >= NLU_CONFIDENCE_THRESHOLD:
                 return plan
-    except Exception:
+    except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError, ValueError) as e:
+        logger.debug(f"Router first try failed: {e}")
         pass
     return None
 
@@ -1015,7 +1029,8 @@ async def alice_command(cmd: AliceCommand) -> AliceResponse:
             q = (cmd.payload or {}).get("query", "")
             if q:
                 memory.upsert_text_memory_single_single(q, score=0.0, tags_json=json.dumps({"source": "user_query"}, ensure_ascii=False))
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to save user query to memory: {e}")
         pass
     # simulate-first risk gating
     scores = simulate_first(cmd.dict())
@@ -2643,29 +2658,49 @@ class SpotifyAuthBody(BaseModel):
 
 @app.get("/api/spotify/auth_url")
 async def spotify_auth_url(scopes: Optional[str] = None) -> Dict[str, Any]:
-    client_id = os.getenv("SPOTIFY_CLIENT_ID")
-    redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:3100/spotify/callback")
-    if not client_id:
-        return {"ok": False, "error": "missing_client_id"}
-    scope_str = scopes or " ".join([
-        "streaming",
-        "user-read-email",
-        "user-read-private",
-        "user-read-playback-state",
-        "user-modify-playback-state",
-        "user-read-currently-playing",
-        "playlist-read-private",
-        "playlist-modify-private",
-        "playlist-modify-public",
-    ])
-    params = {
-        "response_type": "code",
-        "client_id": client_id,
-        "scope": scope_str,
-        "redirect_uri": redirect_uri,
-        "show_dialog": "true",
-    }
-    return {"ok": True, "url": f"{SPOTIFY_AUTH_URL}?{urlencode(params)}"}
+    """Generate Spotify OAuth authorization URL"""
+    try:
+        client_id = os.getenv("SPOTIFY_CLIENT_ID")
+        redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:3100/spotify/callback")
+        
+        if not client_id:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Spotify integration ej konfigurerad - SPOTIFY_CLIENT_ID saknas"
+            )
+        
+        scope_str = scopes or " ".join([
+            "streaming",
+            "user-read-email",
+            "user-read-private",
+            "user-read-playback-state",
+            "user-modify-playback-state",
+            "user-read-currently-playing",
+            "playlist-read-private",
+            "playlist-modify-private",
+            "playlist-modify-public",
+        ])
+        
+        params = {
+            "response_type": "code",
+            "client_id": client_id,
+            "scope": scope_str,
+            "redirect_uri": redirect_uri,
+            "show_dialog": "true",
+        }
+        
+        auth_url = f"{SPOTIFY_AUTH_URL}?{urlencode(params)}"
+        logger.info("Generated Spotify auth URL successfully")
+        return {"ok": True, "url": auth_url}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to generate Spotify auth URL: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ett fel uppstod vid generering av Spotify-auktorisering"
+        )
 
 
 @app.get("/api/spotify/callback")

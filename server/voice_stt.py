@@ -151,7 +151,8 @@ def is_whisper_available() -> bool:
     try:
         model = get_whisper_model()
         return model is not None
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to check Whisper availability: {e}")
         return False
 
 def _postprocess_swedish_text(text: str) -> str:

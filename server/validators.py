@@ -80,7 +80,8 @@ class SwedishDateTimeField(BaseModel):
             # For now, implement basic parsing logic
             result = cls._basic_swedish_parse(parser, input_text)
             return result
-        except Exception:
+        except Exception as e:
+            logger.error(f"Swedish datetime parsing failed: {e}")
             pass
         
         return None

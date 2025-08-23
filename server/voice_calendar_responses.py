@@ -103,7 +103,8 @@ class AliceCalendarResponses:
             if isinstance(start_dt_str, str):
                 try:
                     start_dt = datetime.fromisoformat(start_dt_str.replace('Z', '+00:00'))
-                except:
+                except ValueError as e:
+                    logger.warning(f"Failed to parse datetime string '{start_dt_str}': {e}")
                     pass
             else:
                 start_dt = start_dt_str
