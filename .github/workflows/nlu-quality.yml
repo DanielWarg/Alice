@@ -1,347 +1,88 @@
-name: NLU Quality Check (Swedish)
+name: NLU Quality Check
 
 on:
   push:
     branches: [ main, develop ]
-    paths:
-      - 'server/nlu/**'
-      - 'server/prompts/**'
-      - 'server/core/router.py'
-      - 'nlu-agent/**'
-      - '.github/workflows/nlu-quality.yml'
   pull_request:
-    branches: [ main, develop ]
-    paths:
-      - 'server/nlu/**'
-      - 'server/prompts/**'
-      - 'server/core/router.py'
-      - 'nlu-agent/**'
-  schedule:
-    # Run daily at 2 AM UTC for monitoring
-    - cron: '0 2 * * *'
-  workflow_dispatch:
-
-env:
-  PYTHON_DEFAULT_VERSION: "3.10"
+    branches: [ main ]
 
 jobs:
-  nlu-accuracy-test:
-    name: Swedish NLU Accuracy Test
+  nlu-accuracy:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
-          cache: 'pip'
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg portaudio19-dev python3-pyaudio
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r server/requirements.txt
-          pip install scikit-learn matplotlib seaborn
-
-      - name: Create test data directory
-        run: |
-          mkdir -p server/data
-          mkdir -p server/tests/fixtures
-
-      - name: Create Swedish NLU test dataset
-        run: |
-          cat > server/tests/fixtures/nlu_sv_gold_set.jsonl << 'EOF'
-          {"text": "spela lite musik", "intent": "play_music", "slots": {}}
-          {"text": "sätt på Spotify", "intent": "play_music", "slots": {"service": "spotify"}}
-          {"text": "vad är klockan", "intent": "get_time", "slots": {}}
-          {"text": "vilken dag är det idag", "intent": "get_date", "slots": {"time_ref": "today"}}
-          {"text": "lägg till möte imorgon klockan 14", "intent": "add_event", "slots": {"date": "tomorrow", "time": "14:00"}}
-          {"text": "skicka meddelande till Anna", "intent": "send_message", "slots": {"recipient": "Anna"}}
-          {"text": "ring Johan", "intent": "make_call", "slots": {"contact": "Johan"}}
-          {"text": "visa min kalender", "intent": "show_calendar", "slots": {}}
-          {"text": "höj volymen", "intent": "adjust_volume", "slots": {"action": "increase"}}
-          {"text": "sänk volymen lite", "intent": "adjust_volume", "slots": {"action": "decrease", "amount": "little"}}
-          {"text": "stäng av musiken", "intent": "stop_music", "slots": {}}
-          {"text": "pausa", "intent": "pause_media", "slots": {}}
-          {"text": "fortsätt spela", "intent": "resume_media", "slots": {}}
-          {"text": "nästa låt", "intent": "next_track", "slots": {}}
-          {"text": "föregående låt", "intent": "previous_track", "slots": {}}
-          {"text": "sök efter Taylor Swift", "intent": "search_music", "slots": {"query": "Taylor Swift"}}
-          {"text": "spela playlist Favoriter", "intent": "play_playlist", "slots": {"playlist": "Favoriter"}}
-          {"text": "läs mina mejl", "intent": "read_emails", "slots": {}}
-          {"text": "skriva ett mejl", "intent": "compose_email", "slots": {}}
-          {"text": "vad är vädret idag", "intent": "get_weather", "slots": {"date": "today"}}
-          {"text": "blir det regn imorgon", "intent": "get_weather", "slots": {"date": "tomorrow", "condition": "rain"}}
-          {"text": "ställ alarm på 7 imorgon", "intent": "set_alarm", "slots": {"time": "07:00", "date": "tomorrow"}}
-          {"text": "påminn mig om mötet klockan 15", "intent": "set_reminder", "slots": {"time": "15:00", "event": "mötet"}}
-          {"text": "vem ringer", "intent": "identify_caller", "slots": {}}
-          {"text": "svara på samtal", "intent": "answer_call", "slots": {}}
-          {"text": "avvisa samtalet", "intent": "decline_call", "slots": {}}
-          {"text": "vad kan du hjälpa mig med", "intent": "get_help", "slots": {}}
-          {"text": "tack så mycket", "intent": "gratitude", "slots": {}}
-          {"text": "hej då", "intent": "goodbye", "slots": {}}
-          {"text": "hej Alice", "intent": "greeting", "slots": {"name": "Alice"}}
-          {"text": "god morgon", "intent": "greeting", "slots": {"time": "morning"}}
-          EOF
-
-      - name: Run NLU accuracy evaluation
-        run: |
-          cat > server/test_nlu_accuracy.py << 'EOF'
-          import json
-          import asyncio
-          from typing import List, Dict, Any
-          from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          
-          # Mock NLU results for demonstration
-          # In real implementation, this would call your actual NLU system
-          def mock_nlu_predict(text: str) -> Dict[str, Any]:
-              """Mock NLU prediction - replace with actual NLU system"""
-              # Simple rule-based mock for demonstration
-              text_lower = text.lower()
-              
-              if 'spela' in text_lower or 'musik' in text_lower or 'spotify' in text_lower:
-                  return {"intent": "play_music", "slots": {}}
-              elif 'klockan' in text_lower or 'tid' in text_lower:
-                  return {"intent": "get_time", "slots": {}}
-              elif 'dag' in text_lower and 'idag' in text_lower:
-                  return {"intent": "get_date", "slots": {"time_ref": "today"}}
-              elif 'möte' in text_lower or 'lägg till' in text_lower:
-                  return {"intent": "add_event", "slots": {}}
-              elif 'meddelande' in text_lower or 'skicka' in text_lower:
-                  return {"intent": "send_message", "slots": {}}
-              elif 'ring' in text_lower:
-                  return {"intent": "make_call", "slots": {}}
-              elif 'kalender' in text_lower:
-                  return {"intent": "show_calendar", "slots": {}}
-              elif 'volym' in text_lower:
-                  return {"intent": "adjust_volume", "slots": {}}
-              elif 'stäng av' in text_lower:
-                  return {"intent": "stop_music", "slots": {}}
-              elif 'pausa' in text_lower:
-                  return {"intent": "pause_media", "slots": {}}
-              elif 'fortsätt' in text_lower:
-                  return {"intent": "resume_media", "slots": {}}
-              elif 'nästa' in text_lower:
-                  return {"intent": "next_track", "slots": {}}
-              elif 'föregående' in text_lower:
-                  return {"intent": "previous_track", "slots": {}}
-              elif 'sök' in text_lower:
-                  return {"intent": "search_music", "slots": {}}
-              elif 'playlist' in text_lower:
-                  return {"intent": "play_playlist", "slots": {}}
-              elif 'mejl' in text_lower and 'läs' in text_lower:
-                  return {"intent": "read_emails", "slots": {}}
-              elif 'mejl' in text_lower and 'skriv' in text_lower:
-                  return {"intent": "compose_email", "slots": {}}
-              elif 'väder' in text_lower:
-                  return {"intent": "get_weather", "slots": {}}
-              elif 'alarm' in text_lower:
-                  return {"intent": "set_alarm", "slots": {}}
-              elif 'påminn' in text_lower:
-                  return {"intent": "set_reminder", "slots": {}}
-              elif 'ringer' in text_lower:
-                  return {"intent": "identify_caller", "slots": {}}
-              elif 'svara' in text_lower:
-                  return {"intent": "answer_call", "slots": {}}
-              elif 'avvisa' in text_lower:
-                  return {"intent": "decline_call", "slots": {}}
-              elif 'hjälp' in text_lower:
-                  return {"intent": "get_help", "slots": {}}
-              elif 'tack' in text_lower:
-                  return {"intent": "gratitude", "slots": {}}
-              elif 'hej då' in text_lower:
-                  return {"intent": "goodbye", "slots": {}}
-              elif 'hej' in text_lower or 'morgon' in text_lower:
-                  return {"intent": "greeting", "slots": {}}
-              else:
-                  return {"intent": "unknown", "slots": {}}
-          
-          def load_test_data(file_path: str) -> List[Dict[str, Any]]:
-              """Load JSONL test data"""
-              test_data = []
-              with open(file_path, 'r', encoding='utf-8') as f:
-                  for line in f:
-                      test_data.append(json.loads(line.strip()))
-              return test_data
-          
-          def evaluate_nlu(test_data: List[Dict[str, Any]]) -> Dict[str, Any]:
-              """Evaluate NLU performance"""
-              true_intents = []
-              pred_intents = []
-              
-              for item in test_data:
-                  text = item['text']
-                  true_intent = item['intent']
-                  
-                  prediction = mock_nlu_predict(text)
-                  pred_intent = prediction['intent']
-                  
-                  true_intents.append(true_intent)
-                  pred_intents.append(pred_intent)
-              
-              # Calculate metrics
-              accuracy = accuracy_score(true_intents, pred_intents)
-              
-              # Get unique intents
-              unique_intents = sorted(list(set(true_intents + pred_intents)))
-              
-              # Generate classification report
-              report = classification_report(
-                  true_intents, 
-                  pred_intents, 
-                  target_names=unique_intents,
-                  output_dict=True,
-                  zero_division=0
-              )
-              
-              return {
-                  'accuracy': accuracy,
-                  'report': report,
-                  'true_intents': true_intents,
-                  'pred_intents': pred_intents,
-                  'unique_intents': unique_intents
-              }
-          
-          def generate_confusion_matrix(results: Dict[str, Any], output_path: str):
-              """Generate and save confusion matrix"""
-              plt.figure(figsize=(12, 10))
-              
-              cm = confusion_matrix(
-                  results['true_intents'], 
-                  results['pred_intents'],
-                  labels=results['unique_intents']
-              )
-              
-              sns.heatmap(
-                  cm, 
-                  annot=True, 
-                  fmt='d', 
-                  cmap='Blues',
-                  xticklabels=results['unique_intents'],
-                  yticklabels=results['unique_intents']
-              )
-              
-              plt.title('Swedish NLU Intent Classification - Confusion Matrix')
-              plt.xlabel('Predicted Intent')
-              plt.ylabel('True Intent')
-              plt.xticks(rotation=45, ha='right')
-              plt.yticks(rotation=0)
-              plt.tight_layout()
-              plt.savefig(output_path, dpi=300, bbox_inches='tight')
-              plt.close()
-          
-          def main():
-              # Load test data
-              test_data = load_test_data('server/tests/fixtures/nlu_sv_gold_set.jsonl')
-              
-              print(f"Loaded {len(test_data)} test examples")
-              
-              # Evaluate NLU
-              results = evaluate_nlu(test_data)
-              
-              # Print results
-              print(f"\nSwedish NLU Accuracy: {results['accuracy']:.3f}")
-              print(f"Accuracy Percentage: {results['accuracy']*100:.1f}%")
-              
-              # Generate detailed report
-              report_data = {
-                  'accuracy': results['accuracy'],
-                  'accuracy_percent': results['accuracy'] * 100,
-                  'total_samples': len(test_data),
-                  'per_intent_metrics': {}
-              }
-              
-              for intent, metrics in results['report'].items():
-                  if intent not in ['accuracy', 'macro avg', 'weighted avg']:
-                      report_data['per_intent_metrics'][intent] = {
-                          'precision': metrics.get('precision', 0),
-                          'recall': metrics.get('recall', 0),
-                          'f1_score': metrics.get('f1-score', 0),
-                          'support': metrics.get('support', 0)
-                      }
-              
-              # Save results
-              with open('nlu_results.json', 'w', encoding='utf-8') as f:
-                  json.dump(report_data, f, ensure_ascii=False, indent=2)
-              
-              # Generate confusion matrix
-              generate_confusion_matrix(results, 'confusion_matrix.png')
-              
-              # Check threshold
-              threshold = 0.85
-              if results['accuracy'] >= threshold:
-                  print(f"✅ NLU accuracy {results['accuracy']:.3f} meets threshold {threshold}")
-                  return 0
-              else:
-                  print(f"❌ NLU accuracy {results['accuracy']:.3f} below threshold {threshold}")
-                  return 1
-          
-          if __name__ == "__main__":
-              exit(main())
-          EOF
-          
-          cd server
-          python test_nlu_accuracy.py
-
-      - name: Upload NLU artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: nlu-quality-results
-          path: |
-            server/nlu_results.json
-            server/confusion_matrix.png
-          retention-days: 30
-
-      - name: Generate NLU Quality Summary
-        run: |
-          cd server
-          if [ -f "nlu_results.json" ]; then
-            ACCURACY=$(python3 -c "import json; print(f\"{json.load(open('nlu_results.json'))['accuracy_percent']:.1f}\")")
-            TOTAL_SAMPLES=$(python3 -c "import json; print(json.load(open('nlu_results.json'))['total_samples'])")
-            
-            echo "## 🇸🇪 Swedish NLU Quality Report" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🎯 Overall Performance" >> $GITHUB_STEP_SUMMARY
-            echo "- **Intent Accuracy**: ${ACCURACY}% (${TOTAL_SAMPLES} samples)" >> $GITHUB_STEP_SUMMARY
-            
-            if (( $(echo "$ACCURACY >= 85" | bc -l) )); then
-              echo "- **Quality Gate**: ✅ **PASSED** (≥85% threshold)" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "- **Quality Gate**: ❌ **FAILED** (below 85% threshold)" >> $GITHUB_STEP_SUMMARY
-            fi
-            
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 📊 Test Coverage" >> $GITHUB_STEP_SUMMARY
-            echo "- **Voice Commands**: Swedish language patterns ✅" >> $GITHUB_STEP_SUMMARY
-            echo "- **Intent Categories**: Music, Calendar, Communication, System ✅" >> $GITHUB_STEP_SUMMARY
-            echo "- **Slot Extraction**: Named entities and parameters ✅" >> $GITHUB_STEP_SUMMARY
-            
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🔧 Recommendations" >> $GITHUB_STEP_SUMMARY
-            echo "- Monitor accuracy trends over time" >> $GITHUB_STEP_SUMMARY
-            echo "- Add more training data for failing intents" >> $GITHUB_STEP_SUMMARY
-            echo "- Consider fine-tuning for Swedish voice patterns" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## ❌ NLU Quality Report Failed" >> $GITHUB_STEP_SUMMARY
-            echo "Could not generate quality metrics" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Fail on low accuracy
-        run: |
-          cd server
-          if [ -f "nlu_results.json" ]; then
-            ACCURACY=$(python3 -c "import json; print(json.load(open('nlu_results.json'))['accuracy_percent'])")
-            if (( $(echo "$ACCURACY < 85" | bc -l) )); then
-              echo "NLU accuracy $ACCURACY% is below 85% threshold"
-              exit 1
-            fi
-          fi
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    
+    - name: Install dependencies
+      run: |
+        cd server
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run NLU Accuracy Test
+      id: nlu_test
+      run: |
+        cd server
+        python stress_test_nlu.py > nlu_results.txt 2>&1
+        echo "NLU Test Results:" 
+        cat nlu_results.txt
+        
+        # Extract accuracy percentage
+        ACCURACY=$(grep "🎯 Accuracy:" nlu_results.txt | grep -o "[0-9]*\.[0-9]*%" | head -1)
+        ACCURACY_NUM=$(echo $ACCURACY | sed 's/%//')
+        
+        echo "accuracy=$ACCURACY" >> $GITHUB_OUTPUT
+        echo "accuracy_num=$ACCURACY_NUM" >> $GITHUB_OUTPUT
+        
+        # Set threshold (85% minimum)
+        THRESHOLD=85.0
+        echo "threshold=$THRESHOLD" >> $GITHUB_OUTPUT
+        
+        # Check if accuracy meets threshold
+        if (( $(echo "$ACCURACY_NUM >= $THRESHOLD" | bc -l) )); then
+          echo "status=PASS" >> $GITHUB_OUTPUT
+          echo "✅ NLU Accuracy $ACCURACY meets threshold of ${THRESHOLD}%"
+        else
+          echo "status=FAIL" >> $GITHUB_OUTPUT
+          echo "❌ NLU Accuracy $ACCURACY below threshold of ${THRESHOLD}%"
+          exit 1
+        fi
+    
+    - name: Report NLU Accuracy in Summary
+      run: |
+        echo "## 🧠 NLU Swedish Accuracy Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Metric | Value | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.nlu_test.outputs.status }}" = "PASS" ]; then
+          echo "| **Swedish NLU Accuracy** | **${{ steps.nlu_test.outputs.accuracy }}** | ✅ **PASS** |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Threshold** | ${{ steps.nlu_test.outputs.threshold }}% | ✅ Met |" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| **Swedish NLU Accuracy** | **${{ steps.nlu_test.outputs.accuracy }}** | ❌ **FAIL** |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Threshold** | ${{ steps.nlu_test.outputs.threshold }}% | ❌ Not Met |" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Performance Metrics" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Minimum Threshold**: ${{ steps.nlu_test.outputs.threshold }}%" >> $GITHUB_STEP_SUMMARY
+        echo "- **Actual Accuracy**: ${{ steps.nlu_test.outputs.accuracy }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Test Type**: Swedish Voice Commands" >> $GITHUB_STEP_SUMMARY
+        echo "- **Test Suite**: Alice NLU Stress Test" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.nlu_test.outputs.status }}" = "PASS" ]; then
+          echo "🎯 **Swedish NLU system meets production quality standards!**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ **Swedish NLU accuracy needs improvement before merge.**" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Upload NLU Test Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: nlu-test-results
+        path: server/nlu_results.txt

@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""
+Alice Backup CLI - Simple wrapper for backup/restore operations
+Usage: ./alice_backup backup|restore|list|verify [options]
+"""
+
+import sys
+import os
+
+# Add current directory to path to import backup_restore
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from backup_restore import main
+
+if __name__ == "__main__":
+    sys.exit(main())

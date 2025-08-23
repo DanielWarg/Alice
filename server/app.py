@@ -14,6 +14,7 @@ from typing import Any, AsyncGenerator, Dict, Optional, Set, List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException, File, UploadFile
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from security import configure_secure_app
 from pydantic import BaseModel, Field
 import logging
 from dotenv import load_dotenv
@@ -395,13 +396,8 @@ def _format_tool_confirmation(name: str, args: Dict[str, Any]) -> str:
         return str(a.get("text") or "")
     return "Klart."
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Configure secure CORS and security headers
+app = configure_secure_app(app)
 
 # Harmony E2E test endpoint (kan stängas av i prod via proxy)
 router = APIRouter()

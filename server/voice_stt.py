@@ -348,9 +348,26 @@ async def get_stt_status() -> Dict[str, Any]:
             'fallback_transcription': True,
             'word_level_timestamps': whisper_available,
             'quality_assessment': True,
-            'noise_handling': False,  # Kommer i nästa steg
-            'voice_activity_detection': False,  # Kommer i nästa steg
-            'wake_word': False  # Kommer i nästa steg
+            'regional_variants': True,
+            'noise_handling': False,  # Future enhancement
+            'voice_activity_detection': False,  # Future enhancement
+            'wake_word': False  # Future enhancement
+        },
+        'performance_targets': {
+            'latency_ms': {
+                'tiny_model': 200,
+                'small_model': 500,
+                'medium_model': 1000,
+                'large_model': 2000
+            },
+            'success_rate_percent': 95,
+            'swedish_accuracy': 'good_to_excellent'
+        },
+        'supported_regions': ['standard', 'stockholmska', 'göteborgska', 'skånska', 'finland_swedish'],
+        'fallback_strategy': {
+            'enabled': True,
+            'primary_to_fallback': 'small_to_tiny',
+            'cpu_gpu_adaptive': True
         }
     }
     
@@ -365,7 +382,14 @@ async def get_stt_status() -> Dict[str, Any]:
             'language': 'sv',
             'load_time_seconds': round(load_time, 3),
             'compute_type': 'int8',
-            'device': 'cpu'
+            'device': 'cpu',
+            'swedish_post_processing': True,
+            'regional_support': True,
+            'fallback_model': 'tiny'
         }
+        
+        # Performance assessment
+        if load_time > 5.0:
+            status['warnings'] = ['Model loading time exceeds 5 seconds - consider model caching']
     
     return status

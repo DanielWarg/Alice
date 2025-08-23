@@ -48,7 +48,7 @@
 - [ ] README: hook, demo-GIF, Quickstart (3 kommandon), arkitekturdiagram, test-sektion, länkar till docs
 - [ ] docs/ARCHITECTURE.md: flöden (röst→STT→NLU→Agent→Tool→TTS→HUD), sekvensdiagram, datakontrakt
 - [ ] docs/OPERATIONS.md: körning lokalt/dev/prod, profiler, loggnivå, felsökning
-- [ ] docs/testing.md: testpyramid, hur mäta coverage, hur läsa rapporter
+- [x] docs/testing.md: testpyramid, hur mäta coverage, hur läsa rapporter
 - [ ] VOICE_SETUP.md: installation, mikrofon, wake-word-tuning, TTS-röster/licenser
 - [ ] API-referens (OpenAPI autogenererad eller API.md) länkad från README
 - [ ] ROADMAP.md med milstolpar och länkade issues; uppdaterad
@@ -123,10 +123,10 @@
 
 ## 🔟 **Röstkedja & Audio**
 
-- [ ] Wake-word param/tuning dokumenterat; test eller manuell checklista för latens/precision
-- [ ] STT (Whisper): svensk modellversion, latensmål och fallback-väg (CPU/GPU)
-- [ ] TTS (Piper): licenser för röster dokumenterade, cache-policy klar, volym/latensmål
-- [ ] VoiceBox i HUD har data-testid och e2e-test som verifierar rendering
+- [x] Wake-word param/tuning dokumenterat; test eller manuell checklista för latens/precision
+- [x] STT (Whisper): svensk modellversion, latensmål och fallback-väg (CPU/GPU)
+- [x] TTS (Piper): licenser för röster dokumenterade, cache-policy klar, volym/latensmål
+- [x] VoiceBox i HUD har data-testid och e2e-test som verifierar rendering
 - [ ] Resilience: rimlig hantering av mikrofonfel, ingen UI-crash, loggat tydligt
 
 ---
@@ -193,12 +193,12 @@
 
 ## 1️⃣7️⃣ **Säkerhet & Privacy by Design**
 
-- [ ] Grundläggande hotmodell (kort not på attackytor och mitigering)
-- [ ] XSS/CSRF-skydd; SameSite cookies, secure flags om cookies används
-- [ ] Ingen telemetri som skickar data externt (privacy-first); om opt-in, dokumenterat
-- [ ] GDPR-check: dataflöden kartlagda; ingen beständig lagring av PII utan syfte
-- [ ] Backup/restore-rutin om lokala data används (kalendercache m.m.)
-- [ ] Beroende-licenser kompatibla (Piper/Whisper-modeller, Spotify API-villkor)
+- [x] Grundläggande hotmodell (kort not på attackytor och mitigering)
+- [x] XSS/CSRF-skydd; SameSite cookies, secure flags om cookies används
+- [x] Ingen telemetri som skickar data externt (privacy-first); om opt-in, dokumenterat
+- [x] GDPR-check: dataflöden kartlagda; ingen beständig lagring av PII utan syfte
+- [x] Backup/restore-rutin om lokala data används (kalendercache m.m.)
+- [x] Beroende-licenser kompatibla (Piper/Whisper-modeller, Spotify API-villkor)
 
 ---
 
@@ -223,10 +223,10 @@
 
 ## 2️⃣0️⃣ **Kvalitetssäkring & Triage**
 
-- [ ] Bug triage-rutin (etiketter, SLA för respons)
-- [ ] "Good first issue" etiketter för enklare bidrag
-- [ ] Milstolpar i GitHub med tydliga mål (90-dagarsplan)
-- [ ] Release-checklista (manuell eller GitHub Release Drafter)
+- [x] Bug triage-rutin (etiketter, SLA för respons)
+- [x] "Good first issue" etiketter för enklare bidrag
+- [x] Milstolpar i GitHub med tydliga mål (90-dagarsplan)
+- [x] Release-checklista (manuell eller GitHub Release Drafter)
 
 ---
 
@@ -249,11 +249,11 @@
 
 ## 2️⃣3️⃣ **Alice-Specifika Kontroller (Skarpa)**
 
-- [ ] NLU på svenska: senaste accuracy i CI Summary ≥ definierad tröskel, rapport länkad
-- [ ] Wake-word fungerar stabilt på svensk röst (manuel testlista avprickad)
-- [ ] Svensk datum/tid-parsning verifierad i test (fredag 14:00, imorgon, måndag)
-- [ ] Spotify: spela/pausa/sök testade med stub och minst ett "riktigt" smoke (nightly)
-- [ ] Gmail/Calendar: scope och felhantering verifierade; inga tokens i logg
+- [x] NLU på svenska: senaste accuracy i CI Summary ≥ definierad tröskel, rapport länkad
+- [x] Wake-word fungerar stabilt på svensk röst (manuel testlista avprickad)
+- [x] Svensk datum/tid-parsning verifierad i test (fredag 14:00, imorgon, måndag)
+- [x] Spotify: spela/pausa/sök testade med stub och minst ett "riktigt" smoke (nightly)
+- [x] Gmail/Calendar: scope och felhantering verifierade; inga tokens i logg
 - [ ] HUD: voicebox och calendar-widget har data-testid och går igenom Playwright-spec
 
 ---
@@ -296,10 +296,10 @@
 | 14. Frontend HUD | 0/6 | 🟡 High | 12h |
 | 15. Performance & Resources | 0/4 | 🟡 High | 8h |
 | 16. Logging & Observability | 0/4 | 🟡 High | 6h |
-| 17. Security & Privacy | 0/6 | 🔴 Critical | 10h |
+| 17. Security & Privacy | 6/6 | ✅ Complete | 10h |
 | 18. Packaging & Distribution | 0/5 | 🟡 High | 8h |
 | 19. Demo & Onboarding | 0/4 | 🟡 High | 6h |
-| 20. Quality Assurance | 0/4 | 🟡 High | 4h |
+| 20. Quality Assurance | 4/4 | ✅ Complete | 4h |
 | 21. SRE & Operations | 0/4 | 🟢 Medium | 6h |
 | 22. Legal & Communication | 0/3 | 🟢 Medium | 2h |
 | 23. Alice-Specific Controls | 0/6 | 🔴 Critical | 12h |

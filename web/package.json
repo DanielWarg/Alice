@@ -10,7 +10,10 @@
     "test": "jest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:debug": "playwright test --debug"
+    "test:e2e:debug": "playwright test --debug",
+    "test:voicebox": "playwright test voicebox",
+    "test:voicebox:ui": "playwright test voicebox --ui",
+    "test:voicebox:headed": "playwright test voicebox --headed"
   },
   "dependencies": {
     "@radix-ui/react-progress": "^1.1.7",

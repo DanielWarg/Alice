@@ -73,12 +73,15 @@ class SwedishDateTimeParser:
         return ParsedDateTime(
             datetime=base_date,
             confidence=0.8,
-            is_relative=date_entity.get('type', '').startswith(('today', 'tomorrow', 'monday')),
+            is_relative=date_entity.get('type', '') in ('today', 'tomorrow', 'yesterday', 'day_after_tomorrow', 'day_before_yesterday') or date_entity.get('type', '') in self.swedish_weekdays,
             original_text=f"{date_entity.get('raw', '')} {time_entity.get('raw', '') if time_entity else ''}".strip()
         )
     
     def _parse_date_entity(self, date_entity: Dict[str, Any]) -> Optional[datetime]:
         """Parse datum-entitet till datetime"""
+        if not date_entity or date_entity.get('type') is None:
+            return None
+            
         date_type = date_entity.get('type', '')
         now = self.now()
         
@@ -128,35 +131,55 @@ class SwedishDateTimeParser:
         
         if time_type in ['exact_time', 'exact_time_word']:
             if len(groups) >= 2:
-                hour = int(groups[0])
-                minute = int(groups[1])
-                return time(hour, minute)
+                try:
+                    hour = int(groups[0])
+                    minute = int(groups[1])
+                    if 0 <= hour <= 23 and 0 <= minute <= 59:
+                        return time(hour, minute)
+                except (ValueError, TypeError):
+                    return None
         
         elif time_type == 'half_past':
             if groups:
-                hour = int(groups[0]) + 12  # "halv tre" = 14:30 (tre på eftermiddagen)
-                if hour > 23:
-                    hour -= 12  # Hantera morgontider
-                return time(hour, 30)
+                try:
+                    hour = int(groups[0]) - 1 + 12  # "halv tre" = 2:30 PM (14:30) - "halv" means 30 minutes before the hour
+                    if hour > 23:
+                        hour -= 12  # Hantera morgontider
+                    if 0 <= hour <= 23:
+                        return time(hour, 30)
+                except (ValueError, TypeError):
+                    return None
         
         elif time_type == 'quarter_past':
             if groups:
-                hour = int(groups[0]) + 12  # "kvart över två" = 14:15
-                if hour > 23:
-                    hour -= 12
-                return time(hour, 15)
+                try:
+                    hour = int(groups[0]) + 12  # "kvart över två" = 14:15
+                    if hour > 23:
+                        hour -= 12
+                    if 0 <= hour <= 23:
+                        return time(hour, 15)
+                except (ValueError, TypeError):
+                    return None
         
         elif time_type == 'quarter_to':
             if groups:
-                hour = int(groups[0]) + 12 - 1  # "kvart i tre" = 14:45
-                if hour > 23:
-                    hour -= 12
-                return time(hour, 45)
+                try:
+                    hour = int(groups[0]) + 12 - 1  # "kvart i tre" = 14:45
+                    if hour > 23:
+                        hour -= 12
+                    if 0 <= hour <= 23:
+                        return time(hour, 45)
+                except (ValueError, TypeError):
+                    return None
         
         elif time_type == 'approximate_time':
             if groups:
-                hour = int(groups[0])
-                return time(hour, 0)
+                try:
+                    hour = int(groups[0])
+                    if 0 <= hour <= 23:
+                        return time(hour, 0)
+                except (ValueError, TypeError):
+                    return None
         
         elif time_type == 'morning':
             return time(9, 0)  # 09:00

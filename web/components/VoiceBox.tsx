@@ -148,11 +148,136 @@ export default function VoiceBox({
   const [isListening, setIsListening] = useState(false)
   const [ttsStatus, setTtsStatus] = useState<string | null>(null)
   const [voiceInfo, setVoiceInfo] = useState<any>(null)
+  const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const [lastErrorTime, setLastErrorTime] = useState<number>(0)
+  
+  // Error recovery state
+  const maxReconnectAttempts = 3
+  const errorCooldownMs = 5000 // 5 seconds between retry attempts
 
   // Keep prev array in sync when props change
   useEffect(() => {
     prevValsRef.current = Array(bars).fill(0)
   }, [bars, minScale])
+
+  // Enhanced logging with context
+  const logVoiceEvent = (level: 'info' | 'warn' | 'error', event: string, details?: any) => {
+    const timestamp = new Date().toISOString()
+    const context = {
+      component: 'VoiceBox',
+      mode: modeRef.current,
+      live,
+      isListening,
+      reconnectAttempts,
+      timestamp,
+      ...details
+    }
+    
+    const logMessage = `[VoiceBox] ${event}`
+    
+    switch (level) {
+      case 'info':
+        console.log(logMessage, context)
+        break
+      case 'warn':
+        console.warn(logMessage, context)
+        break
+      case 'error':
+        console.error(logMessage, context)
+        // Send to error tracking service if available
+        if (typeof window !== 'undefined' && (window as any).errorTracker) {
+          (window as any).errorTracker.captureException(new Error(event), { extra: context })
+        }
+        break
+    }
+  }
+
+  // Enhanced error handler with recovery logic
+  const handleMicrophoneError = (error: any, context: string) => {
+    const now = Date.now()
+    const errorName = error?.name || 'UnknownError'
+    const errorMessage = error?.message || 'Unknown error occurred'
+    
+    logVoiceEvent('error', `Microphone error in ${context}`, {
+      errorName,
+      errorMessage,
+      errorCode: error?.code,
+      constraints: error?.constraint,
+      stack: error?.stack?.substring(0, 500) // Limit stack trace size
+    })
+    
+    // Determine if this is a recoverable error
+    const recoverableErrors = [
+      'NotReadableError',    // Device busy
+      'AbortError',         // Aborted by user/system  
+      'NetworkError',       // Network issues
+      'InternalError'       // Browser internal issues
+    ]
+    
+    const isRecoverable = recoverableErrors.includes(errorName)
+    const canRetry = reconnectAttempts < maxReconnectAttempts && 
+                    (now - lastErrorTime) > errorCooldownMs
+    
+    // Set user-friendly error message
+    let userMessage = ''
+    switch (errorName) {
+      case 'NotAllowedError':
+      case 'PermissionDeniedError':
+        userMessage = 'Mikrofonbehörighet nekad. Tillåt mikrofon i webbläsarinställningar och försök igen.'
+        break
+      case 'NotFoundError':
+        userMessage = 'Ingen mikrofon hittades. Kontrollera att en mikrofon är ansluten.'
+        break
+      case 'NotReadableError':
+        userMessage = 'Mikrofonen används av annat program. Stäng andra program som kan använda mikrofonen.'
+        break
+      case 'OverConstrainedError':
+        userMessage = 'Mikrofoninställningar är inte kompatibla. Försöker med standardinställningar.'
+        break
+      case 'SecurityError':
+        userMessage = 'Säkerhetsfel. Använd HTTPS eller localhost för mikrofonåtkomst.'
+        break
+      case 'AbortError':
+        userMessage = 'Mikrofonåtkomst avbröts. Försök igen.'
+        break
+      default:
+        userMessage = `Mikrofonfel: ${errorMessage}`
+        break
+    }
+    
+    setError(userMessage)
+    setLastErrorTime(now)
+    
+    // Attempt automatic recovery for certain errors
+    if (isRecoverable && canRetry) {
+      const nextAttempt = reconnectAttempts + 1
+      setReconnectAttempts(nextAttempt)
+      
+      logVoiceEvent('info', `Attempting automatic recovery (${nextAttempt}/${maxReconnectAttempts})`)
+      
+      // Wait a bit before retrying
+      setTimeout(() => {
+        if (!live) { // Only retry if not currently live
+          start()
+        }
+      }, errorCooldownMs)
+    } else if (!isRecoverable && allowDemo) {
+      // Fall back to demo mode for non-recoverable errors
+      logVoiceEvent('info', 'Falling back to demo mode due to non-recoverable error')
+      setTimeout(() => {
+        startDemo()
+      }, 1000)
+    }
+  }
+
+  // Enhanced cleanup with error safety
+  const safeCleanup = (componentName: string, cleanupFn: () => void) => {
+    try {
+      cleanupFn()
+    } catch (error) {
+      logVoiceEvent('warn', `Cleanup error in ${componentName}`, { error: error?.message })
+    }
+  }
 
   // Setup SpeechRecognition and fetch voice info on mount
   useEffect(() => {
@@ -197,18 +322,43 @@ export default function VoiceBox({
   }, [])
 
   async function start() {
-    if (startedRef.current) return
+    if (startedRef.current) {
+      logVoiceEvent('info', 'Start called but already started')
+      return
+    }
+    
+    logVoiceEvent('info', 'Starting VoiceBox', { reconnectAttempts })
     setError(null)
 
     try {
+      // Check for getUserMedia support
       if (!navigator.mediaDevices?.getUserMedia) {
         const err = new Error('getUserMedia saknas – kräver HTTPS/localhost eller modern webbläsare') as Error & { name: string }
         err.name = 'Unsupported'
         throw err
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      logVoiceEvent('info', 'Requesting microphone access')
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000
+        }
+      })
       streamRef.current = stream
+      
+      logVoiceEvent('info', 'Microphone access granted', {
+        audioTracks: stream.getAudioTracks().length,
+        trackSettings: stream.getAudioTracks()[0]?.getSettings()
+      })
+
+      // Monitor stream for interruption
+      stream.getAudioTracks()[0]?.addEventListener('ended', () => {
+        logVoiceEvent('warn', 'Audio track ended unexpectedly')
+        handleMicrophoneError(new Error('Audio track ended'), 'stream monitoring')
+      })
 
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
       ctxRef.current = ctx
@@ -228,30 +378,35 @@ export default function VoiceBox({
 
       // iOS/Safari quirk: may start suspended
       if (ctx.state === 'suspended') {
-        const resume = () => { ctx.resume(); window.removeEventListener('touchend', resume) }
+        const resume = () => { 
+          ctx.resume()
+          logVoiceEvent('info', 'AudioContext resumed after user interaction')
+          window.removeEventListener('touchend', resume) 
+        }
         window.addEventListener('touchend', resume, { once: true })
       }
 
       setLive(true)
       startedRef.current = true
       modeRef.current = 'mic'
+      setReconnectAttempts(0) // Reset on successful start
       
       // Starta speech recognition
       startSpeechRecognition()
+      
+      logVoiceEvent('info', 'VoiceBox started successfully')
+      
     } catch (e: any) {
+      handleMicrophoneError(e, 'start function')
+      
+      // Legacy fallback handling for specific cases
       const name = e?.name
-      if ((name === 'NotAllowedError' || name === 'SecurityError' || name === 'NotReadableError') && allowDemo) {
-        setError('Mikrofon nekad – kör demo‑läge. Tillåt mic på din domän för live-input.')
+      if ((name === 'NotAllowedError' || name === 'SecurityError' || name === 'NotReadableError') && allowDemo && reconnectAttempts === 0) {
+        logVoiceEvent('info', 'Falling back to demo mode due to permission error')
         startDemo()
         return
       }
-      if (name === 'NotFoundError') {
-        setError('Ingen mikrofon hittades. Välj/anslut en mic och försök igen.')
-      } else if (name === 'Unsupported') {
-        setError('Denna miljö blockerar mic. Öppna på https:// (eller localhost) utanför iframe och tillåt mikrofonen.')
-      } else {
-        setError(e?.message || 'Mikrofon kunde inte startas')
-      }
+      
       stop()
     }
   }
@@ -290,7 +445,37 @@ export default function VoiceBox({
       }
 
       recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error)
+        const errorType = event.error
+        logVoiceEvent('error', 'Speech recognition error', { 
+          errorType,
+          message: event.message,
+          timeStamp: event.timeStamp
+        })
+        
+        // Handle specific speech recognition errors
+        switch (errorType) {
+          case 'no-speech':
+            logVoiceEvent('info', 'No speech detected - this is normal')
+            break
+          case 'audio-capture':
+            handleMicrophoneError(new Error('Audio capture failed'), 'speech recognition')
+            break
+          case 'not-allowed':
+            handleMicrophoneError(new Error('Microphone permission denied'), 'speech recognition')
+            break
+          case 'network':
+            logVoiceEvent('warn', 'Network error in speech recognition - will retry')
+            // Network errors are usually temporary, will auto-retry
+            break
+          case 'bad-grammar':
+          case 'language-not-supported':
+            logVoiceEvent('error', `Speech recognition configuration error: ${errorType}`)
+            setError('Röstinställningar stöds inte. Kontrollera språkinställningar.')
+            break
+          default:
+            logVoiceEvent('error', `Unhandled speech recognition error: ${errorType}`)
+            break
+        }
       }
 
       recognition.onresult = (event: any) => {
@@ -490,43 +675,89 @@ export default function VoiceBox({
   }
 
   function stop() {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    rafRef.current = null
+    logVoiceEvent('info', 'Stopping VoiceBox', { currentMode: modeRef.current })
+    
+    // Cancel animation frame
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
 
-    if (sourceRef.current) { try { sourceRef.current.disconnect() } catch {} ; sourceRef.current = null }
-    if (analyserRef.current) { try { analyserRef.current.disconnect() } catch {} ; analyserRef.current = null }
+    // Cleanup audio nodes with error safety
+    safeCleanup('AudioSource', () => {
+      if (sourceRef.current) {
+        sourceRef.current.disconnect()
+        sourceRef.current = null
+      }
+    })
+    
+    safeCleanup('AudioAnalyser', () => {
+      if (analyserRef.current) {
+        analyserRef.current.disconnect()
+        analyserRef.current = null
+      }
+    })
     
     // Cleanup audio enhancement
-    if (audioEnhancerRef.current) {
-      try { audioEnhancerRef.current.dispose() } catch {}
-      audioEnhancerRef.current = null
-    }
+    safeCleanup('AudioEnhancer', () => {
+      if (audioEnhancerRef.current) {
+        audioEnhancerRef.current.dispose()
+        audioEnhancerRef.current = null
+      }
+    })
 
-    if (oscRef.current) {
-      try { oscRef.current.forEach(o => { try { o.stop() } catch {} }) } catch {}
-      oscRef.current = null
-    }
+    // Cleanup oscillators (demo mode)
+    safeCleanup('Oscillators', () => {
+      if (oscRef.current) {
+        oscRef.current.forEach(o => o.stop())
+        oscRef.current = null
+      }
+    })
 
-    if (ctxRef.current) { try { ctxRef.current.close() } catch {} ; ctxRef.current = null }
+    // Cleanup audio context
+    safeCleanup('AudioContext', () => {
+      if (ctxRef.current) {
+        if (ctxRef.current.state !== 'closed') {
+          ctxRef.current.close()
+        }
+        ctxRef.current = null
+      }
+    })
 
-    if (streamRef.current) {
-      try { streamRef.current.getTracks().forEach(t => t.stop()) } catch {}
-      streamRef.current = null
-    }
+    // Cleanup media stream
+    safeCleanup('MediaStream', () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => {
+          track.stop()
+          logVoiceEvent('info', 'Stopped media track', { 
+            kind: track.kind,
+            label: track.label,
+            readyState: track.readyState
+          })
+        })
+        streamRef.current = null
+      }
+    })
 
-    // Stoppa speech recognition
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop() } catch {}
-      recognitionRef.current = null
-    }
+    // Cleanup speech recognition
+    safeCleanup('SpeechRecognition', () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+        recognitionRef.current = null
+      }
+    })
 
+    // Reset state
     startedRef.current = false
     modeRef.current = 'idle'
     setLive(false)
     setIsListening(false)
+    
+    logVoiceEvent('info', 'VoiceBox stopped successfully')
   }
 
   const testEnhancedTTS = async () => {
+    logVoiceEvent('info', 'Starting TTS test', { personality, emotion, voiceQuality })
     setTtsStatus('Testar Alice röst...')
     
     try {
@@ -546,26 +777,51 @@ export default function VoiceBox({
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
+          logVoiceEvent('info', 'Enhanced TTS success', { voice: data.voice, cached: data.cached })
+          
           // Play the enhanced audio
           const audioBuffer = Uint8Array.from(atob(data.audio_data), c => c.charCodeAt(0))
           const blob = new Blob([audioBuffer], { type: 'audio/wav' })
           const audio = new Audio(URL.createObjectURL(blob))
           
+          // Handle audio play errors
+          audio.onerror = (e) => {
+            logVoiceEvent('error', 'Audio playback error', { error: e })
+            setTtsStatus('Ljuduppspelning misslyckades')
+            setTimeout(() => setTtsStatus(null), 3000)
+          }
+          
+          audio.onended = () => {
+            logVoiceEvent('info', 'TTS audio playback completed')
+            setTimeout(() => setTtsStatus(null), 1000)
+          }
+          
           setTtsStatus(`🎵 Spelar: Alice ${data.emotion} röst`)
           await audio.play()
           
-          setTimeout(() => setTtsStatus(null), 3000)
           return
+        } else {
+          logVoiceEvent('warn', 'Enhanced TTS returned failure', data)
         }
+      } else {
+        logVoiceEvent('warn', 'Enhanced TTS HTTP error', { status: response.status, statusText: response.statusText })
       }
       
       // Fallback to browser TTS if enhanced fails
-      console.log('Enhanced TTS failed, using browser fallback')
+      logVoiceEvent('info', 'Falling back to browser TTS')
       await testBrowserTTS()
       
-    } catch (error) {
-      console.error('TTS test failed, using browser fallback:', error)
-      await testBrowserTTS()
+    } catch (error: any) {
+      logVoiceEvent('error', 'TTS test error', { error: error?.message, stack: error?.stack?.substring(0, 200) })
+      
+      // Try browser TTS as fallback
+      try {
+        await testBrowserTTS()
+      } catch (fallbackError: any) {
+        logVoiceEvent('error', 'Browser TTS fallback also failed', { error: fallbackError?.message })
+        setTtsStatus('❌ TTS-test misslyckades')
+        setTimeout(() => setTtsStatus(null), 3000)
+      }
     }
   }
 
@@ -623,19 +879,23 @@ export default function VoiceBox({
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto select-none" role="region" aria-label="Voice visualizer">
-      <div className="relative rounded-2xl p-6 bg-cyan-950/20 border border-cyan-500/20 shadow-[0_0_60px_-20px_rgba(34,211,238,.5)]">
+    <div className="w-full max-w-3xl mx-auto select-none" role="region" aria-label="Voice visualizer" data-testid="voice-box-container">
+      <div className="relative rounded-2xl p-6 bg-cyan-950/20 border border-cyan-500/20 shadow-[0_0_60px_-20px_rgba(34,211,238,.5)]" data-testid="voice-box-panel">
         {/* Bars */}
         <div
           ref={barsWrapRef}
           className="relative grid grid-cols-5 gap-px items-end justify-center h-40 md:h-48"
           style={{ gridTemplateColumns: `repeat(${bars}, minmax(0,1fr))` }}
+          data-testid="voice-box-bars"
+          role="img"
+          aria-label="Voice activity visualizer"
         >
           {Array.from({ length: bars }).map((_, i) => (
-            <div key={i} className="relative h-full flex items-end justify-center">
+            <div key={i} className="relative h-full flex items-end justify-center" data-testid={`voice-box-bar-${i}`}>
               {/* Inner bar at half width; starts as 1px line, grows with audio */}
               <div
                 className="bar w-1/2 rounded-full"
+                data-testid={`voice-box-bar-element-${i}`}
                 style={{
                   height: '2px',
                   transition: 'height 60ms ease-out, opacity 80ms ease-out',  // Smoother transitions for ambient animation
@@ -654,6 +914,7 @@ export default function VoiceBox({
               <button
                 onClick={start}
                 className="px-4 py-2 rounded-xl bg-cyan-500/90 text-black font-medium hover:bg-cyan-400 active:scale-[0.98] transition"
+                data-testid="voice-box-start"
               >
                 Starta mic
               </button>
@@ -661,6 +922,7 @@ export default function VoiceBox({
               <button
                 onClick={stop}
                 className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-100 font-medium hover:bg-zinc-700 active:scale-[0.98] transition"
+                data-testid="voice-box-stop"
               >
                 Stoppa
               </button>
@@ -668,10 +930,11 @@ export default function VoiceBox({
             <button
               onClick={testEnhancedTTS}
               className="px-3 py-1 rounded-lg bg-purple-500/80 text-white text-sm font-medium hover:bg-purple-400 active:scale-[0.98] transition"
+              data-testid="voice-box-test-tts"
             >
               Test TTS
             </button>
-            <span className={`text-xs ${live ? 'text-cyan-400' : 'text-zinc-500'}`}>{live ? 'LIVE' : 'AV'}</span>
+            <span className={`text-xs ${live ? 'text-cyan-400' : 'text-zinc-500'}`} data-testid="voice-box-status">{live ? 'LIVE' : 'AV'}</span>
           </div>
           
           {/* Voice Settings Info */}
@@ -691,6 +954,7 @@ export default function VoiceBox({
                   console.log('Personality change:', e.target.value)
                 }}
                 className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
+                data-testid="voice-box-personality-select"
               >
                 <option value="alice">Alice</option>
                 <option value="formal">Formell</option>
@@ -703,6 +967,7 @@ export default function VoiceBox({
                   console.log('Emotion change:', e.target.value)
                 }}
                 className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
+                data-testid="voice-box-emotion-select"
               >
                 <option value="neutral">Neutral</option>
                 <option value="happy">Glad</option>
@@ -717,6 +982,7 @@ export default function VoiceBox({
                   console.log('Quality change:', e.target.value)
                 }}
                 className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
+                data-testid="voice-box-quality-select"
               >
                 <option value="medium">Medium</option>
                 <option value="high">Hög</option>
@@ -726,11 +992,11 @@ export default function VoiceBox({
         </div>
 
         {error && (
-          <div className="mt-3 text-center text-sm text-red-400">{error}</div>
+          <div className="mt-3 text-center text-sm text-red-400" data-testid="voice-box-error">{error}</div>
         )}
         
         {ttsStatus && (
-          <div className="mt-2 text-center text-sm text-purple-400">{ttsStatus}</div>
+          <div className="mt-2 text-center text-sm text-purple-400" data-testid="voice-box-tts-status">{ttsStatus}</div>
         )}
         
         {voiceInfo && (
