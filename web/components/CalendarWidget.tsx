@@ -194,14 +194,36 @@ export default function CalendarWidget({
           <div className="text-sm font-medium text-zinc-300 mb-3">Snabbskapa event</div>
           <form onSubmit={(e) => {
             e.preventDefault()
-            // Hantera snabbskapande
+            const formData = new FormData(e.currentTarget)
+            const eventText = formData.get('eventText') as string
+            
+            if (!eventText.trim()) return
+            
+            // Create basic event from text input
+            const now = new Date()
+            const eventDate = new Date(now.getTime() + 24 * 60 * 60 * 1000) // Default to tomorrow
+            const startTime = new Date(eventDate.setHours(14, 0, 0, 0)) // 2 PM default
+            const endTime = new Date(startTime.getTime() + 60 * 60 * 1000) // 1 hour duration
+            
+            const newEvent: CalendarEvent = {
+              id: `quick-${Date.now()}`,
+              title: eventText.trim(),
+              start: startTime,
+              end: endTime,
+              type: 'meeting'
+            }
+            
+            onEventCreate?.(newEvent)
             setShowQuickCreate(false)
           }}>
             <input
               type="text"
+              name="eventText"
               placeholder="Beskriv ditt event (t.ex. 'Möte med team imorgon kl 14')"
               className="w-full px-3 py-2 rounded-lg bg-zinc-700 text-zinc-100 placeholder-zinc-400 border border-zinc-600 focus:border-cyan-500 focus:outline-none"
               data-testid="calendar-widget-quick-create-input"
+              autoComplete="off"
+              required
             />
             <div className="flex gap-2 mt-3">
               <button

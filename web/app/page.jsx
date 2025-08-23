@@ -337,7 +337,7 @@ function HUDProvider({ children }) {
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Overlay + moduler
-function Overlay() { const { state, dispatch } = useHUD(); if (!state.overlayOpen || !state.currentModule) return null; return (<div className="fixed inset-0 z-50 grid place-items-center pointer-events-none"><div className="pointer-events-auto relative w-[min(90vw,920px)] rounded-2xl border border-cyan-400/30 bg-cyan-950/60 backdrop-blur-xl p-5 shadow-[0_0_80px_-20px_rgba(34,211,238,.6)]"><button aria-label="Stäng" onClick={() => dispatch({ type: "HIDE_OVERLAY" })} className="absolute right-3 top-3 rounded-lg border border-cyan-400/30 px-2 py-1 text-xs hover:bg-cyan-400/10">Stäng</button>{state.currentModule === "calendar" && <CalendarView />}{state.currentModule === "mail" && <MailView />}{state.currentModule === "finance" && <FinanceView />}{state.currentModule === "reminders" && <RemindersView />}{state.currentModule === "wallet" && <WalletView />}{state.currentModule === "video" && <VideoView source={state.videoSource} />}</div></div>); }
+function Overlay() { const { state, dispatch } = useHUD(); if (!state.overlayOpen || !state.currentModule) return null; return (<div className="fixed inset-0 z-50 grid place-items-center pointer-events-none"><div className="pointer-events-auto relative w-[min(90vw,920px)] rounded-2xl border border-cyan-400/30 bg-cyan-950/60 backdrop-blur-xl shadow-[0_0_80px_-20px_rgba(34,211,238,.6)]"><button aria-label="Stäng" onClick={() => dispatch({ type: "HIDE_OVERLAY" })} className="absolute right-3 top-3 z-10 rounded-lg border border-cyan-400/30 px-2 py-1 text-xs hover:bg-cyan-400/10 bg-cyan-950/80 backdrop-blur">Stäng</button><div className="p-5 pt-12">{state.currentModule === "calendar" && <CalendarView />}{state.currentModule === "mail" && <MailView />}{state.currentModule === "finance" && <FinanceView />}{state.currentModule === "reminders" && <RemindersView />}{state.currentModule === "wallet" && <WalletView />}{state.currentModule === "video" && <VideoView source={state.videoSource} />}</div></div></div>); }
 function CalendarView() { 
   const handleEventCreate = async (event) => {
     try {
@@ -420,7 +420,7 @@ function CalendarView() {
 function MailView() { const mails = [{ id: safeUUID(), from: "Team", subject: "Välkommen till HUD", time: "09:12" }, { id: safeUUID(), from: "Finans", subject: "Veckorapport klar", time: "08:27" }, { id: safeUUID(), from: "Kalender", subject: "Möte 14:00", time: "07:50" }]; return (<div><div className="mb-3 flex items-center gap-2 text-cyan-200"><IconMail className="h-4 w-4" /><h3 className="text-sm uppercase tracking-widest">Mail</h3></div><ul className="divide-y divide-cyan-400/10">{mails.map(m => (<li key={m.id} className="py-2"><div className="text-cyan-100 text-sm">{m.subject}</div><div className="text-cyan-300/70 text-xs">{m.from} • {m.time}</div></li>))}</ul></div>); }
 function MiniLine({ data }) { const max = Math.max(...data, 1); const pts = data.map((v,i)=> `${(i/(data.length-1))*100},${100-(v/max)*100}`).join(' '); return (<svg viewBox="0 0 100 100" className="h-20 w-full"><polyline points={pts} fill="none" stroke="currentColor" strokeWidth={2} className="text-cyan-300"/></svg>); }
 function FinanceView() { const prices = Array.from({length:32},()=> 80+Math.round(Math.random()*40)); return (<div><div className="mb-3 flex items-center gap-2 text-cyan-200"><IconDollar className="h-4 w-4" /><h3 className="text-sm uppercase tracking-widest">Finans</h3></div><div className="rounded-xl border border-cyan-400/20 p-3 text-cyan-100"><div className="text-xs text-cyan-300/80">Demo-kurva (dummy)</div><MiniLine data={prices} /><div className="mt-2 text-xs text-cyan-300/80">Senast: {prices[prices.length-1]}</div></div></div>); }
-function RemindersView() { const [items, setItems] = useState([{ id: safeUUID(), text: "Ring Alex 15:00", done: false }]); const [text, setText] = useState(""); return (<div><div className="mb-3 flex items-center gap-2 text-cyan-200"><IconAlarm className="h-4 w-4" /><h3 className="text-sm uppercase tracking-widest">Påminnelser</h3></div><div className="mb-2 flex gap-2"><input value={text} onChange={(e)=>setText(e.target.value)} onKeyDown={(e)=>{ if(e.key==='Enter' && text.trim()){ setItems([{id:safeUUID(), text, done:false}, ...items]); setText(''); } }} placeholder="Lägg till påminnelse…" className="w-full bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none"/><button onClick={()=>{ if(text.trim()){ setItems([{id:safeUUID(), text, done:false}, ...items]); setText(''); } }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Lägg till</button></div><ul className="space-y-2">{items.map(it=> (<li key={it.id} className="group flex items-center gap-2 rounded-lg border border-cyan-500/10 bg-cyan-900/10 p-2"><button aria-label="Växla status" onClick={()=> setItems(items.map(x=> x.id===it.id ? {...x, done:!x.done}:x))} className={`grid h-5 w-5 place-items-center rounded-md border ${it.done? 'border-cyan-300 bg-cyan-300/20':'border-cyan-400/30'}`}>{it.done && <IconCheck className="h-3 w-3"/>}</button><span className={`flex-1 text-sm ${it.done? 'line-through text-cyan-300/50':'text-cyan-100'}`}>{it.text}</span><button aria-label="Ta bort" onClick={()=> setItems(items.filter(x=> x.id!==it.id))} className="opacity-0 group-hover:opacity-100 transition-opacity"><IconX className="h-4 w-4 text-cyan-300/60"/></button></li>))}</ul></div>); }
+function RemindersView() { const [items, setItems] = useState([{ id: safeUUID(), text: "Ring Alex 15:00", done: false }]); const [text, setText] = useState(""); return (<div><div className="mb-3 flex items-center gap-2 text-cyan-200"><IconAlarm className="h-4 w-4" /><h3 className="text-sm uppercase tracking-widest">Påminnelser</h3></div><div className="mb-2 flex gap-2"><input value={text} onChange={(e)=>setText(e.target.value)} onKeyDown={(e)=>{ if(e.key==='Enter' && text.trim()){ setItems([{id:safeUUID(), text, done:false}, ...items]); setText(''); } }} placeholder="Lägg till påminnelse…" className="w-full bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1 focus:border-cyan-400/50"/><button onClick={()=>{ if(text.trim()){ setItems([{id:safeUUID(), text, done:false}, ...items]); setText(''); } }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Lägg till</button></div><ul className="space-y-2">{items.map(it=> (<li key={it.id} className="group flex items-center gap-2 rounded-lg border border-cyan-500/10 bg-cyan-900/10 p-2"><button aria-label="Växla status" onClick={()=> setItems(items.map(x=> x.id===it.id ? {...x, done:!x.done}:x))} className={`grid h-5 w-5 place-items-center rounded-md border ${it.done? 'border-cyan-300 bg-cyan-300/20':'border-cyan-400/30'}`}>{it.done && <IconCheck className="h-3 w-3"/>}</button><span className={`flex-1 text-sm ${it.done? 'line-through text-cyan-300/50':'text-cyan-100'}`}>{it.text}</span><button aria-label="Ta bort" onClick={()=> setItems(items.filter(x=> x.id!==it.id))} className="opacity-0 group-hover:opacity-100 transition-opacity"><IconX className="h-4 w-4 text-cyan-300/60"/></button></li>))}</ul></div>); }
 
 // Video / AliceCore / Bakgrund (Safe Boot aware)
 function VideoView({ source }) { return (<div><div className="mb-3 flex items-center gap-2 text-cyan-200"><IconCamera className="h-4 w-4" /><h3 className="text-sm uppercase tracking-widest">Video</h3></div><VideoFeed source={source} /></div>); }
@@ -727,7 +727,7 @@ function Diagnostics() { const [results, setResults] = useState([]); const { dis
 // TodoList
 function TodoList({ todos, onToggle, onRemove, onAdd }) {
   const [text, setText] = useState("");
-  return (<div><div className="mb-3 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { onAdd(text.trim()); setText(""); } }} placeholder="Lägg till uppgift…" className="w-full bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none" /><button onClick={() => { if (text.trim()) { onAdd(text.trim()); setText(""); } }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Lägg till</button></div><ul className="space-y-2">{todos.map((t) => (<li key={t.id} className="group flex items-center gap-2 rounded-lg border border-cyan-500/10 bg-cyan-900/10 p-2"><button aria-label="Växla status" onClick={() => onToggle(t.id)} className={`grid h-5 w-5 place-items-center rounded-md border ${t.done ? 'border-cyan-300 bg-cyan-300/20' : 'border-cyan-400/30'}`}>{t.done && <IconCheck className="h-3 w-3" />}</button><span className={`flex-1 text-sm ${t.done ? 'line-through text-cyan-300/50':'text-cyan-100'}`}>{t.text}</span><button aria-label="Ta bort" onClick={() => onRemove(t.id)} className="opacity-0 group-hover:opacity-100 transition-opacity"><IconX className="h-4 w-4 text-cyan-300/60" /></button></li>))}</ul></div>);
+  return (<div><div className="mb-3 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { onAdd(text.trim()); setText(""); } }} placeholder="Lägg till uppgift…" className="w-full bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1 focus:border-cyan-400/50" /><button onClick={() => { if (text.trim()) { onAdd(text.trim()); setText(""); } }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Lägg till</button></div><ul className="space-y-2">{todos.map((t) => (<li key={t.id} className="group flex items-center gap-2 rounded-lg border border-cyan-500/10 bg-cyan-900/10 p-2"><button aria-label="Växla status" onClick={() => onToggle(t.id)} className={`grid h-5 w-5 place-items-center rounded-md border ${t.done ? 'border-cyan-300 bg-cyan-300/20' : 'border-cyan-400/30'}`}>{t.done && <IconCheck className="h-3 w-3" />}</button><span className={`flex-1 text-sm ${t.done ? 'line-through text-cyan-300/50':'text-cyan-100'}`}>{t.text}</span><button aria-label="Ta bort" onClick={() => onRemove(t.id)} className="opacity-0 group-hover:opacity-100 transition-opacity"><IconX className="h-4 w-4 text-cyan-300/60" /></button></li>))}</ul></div>);
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -937,8 +937,8 @@ function HUDInner() {
         <HUDVoiceButton />
       </div>
 
-      <main className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 pb-24 pt-4 md:grid-cols-12">
-        <div className="md:col-span-3 space-y-6">
+      <main className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 pb-24 pt-4 sm:gap-6 sm:px-6 md:grid-cols-12">
+        <div className="md:col-span-3 space-y-4 sm:space-y-6">
           <Pane title="System" actions={<IconSettings className="h-4 w-4" />}>
             <div className="grid grid-cols-3 gap-3">
               <Metric label="CPU" value={cpu} icon={<IconCpu className="h-3 w-3" />} />
@@ -1002,12 +1002,12 @@ function HUDInner() {
                   
                   return (
                     <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] rounded-lg px-4 py-2 relative group ${
+                      <div className={`max-w-[80%] rounded-lg px-4 py-2 relative group overflow-hidden ${
                         isUser 
                           ? 'bg-cyan-500/20 border border-cyan-400/30 text-cyan-100' 
                           : 'bg-slate-700/30 border border-slate-600/30 text-slate-200'
                       }`}>
-                        <div className="text-sm break-words">
+                        <div className="text-sm break-words overflow-wrap-anywhere whitespace-pre-wrap">
                           {displayText}
                           {message.streaming && <span className="animate-pulse ml-1">|</span>}
                         </div>
@@ -1028,7 +1028,7 @@ function HUDInner() {
             
             <div className="flex items-center gap-2">
               <IconSearch className="h-4 w-4 text-cyan-300/70" />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={async (e) => {
+              <input value={query} onChange={(e) => setQuery(e.target.value)} className="flex-1 min-w-0 bg-transparent text-sm text-cyan-100 placeholder:text-cyan-300/40 focus:outline-none border border-cyan-400/20 rounded px-2 py-1 focus:border-cyan-400/50" placeholder="Chatta med Alice..." onKeyDown={async (e) => {
                 if (e.key === "Enter" && query.trim()) {
                   // Debug logging removed for production
                   if (UI_ONLY) { setQuery(""); return; }
@@ -1205,6 +1205,39 @@ function HUDInner() {
                 } finally {
                   setQuery("");
                 }
+              }} />
+              <button onClick={async () => {
+                if (!query.trim()) return;
+                // Debug logging removed for production
+                if (UI_ONLY) { setQuery(""); return; }
+                const q = query.trim();
+                setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`You: ${q}`}, ...J].slice(0,100));
+                try{
+                  const low = q.toLowerCase();
+                  if (low.startsWith('spela') || low.includes(' spela ')){
+                    const access = localStorage.getItem('spotify_access_token')||'';
+                    if (access){
+                      await spotify.init(); await spotify.transferHere(false);
+                      const r = await fetch('http://127.0.0.1:8000/api/ai/media_act',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: q, access_token: access, device_id: spotify.deviceId, provider })});
+                      const mj = await r.json().catch(()=>null);
+                      if (mj && mj.ok){ setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`MediaAct: spelade ${mj.played?.kind||'ok'}`}, ...J].slice(0,100)); setQuery(""); return; }
+                      else { setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`MediaAct error: ${mj?.error||'unknown'}`}, ...J].slice(0,100)); setQuery(""); return; }
+                    }
+                  }
+                  const res = await fetch("http://127.0.0.1:8000/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: q, provider, intents_enabled: true, agent_mode: false }), signal: AbortSignal.timeout(30000) });
+                  if (res.ok) {
+                    const json = await res.json();
+                    const msg = json?.response ? (json.response.startsWith('GPT:') ? json.response : `Alice: ${json.response}`) : (json?.action?.tool === 'spotify_play' && json?.action?.result?.ok ? 'Alice: Spelar musik åt dig!' : 'Alice: Något gick fel.');
+                    setJournal((J) => [{ id: safeUUID(), ts: new Date().toISOString(), text: msg }, ...J].slice(0, 100));
+                  } else {
+                    const msg = (res.status === 408 || res.status === 504) ? 'Alice: Request timeout - servern svarar inte.' : (res.status >= 500 && res.status < 600) ? 'Alice: Serverfel. Försök igen senare.' : res.status === 429 ? 'Alice: För många förfrågningar. Vänta lite.' : 'Alice: Något gick fel.';
+                    setJournal((J) => [{ id: safeUUID(), ts: new Date().toISOString(), text: msg }, ...J].slice(0, 100));
+                  }
+                } catch (err) {
+                  setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Error sending: ${String(err)}`}, ...J].slice(0,100));
+                } finally {
+                  setQuery("");
+                }
               }} className="rounded-xl border border-cyan-400/30 px-3 py-1 text-xs hover:bg-cyan-400/10">Send</button>
             </div>
           </Pane>
@@ -1319,7 +1352,7 @@ function HUDInner() {
           </Pane>
         </div>
 
-        <div className="md:col-span-3 space-y-6">
+        <div className="md:col-span-3 space-y-4 sm:space-y-6">
           <Pane title="Weather" actions={<IconCloudSun className="h-4 w-4" />}>
             <div className="flex items-center gap-4">
               <IconThermometer className="h-10 w-10 text-cyan-300" />
@@ -1431,12 +1464,12 @@ function HUDInner() {
 
       <Overlay />
 
-      <footer className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto max-w-7xl px-6 pb-8">
-        <div className="grid grid-cols-5 gap-4 opacity-80">
+      <footer className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto max-w-7xl px-4 pb-6 sm:px-6 sm:pb-8">
+        <div className="grid grid-cols-5 gap-2 opacity-80 sm:gap-4">
           {["SYS", "NET", "AUX", "NAV", "CTRL"].map((t, i) => (
-            <div key={i} className="relative h-14 overflow-hidden rounded-xl border border-cyan-500/20 bg-cyan-900/10">
+            <div key={i} className="relative h-12 sm:h-14 overflow-hidden rounded-lg sm:rounded-xl border border-cyan-500/20 bg-cyan-900/10">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,.15),transparent_50%)]" />
-              <div className="absolute inset-0 grid place-items-center text-xs tracking-[.35em] text-cyan-200/70">{t}</div>
+              <div className="absolute inset-0 grid place-items-center text-[10px] sm:text-xs tracking-[.35em] text-cyan-200/70">{t}</div>
               <div className="absolute bottom-0 h-[2px] w-full bg-gradient-to-r from-cyan-500/0 via-cyan-500/60 to-cyan-500/0" />
             </div>
           ))}
