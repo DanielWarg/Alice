@@ -123,21 +123,25 @@ async def logout_user(
     request: Request,
     response: Response,
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db_session),
-    auth_service: AuthService = Depends(get_auth_service),
-    current_user: User = Depends(get_current_user)
+    current_user = Depends(get_current_user)
 ):
     """Logout user and invalidate session"""
     token = credentials.credentials if credentials else None
     
-    auth_service.logout_user(current_user.id, token, request)
+    # Get auth service and logout user 
+    db = next(get_db_session())
+    try:
+        auth_service = get_auth_service(db)
+        auth_service.logout_user(current_user.id, token, request)
+    finally:
+        db.close()
     
     # Clear refresh token cookie
     response.delete_cookie("refresh_token")
     
     return {"message": "Utloggning lyckades"}
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=None)
 async def refresh_access_token(
     request: Request,
     db: Session = Depends(get_db_session),

@@ -311,11 +311,11 @@ class AuditLog(Base):
 
 class UserCreate(BaseModel):
     """User creation model"""
-    username: str = Field(..., min_length=3, max_length=50, regex=r'^[a-zA-Z0-9_]+$')
+    username: str = Field(..., min_length=3, max_length=50, pattern=r'^[a-zA-Z0-9_]+$')
     email: EmailStr
     password: str = Field(..., min_length=8)
     full_name: Optional[str] = Field(None, max_length=255)
-    language: str = Field("sv", regex=r'^(sv|en)$')
+    language: str = Field("sv", pattern=r'^(sv|en)$')
     
     @validator('password')
     def validate_password(cls, v):
@@ -366,7 +366,7 @@ class APIKeyCreate(BaseModel):
 
 class OAuthConnect(BaseModel):
     """OAuth connection model"""
-    provider: str = Field(..., regex=r'^(google|github)$')
+    provider: str = Field(..., pattern=r'^(google|github)$')
     code: str
     state: Optional[str] = None
 

@@ -144,18 +144,25 @@ clean: ## Clean build artifacts and caches
 	@rm -rf web/playwright-report/
 	@echo "$(GREEN)Clean completed!$(RESET)"
 
-up: ## Start all services using Docker Compose (when available)
-	@echo "$(YELLOW)Docker Compose support not yet implemented$(RESET)"
-	@echo "$(GREEN)Use 'make dev' to start development servers$(RESET)"
-	@echo "$(CYAN)Future: docker-compose up -d will be available here$(RESET)"
+up: ## Start all services using Docker Compose
+	@echo "$(CYAN)Starting Alice AI services with Docker Compose...$(RESET)"
+	@docker-compose up -d
+	@echo "$(GREEN)Services started! Frontend: http://localhost:3000, Backend: http://localhost:8000$(RESET)"
+	@echo "$(YELLOW)Run 'make logs' to view logs$(RESET)"
+
+up-monitoring: ## Start all services including monitoring
+	@echo "$(CYAN)Starting Alice AI services with monitoring...$(RESET)"
+	@docker-compose --profile monitoring up -d
+	@echo "$(GREEN)Services started with monitoring! Prometheus: http://localhost:9090$(RESET)"
 
 down: ## Stop all Docker services
-	@echo "$(YELLOW)Docker Compose support not yet implemented$(RESET)"
-	@echo "$(GREEN)Use Ctrl+C to stop development servers$(RESET)"
+	@echo "$(CYAN)Stopping Alice AI Docker services...$(RESET)"
+	@docker-compose down
+	@echo "$(GREEN)All services stopped$(RESET)"
 
 logs: ## Show logs from all services
-	@echo "$(YELLOW)Docker Compose support not yet implemented$(RESET)"
-	@echo "$(GREEN)Development servers log to console directly$(RESET)"
+	@echo "$(CYAN)Showing Alice AI service logs...$(RESET)"
+	@docker-compose logs -f
 
 build: ## Build all components for production
 	@echo "$(CYAN)Building Alice AI for production...$(RESET)"
@@ -167,13 +174,21 @@ build: ## Build all components for production
 	@cd nlu-agent && npm run build 2>/dev/null || echo "No build script in nlu-agent"
 	@echo "$(GREEN)Production build completed!$(RESET)"
 
-docker-build: ## Build Docker images (when Dockerfiles are available)
-	@echo "$(YELLOW)Docker build support not yet implemented$(RESET)"
-	@echo "$(CYAN)Future: Docker multi-stage builds will be available here$(RESET)"
+docker-build: ## Build Docker images
+	@echo "$(CYAN)Building Alice AI Docker images...$(RESET)"
+	@echo "$(GREEN)Building backend image...$(RESET)"
+	@docker build -f Dockerfile.backend -t alice-backend:latest .
+	@echo "$(GREEN)Building frontend image...$(RESET)"
+	@docker build -f Dockerfile.frontend -t alice-frontend:latest .
+	@echo "$(GREEN)Docker images built successfully!$(RESET)"
 
 docker-push: ## Push Docker images to registry
-	@echo "$(YELLOW)Docker push support not yet implemented$(RESET)"
-	@echo "$(CYAN)Future: Container registry push will be available here$(RESET)"
+	@echo "$(CYAN)Pushing Alice AI Docker images...$(RESET)"
+	@echo "$(YELLOW)Configure DOCKER_REGISTRY environment variable first$(RESET)"
+	@docker tag alice-backend:latest $(DOCKER_REGISTRY)/alice-backend:latest
+	@docker tag alice-frontend:latest $(DOCKER_REGISTRY)/alice-frontend:latest
+	@docker push $(DOCKER_REGISTRY)/alice-backend:latest
+	@docker push $(DOCKER_REGISTRY)/alice-frontend:latest
 
 # Environment check targets
 check-python: ## Check Python environment

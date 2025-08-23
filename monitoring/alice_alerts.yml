@@ -1,0 +1,159 @@
+# Alice AI - Alerting Rules
+# Production-grade monitoring thresholds and alerts
+
+groups:
+  - name: alice-backend
+    rules:
+      # High Memory Usage Alert
+      - alert: AliceHighMemoryUsage
+        expr: alice_memory_usage_mb > 1500
+        for: 5m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "Alice backend high memory usage"
+          description: "Alice backend memory usage is {{ $value }}MB, exceeding 1.5GB threshold"
+
+      # Memory Leak Detection
+      - alert: AliceMemoryLeak
+        expr: increase(alice_memory_usage_mb[1h]) > 200
+        for: 10m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "Potential memory leak detected"
+          description: "Memory usage increased by {{ $value }}MB in the last hour"
+
+      # High CPU Usage
+      - alert: AliceHighCPUUsage
+        expr: alice_cpu_usage_percent > 80
+        for: 3m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "Alice backend high CPU usage"
+          description: "CPU usage is {{ $value }}%, exceeding 80% threshold"
+
+      # High Response Time
+      - alert: AliceHighResponseTime
+        expr: alice_final_latency_ms_p95 > 5000
+        for: 2m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "Alice high response time"
+          description: "95th percentile response time is {{ $value }}ms, exceeding 5s threshold"
+
+      # TTS Cache Issues
+      - alert: AliceLowCacheHitRate
+        expr: (alice_cache_hits / (alice_cache_hits + alice_cache_misses)) < 0.7
+        for: 5m
+        labels:
+          severity: warning
+          component: tts
+        annotations:
+          summary: "Low TTS cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}, below 70% threshold"
+
+      # Database Connection Issues
+      - alert: AliceHighDatabaseConnections
+        expr: alice_active_connections > 20
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High database connection count"
+          description: "Active database connections: {{ $value }}, exceeding 20 connection threshold"
+
+      # Voice Processing Issues
+      - alert: AliceHighVoiceLatency
+        expr: alice_first_token_ms_p95 > 2000
+        for: 2m
+        labels:
+          severity: warning
+          component: voice
+        annotations:
+          summary: "High voice processing latency"
+          description: "95th percentile voice processing time is {{ $value }}ms, exceeding 2s threshold"
+
+      # Tool Call Failures
+      - alert: AliceHighToolFailureRate
+        expr: (alice_tool_validation_failed / alice_tool_calls_attempted) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          component: tools
+        annotations:
+          summary: "High tool call failure rate"
+          description: "Tool failure rate is {{ $value | humanizePercentage }}, exceeding 10% threshold"
+
+  - name: alice-system
+    rules:
+      # Service Down
+      - alert: AliceServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alice service is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute"
+
+      # Disk Space Usage
+      - alert: AliceHighDiskUsage
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk space usage"
+          description: "Disk usage is {{ $value }}% on {{ $labels.device }}"
+
+      # Container Restart Rate
+      - alert: AliceHighRestartRate
+        expr: increase(docker_container_restart_count[1h]) > 3
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container restarting frequently"
+          description: "Container {{ $labels.name }} has restarted {{ $value }} times in the last hour"
+
+  - name: alice-performance
+    rules:
+      # SLA Violation - Overall System Performance
+      - alert: AliceSLAViolation
+        expr: |
+          (
+            (alice_final_latency_ms_p95 > 3000) or
+            (alice_first_token_ms_p95 > 1500) or
+            ((alice_cache_hits / (alice_cache_hits + alice_cache_misses)) < 0.8) or
+            ((alice_tool_validation_failed / alice_tool_calls_attempted) > 0.05)
+          )
+        for: 5m
+        labels:
+          severity: critical
+          component: sla
+        annotations:
+          summary: "Alice SLA violation"
+          description: "One or more SLA metrics are exceeding defined thresholds"
+
+      # Quality Degradation
+      - alert: AliceQualityDegradation
+        expr: |
+          (
+            rate(alice_llm_hits[5m]) < 0.1 and
+            rate(alice_router_hits[5m]) > 1
+          )
+        for: 3m
+        labels:
+          severity: warning
+          component: quality
+        annotations:
+          summary: "Alice quality degradation detected"
+          description: "High router usage with low LLM engagement suggests quality issues"

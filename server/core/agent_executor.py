@@ -389,31 +389,5 @@ class AgentExecutor:
             logger.error(f"Error during retry logic: {e}")
             return previous_result
     
-    def _create_retry_step(self, original_step: AgentStep, original_action: Any, retry_context: Dict[str, Any]) -> AgentStep:
-        """Skapa en modifierad version av steget för retry"""
-        # Clone the original step
-        retry_step = AgentStep(
-            step_id=f"{original_step.step_id}_retry_{retry_context['retry_attempt']}",
-            step_type=original_step.step_type,
-            parameters=original_step.parameters.copy() if original_step.parameters else {},
-            expected_outputs=original_step.expected_outputs
-        )
-        
-        # Modify parameters for retry (increase timeouts, change strategy)
-        if retry_step.parameters:
-            # Increase timeout if available
-            if 'timeout' in retry_step.parameters:
-                retry_step.parameters['timeout'] = min(
-                    retry_step.parameters['timeout'] * 1.5, 
-                    30.0  # Max 30 seconds
-                )
-            
-            # Add retry-specific parameters
-            retry_step.parameters['retry_attempt'] = retry_context['retry_attempt']
-            retry_step.parameters['previous_error'] = retry_context['previous_error']
-        
-        # Preserve original action reference
-        retry_step.original_plan_step = original_action
-        retry_step.context = retry_context
-        
-        return retry_step
+    # Removed incomplete _create_retry_step method - AgentStep class doesn't exist
+    # TODO: Implement proper retry logic if needed in the future

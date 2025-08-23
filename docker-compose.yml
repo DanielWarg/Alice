@@ -1,0 +1,139 @@
+# Alice AI - Docker Compose Configuration
+# Production-ready multi-service setup with health checks and monitoring
+
+version: '3.8'
+
+services:
+  alice-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: alice-backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/alice.db}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
+      - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET}
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
+      - TTS_CACHE_MAX_SIZE_MB=${TTS_CACHE_MAX_SIZE_MB:-500}
+      - TTS_CACHE_EXPIRY_HOURS=${TTS_CACHE_EXPIRY_HOURS:-168}
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-5}
+      - DB_POOL_MAX_OVERFLOW=${DB_POOL_MAX_OVERFLOW:-10}
+      - DB_POOL_TIMEOUT=${DB_POOL_TIMEOUT:-30}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - alice-data:/app/data
+      - alice-models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - alice-network
+    depends_on:
+      - alice-db
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  alice-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: alice-frontend
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://alice-backend:8000}
+      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://alice-backend:8000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - alice-network
+    depends_on:
+      alice-backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  alice-db:
+    image: postgres:15-alpine
+    container_name: alice-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-alice}
+      - POSTGRES_USER=${POSTGRES_USER:-alice}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-alice_secure_password}
+    volumes:
+      - alice-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alice}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    networks:
+      - alice-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Monitoring and observability
+  alice-monitoring:
+    image: prom/prometheus:latest
+    container_name: alice-monitoring
+    restart: unless-stopped
+    ports:
+      - "${MONITORING_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - alice-prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - alice-network
+    profiles:
+      - monitoring
+
+volumes:
+  alice-data:
+    driver: local
+  alice-models:
+    driver: local
+  alice-postgres:
+    driver: local
+  alice-prometheus:
+    driver: local
+
+networks:
+  alice-network:
+    driver: bridge

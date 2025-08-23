@@ -1,0 +1,46 @@
+# Alice AI - Prometheus Configuration
+# Monitoring and alerting setup with performance thresholds
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules
+rule_files:
+  - "alice_alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Alice Backend Metrics
+  - job_name: 'alice-backend'
+    static_configs:
+      - targets: ['alice-backend:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    
+  # Alice Frontend Metrics (if available)
+  - job_name: 'alice-frontend'
+    static_configs:
+      - targets: ['alice-frontend:3000']
+    metrics_path: '/api/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # System monitoring
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    
+  # Database monitoring
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s

@@ -20,14 +20,17 @@ DATABASE_URL = os.getenv(
 
 # Create SQLAlchemy engine
 if DATABASE_URL.startswith("sqlite"):
-    # SQLite-specific configuration
+    # SQLite-specific configuration with enhanced connection pooling
     engine = create_engine(
         DATABASE_URL,
         connect_args={
             "check_same_thread": False,
-            "timeout": 30
+            "timeout": 30,
+            "isolation_level": None  # Enables autocommit mode for better concurrency
         },
         poolclass=StaticPool,
+        pool_pre_ping=True,  # Test connections before use
+        pool_recycle=3600,   # Recycle connections after 1 hour
         echo=os.getenv("SQL_DEBUG", "0") == "1"
     )
     
@@ -43,11 +46,14 @@ if DATABASE_URL.startswith("sqlite"):
         cursor.close()
         
 else:
-    # PostgreSQL/MySQL configuration
+    # PostgreSQL/MySQL configuration with enhanced connection pooling
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
         pool_recycle=300,
+        pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
+        max_overflow=int(os.getenv("DB_POOL_MAX_OVERFLOW", "10")),
+        pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "30")),
         echo=os.getenv("SQL_DEBUG", "0") == "1"
     )
 
