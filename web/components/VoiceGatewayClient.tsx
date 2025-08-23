@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 
 // Types for Voice-Gateway Protocol
 interface VoiceGatewayClientProps {
@@ -43,18 +43,28 @@ interface VoiceGatewayMessage {
   [key: string]: any
 }
 
-export default function VoiceGatewayClient({
-  personality = 'alice',
-  emotion = 'friendly', 
-  voiceQuality = 'medium',
-  className = '',
-  onTranscript,
-  onError,
-  onConnectionChange,
-  onEnergyLevel,
-  onVoiceState,
-  onIntentRoute
-}: VoiceGatewayClientProps) {
+// Exposed methods interface for imperative handle
+export interface VoiceGatewayHandle {
+  start: () => Promise<void>
+  stop: () => void
+  interrupt: () => void
+  connectionState: ConnectionState
+  voiceState: VoiceState
+}
+
+const VoiceGatewayClient = forwardRef<VoiceGatewayHandle, VoiceGatewayClientProps>((props, ref) => {
+  const {
+    personality = 'alice',
+    emotion = 'friendly', 
+    voiceQuality = 'medium',
+    className = '',
+    onTranscript,
+    onError,
+    onConnectionChange,
+    onEnergyLevel,
+    onVoiceState,
+    onIntentRoute
+  } = props
   // Connection and session state
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected')
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
@@ -82,6 +92,15 @@ export default function VoiceGatewayClient({
   // Voice-Gateway specific state
   const [intentRoute, setIntentRoute] = useState<IntentRoute | null>(null)
   const [latencyMetrics, setLatencyMetrics] = useState<{[key: string]: number}>({})
+  
+  // Expose methods through imperative handle
+  useImperativeHandle(ref, () => ({
+    start,
+    stop,
+    interrupt,
+    connectionState,
+    voiceState
+  }), [connectionState, voiceState])
   
   // Audio processing configuration
   const audioConfig = {
@@ -595,16 +614,21 @@ export default function VoiceGatewayClient({
   // Start Voice-Gateway client
   const start = async () => {
     try {
+      console.log('🌐 [VoiceGateway] Starting Voice-Gateway client');
       setError(null)
       
       // Connect to Voice-Gateway
+      console.log('🌐 [VoiceGateway] Connecting to Voice-Gateway WebSocket...');
       await connectToVoiceGateway()
+      console.log('🌐 [VoiceGateway] Voice-Gateway WebSocket connected');
       
       // Setup audio input
+      console.log('🌐 [VoiceGateway] Setting up audio input...');
       await setupAudioInput()
+      console.log('🌐 [VoiceGateway] Audio input setup completed');
       
     } catch (err) {
-      console.error('Failed to start Voice-Gateway client:', err)
+      console.error('❌ [VoiceGateway] Failed to start Voice-Gateway client:', err)
       setError(`Failed to start: ${err instanceof Error ? err.message : String(err)}`)
       setConnectionState('error')
       onError?.(err instanceof Error ? err.message : String(err))
@@ -874,4 +898,8 @@ export default function VoiceGatewayClient({
       </div>
     </div>
   )
-}
+})
+
+VoiceGatewayClient.displayName = 'VoiceGatewayClient'
+
+export default VoiceGatewayClient

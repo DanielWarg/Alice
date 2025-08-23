@@ -1,8 +1,11 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import { createAudioEnhancer } from '../lib/audio-enhancement.js'
 import { createVoiceActivityDetector } from '../lib/voice-activity-detection.js'
+import WaveVisualizer from './WaveVisualizer'
+import VoiceGatewayClient, { VoiceGatewayHandle } from './VoiceGatewayClient'
 
 /**
  * Alice Voice Box – Mic‑driven Visualizer
@@ -136,6 +139,11 @@ export default function VoiceBox({
 
   // Speech recognition
   const recognitionRef = useRef<any>(null)
+  
+  // VoiceGateway integration
+  const voiceGatewayRef = useRef<VoiceGatewayHandle>(null)
+  const [voiceGatewayConnected, setVoiceGatewayConnected] = useState(false)
+  const [voiceGatewayActive, setVoiceGatewayActive] = useState(false)
   const speechRecognitionRef = useRef<any>(null)
 
   // DOM & smoothing state
@@ -308,8 +316,7 @@ export default function VoiceBox({
       console.log('VoiceBox: Trying to start ambient animation')
       console.log('barsWrapRef.current:', barsWrapRef.current)
       if (barsWrapRef.current) {
-        console.log('VoiceBox: Starting beginRenderLoop')
-        beginRenderLoop() // Start ambient animation after DOM is ready
+        console.log('VoiceBox: Framer Motion handles animations automatically')
       } else {
         console.log('VoiceBox: barsWrapRef.current is null!')
       }
@@ -412,17 +419,42 @@ export default function VoiceBox({
   }
 
   function startSpeechRecognition() {
+    console.log('=== SPEECH RECOGNITION DEBUG START ===')
+    console.log('Speech Recognition Support Check:', {
+      speechRecognitionRef: !!speechRecognitionRef.current,
+      webkitSpeechRecognition: !!(window as any).webkitSpeechRecognition,
+      SpeechRecognition: !!(window as any).SpeechRecognition,
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      languages: navigator.languages,
+      isSecureContext: window.isSecureContext,
+      protocol: window.location.protocol,
+      hostname: window.location.hostname
+    })
+    
     if (!speechRecognitionRef.current) {
-      console.warn('Speech recognition not supported')
+      console.error('Speech recognition not supported in this browser')
+      setError('Rösttranskribering stöds inte i din webbläsare. Prova Chrome/Edge.')
       return
     }
 
     try {
+      console.log('Creating speech recognition instance...')
       const recognition = new speechRecognitionRef.current()
+      
+      console.log('Setting recognition properties...')
       recognition.continuous = true
       recognition.interimResults = true
       recognition.lang = 'sv-SE'
       recognition.maxAlternatives = 1
+      
+      console.log('Speech Recognition created successfully:', {
+        continuous: recognition.continuous,
+        interimResults: recognition.interimResults,
+        lang: recognition.lang,
+        maxAlternatives: recognition.maxAlternatives
+      })
       
       // Optimera för real-time processing
       recognition.serviceURI = 'wss://www.google.com/speech-api/v2/recognize'  // Explicit WebSocket
@@ -435,8 +467,10 @@ export default function VoiceBox({
       }
 
       recognition.onstart = () => {
+        console.log('=== SPEECH RECOGNITION STARTED EVENT ===')
         setIsListening(true)
-        console.log('Speech recognition started')
+        console.log('Speech recognition started successfully - event fired')
+        console.log('isListening state set to true')
       }
 
       recognition.onend = () => {
@@ -446,11 +480,25 @@ export default function VoiceBox({
 
       recognition.onerror = (event: any) => {
         const errorType = event.error
-        logVoiceEvent('error', 'Speech recognition error', { 
+        const errorDetails = {
           errorType,
           message: event.message,
-          timeStamp: event.timeStamp
-        })
+          timeStamp: event.timeStamp,
+          fullEvent: JSON.stringify(event, null, 2),
+          eventKeys: Object.keys(event || {}),
+          recognition_state: recognition.state || 'unknown',
+          recognition_lang: recognition.lang,
+          recognition_continuous: recognition.continuous,
+          recognition_interimResults: recognition.interimResults,
+          browser: navigator.userAgent.split(' ')[0],
+          timestamp: new Date().toISOString()
+        }
+        
+        console.log('=== VOICE DEBUG START ===')
+        console.log('Speech Recognition Error Event Full Details:', errorDetails)
+        console.log('=== VOICE DEBUG END ===')
+        
+        logVoiceEvent('error', 'Speech recognition error', errorDetails)
         
         // Handle specific speech recognition errors
         switch (errorType) {
@@ -494,14 +542,39 @@ export default function VoiceBox({
           // Endast skicka final results med innehåll
           const cleanTranscript = postProcessSwedishSpeech(transcript.trim())
           console.log('Voice input (final):', cleanTranscript)
-          onVoiceInput(cleanTranscript)
+          try {
+            onVoiceInput(cleanTranscript)
+            console.log('Successfully sent transcript to onVoiceInput')
+          } catch (error) {
+            console.error('Error in onVoiceInput callback:', error)
+            setError('Ett fel uppstod vid bearbetning av röstkommandot')
+          }
         }
       }
 
-      recognition.start()
-      recognitionRef.current = recognition
+      console.log('Starting speech recognition...')
+      try {
+        recognition.start()
+        recognitionRef.current = recognition
+        console.log('Speech recognition started successfully')
+        console.log('=== SPEECH RECOGNITION DEBUG END ===')
+      } catch (startError) {
+        console.error('Failed to start speech recognition (start() call):', {
+          error: startError.message,
+          stack: startError.stack,
+          name: startError.name
+        })
+        throw startError
+      }
     } catch (error) {
-      console.error('Failed to start speech recognition:', error)
+      console.error('Failed to start speech recognition (general error):', {
+        error: error.message,
+        stack: error.stack,
+        name: error.name,
+        recognition_available: !!speechRecognitionRef.current
+      })
+      console.log('=== SPEECH RECOGNITION DEBUG END (ERROR) ===')
+      setError('Kunde inte starta röstinspelning: ' + error.message)
     }
   }
 
@@ -561,10 +634,11 @@ export default function VoiceBox({
         const cell = children[i] as HTMLElement
         const barEl = cell.querySelector('.bar') as HTMLElement | null
         if (barEl) {
-          // Ambient animation - extremely slow zen breathing like hibernation
-          const ambientHeight = 2.1 + 
-            Math.sin(t * 0.00001 + i * 0.1) * 0.1 + // Ultra slow primary breath
-            Math.sin(t * 0.000007 + i * 0.15) * 0.05 // Barely perceptible heart whisper
+          // "Thinking" animation - smooth neural-like activity
+          const thinkingBase = 8 + Math.sin(t * 0.0008 + i * 0.4) * 2.5 // Slow base rhythm
+          const neuralLayer1 = Math.sin(t * 0.0015 + i * 0.7) * 1.5 // Secondary neural wave
+          const neuralLayer2 = Math.sin(t * 0.0012 + i * 0.9) * 1 // Tertiary subtle wave
+          const thinkingHeight = thinkingBase + neuralLayer1 + neuralLayer2
           
           // Audio threshold - more sensitive detection
           const audioThreshold = 0.02
@@ -574,17 +648,16 @@ export default function VoiceBox({
           let opacity: number
           
           if (hasAudio) {
-            // Audio mode: scale audio data to reasonable range (6-85%)
-            const audioHeight = Math.max(6, v * 85)
-            // Smooth transition: blend with ambient when audio is low
+            // Audio mode: combine thinking base with audio data
+            const audioHeight = Math.max(15, v * 75)
+            const thinkingComponent = Math.max(8, thinkingHeight)
             const blendFactor = Math.min(1, (v - audioThreshold) / 0.03)
-            const ambientComponent = Math.max(1, Math.min(6, ambientHeight))
-            finalHeight = ambientComponent + (audioHeight - ambientComponent) * blendFactor
+            finalHeight = thinkingComponent + (audioHeight - thinkingComponent) * blendFactor
             opacity = 0.6 + v * 0.4 // Higher opacity for audio response
           } else {
-            // Ambient mode: barely perceptible zen state
-            finalHeight = Math.max(2, Math.min(2.3, ambientHeight))
-            opacity = 0.15 + Math.sin(t * 0.000005 + i * 0.2) * 0.02 // Almost imperceptible
+            // Thinking mode: smooth neural-like activity
+            finalHeight = Math.max(5, thinkingHeight)
+            opacity = 0.3 + Math.sin(t * 0.0018 + i * 0.6) * 0.2 // Smooth opacity waves
           }
           
           // Debug first bar och audio metrics (mindre frekvent)
@@ -878,135 +951,114 @@ export default function VoiceBox({
     window.speechSynthesis.speak(utterance)
   }
 
+  // VoiceGateway control functions
+  const startVoiceGateway = async () => {
+    try {
+      console.log('🎙️ [VoiceBox] Starting VoiceGateway from mic button');
+      console.log('🎙️ [VoiceBox] voiceGatewayRef.current:', !!voiceGatewayRef.current);
+      
+      if (voiceGatewayRef.current) {
+        console.log('🎙️ [VoiceBox] Calling voiceGatewayRef.current.start()');
+        await voiceGatewayRef.current.start();
+        console.log('🎙️ [VoiceBox] VoiceGateway start completed');
+        setVoiceGatewayActive(true);
+        setLive(true);
+      } else {
+        console.error('❌ [VoiceBox] VoiceGatewayClient ref not available');
+        setError('VoiceGateway inte tillgänglig');
+      }
+    } catch (error) {
+      console.error('❌ [VoiceBox] Failed to start VoiceGateway:', error);
+      setError('Kunde inte starta röstgateway: ' + error.message);
+      setVoiceGatewayActive(false);
+      setLive(false);
+    }
+  };
+
+  const stopVoiceGateway = async () => {
+    try {
+      console.log('Stopping VoiceGateway from mic button');
+      if (voiceGatewayRef.current) {
+        voiceGatewayRef.current.stop();
+        setVoiceGatewayActive(false);
+        setLive(false);
+      }
+    } catch (error) {
+      console.error('Failed to stop VoiceGateway:', error);
+    }
+  };
+
   return (
     <div className="w-full max-w-3xl mx-auto select-none" role="region" aria-label="Voice visualizer" data-testid="voice-box-container">
       <div className="relative rounded-2xl p-6 bg-cyan-950/20 border border-cyan-500/20 shadow-[0_0_60px_-20px_rgba(34,211,238,.5)]" data-testid="voice-box-panel">
-        {/* Bars */}
-        <div
-          ref={barsWrapRef}
-          className="relative grid grid-cols-5 gap-px items-end justify-center h-40 md:h-48"
-          style={{ gridTemplateColumns: `repeat(${bars}, minmax(0,1fr))` }}
-          data-testid="voice-box-bars"
-          role="img"
-          aria-label="Voice activity visualizer"
-        >
-          {Array.from({ length: bars }).map((_, i) => (
-            <div key={i} className="relative h-full flex items-end justify-center" data-testid={`voice-box-bar-${i}`}>
-              {/* Inner bar at half width; starts as 1px line, grows with audio */}
-              <div
-                className="bar w-1/2 rounded-full"
-                data-testid={`voice-box-bar-element-${i}`}
-                style={{
-                  height: '2px',
-                  transition: 'height 60ms ease-out, opacity 80ms ease-out',  // Smoother transitions for ambient animation
-                  background: 'linear-gradient(180deg, #67e8f9 0%, #22d3ee 40%, #06b6d4 100%)',
-                  boxShadow: '0 0 22px rgba(34, 211, 238, 0.55), inset 0 -10px 18px rgba(0,0,0,0.35)'
-                }}
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* Controls */}
-        <div className="mt-5 flex flex-col gap-3">
-          <div className="flex items-center justify-center gap-3">
-            {!live ? (
-              <button
-                onClick={start}
-                className="px-4 py-2 rounded-xl bg-cyan-500/90 text-black font-medium hover:bg-cyan-400 active:scale-[0.98] transition"
-                data-testid="voice-box-start"
-              >
-                Starta mic
-              </button>
-            ) : (
-              <button
-                onClick={stop}
-                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-100 font-medium hover:bg-zinc-700 active:scale-[0.98] transition"
-                data-testid="voice-box-stop"
-              >
-                Stoppa
-              </button>
-            )}
-            <button
-              onClick={testEnhancedTTS}
-              className="px-3 py-1 rounded-lg bg-purple-500/80 text-white text-sm font-medium hover:bg-purple-400 active:scale-[0.98] transition"
-              data-testid="voice-box-test-tts"
+        {/* Status Mic Icon - Top Right */}
+        <div className="absolute top-4 right-4 z-10">
+          <button 
+            onClick={voiceGatewayActive ? stopVoiceGateway : startVoiceGateway}
+            className={`
+              relative w-5 h-5 transition-all duration-300 cursor-pointer hover:scale-110
+              ${voiceGatewayActive ? 'text-red-500 animate-pulse' : 'text-gray-500/60 hover:text-gray-400'}
+            `}
+            title={voiceGatewayActive ? 'Stoppa röstgateway' : 'Starta röstgateway'}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-full h-full"
             >
-              Test TTS
-            </button>
-            <span className={`text-xs ${live ? 'text-cyan-400' : 'text-zinc-500'}`} data-testid="voice-box-status">{live ? 'LIVE' : 'AV'}</span>
-          </div>
-          
-          {/* Voice Settings Info */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-center gap-4 text-xs text-zinc-400">
-              <span>Personlighet: <span className="text-cyan-400">{personality}</span></span>
-              <span>Känsla: <span className="text-purple-400">{emotion}</span></span>
-              <span>Kvalitet: <span className="text-green-400">{voiceQuality}</span></span>
-            </div>
-            
-            {/* Quick Settings */}
-            <div className="flex items-center justify-center gap-2 text-xs">
-              <select 
-                value={personality}
-                onChange={(e) => {
-                  // Note: This would need to be passed as a prop to actually change
-                  console.log('Personality change:', e.target.value)
-                }}
-                className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
-                data-testid="voice-box-personality-select"
-              >
-                <option value="alice">Alice</option>
-                <option value="formal">Formell</option>
-                <option value="casual">Casual</option>
-              </select>
-              
-              <select 
-                value={emotion}
-                onChange={(e) => {
-                  console.log('Emotion change:', e.target.value)
-                }}
-                className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
-                data-testid="voice-box-emotion-select"
-              >
-                <option value="neutral">Neutral</option>
-                <option value="happy">Glad</option>
-                <option value="calm">Lugn</option>
-                <option value="confident">Självsäker</option>
-                <option value="friendly">Vänlig</option>
-              </select>
-              
-              <select 
-                value={voiceQuality}
-                onChange={(e) => {
-                  console.log('Quality change:', e.target.value)
-                }}
-                className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
-                data-testid="voice-box-quality-select"
-              >
-                <option value="medium">Medium</option>
-                <option value="high">Hög</option>
-              </select>
-            </div>
-          </div>
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+            {voiceGatewayActive && (
+              <div className="absolute -inset-1 rounded-full bg-red-500/20 animate-ping" />
+            )}
+          </button>
+        </div>
+        {/* Wave Visualizer */}
+        <div className="h-20 md:h-24" data-testid="voice-box-bars">
+          <WaveVisualizer 
+            isActive={voiceGatewayActive}
+            className="w-full h-full"
+          />
         </div>
 
-        {error && (
-          <div className="mt-3 text-center text-sm text-red-400" data-testid="voice-box-error">{error}</div>
-        )}
-        
-        {ttsStatus && (
-          <div className="mt-2 text-center text-sm text-purple-400" data-testid="voice-box-tts-status">{ttsStatus}</div>
-        )}
-        
-        {voiceInfo && (
-          <div className="mt-2 text-center text-xs text-zinc-500">
-            {voiceInfo.voices?.length || 0} röstmodeller tillgängliga
-          </div>
-        )}
-        
         {/* Inner ring to match Alice HUD Pane style */}
         <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-cyan-300/10" />
+        
+        {/* Hidden VoiceGatewayClient for backend integration */}
+        <div style={{ display: 'none' }}>
+          <VoiceGatewayClient
+            ref={voiceGatewayRef}
+            onTranscript={(text, isFinal) => {
+              if (isFinal && onVoiceInput) {
+                onVoiceInput(text);
+              }
+            }}
+            onError={(error) => {
+              console.error('VoiceGatewayClient error:', error);
+              setError('Röstgateway fel: ' + error);
+              setVoiceGatewayActive(false);
+            }}
+            onConnectionChange={(connected) => {
+              console.log('VoiceGateway connection:', connected);
+              setVoiceGatewayConnected(connected);
+            }}
+            onVoiceState={(state) => {
+              console.log('VoiceGateway state:', state);
+              // Update active state based on voice state
+              setVoiceGatewayActive(state === 'listening' || state === 'processing' || state === 'thinking');
+            }}
+            personality={personality}
+            emotion={emotion}
+            voiceQuality={voiceQuality}
+          />
+        </div>
       </div>
     </div>
   )

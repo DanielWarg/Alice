@@ -8,6 +8,7 @@
 import React, { useEffect, useMemo, useRef, useState, useContext, createContext, useId } from "react";
 import VoiceBox from '../components/VoiceBox';
 import VoiceClient from './components/VoiceClient';
+import VoiceGatewayClient from '../components/VoiceGatewayClient';
 import CalendarWidget from '../components/CalendarWidget';
 import DocumentUpload from '../components/DocumentUpload';
 
@@ -528,12 +529,31 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
       }
       
       // Send to Alice backend
-      const body = { type: "USER_QUERY", payload: { query: q } };
-      await fetch("http://127.0.0.1:8000/api/jarvis/command", { 
-        method: "POST", 
-        headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify(body) 
-      });
+      const body = { message: q, type: "voice" };
+      console.log('Sending voice command to backend:', body);
+      
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/alice/command", { 
+          method: "POST", 
+          headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify(body) 
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('Backend response:', result);
+      } catch (fetchError) {
+        console.error('Fetch error details:', {
+          error: fetchError.message,
+          stack: fetchError.stack,
+          body: body,
+          url: "http://127.0.0.1:8000/api/alice/command"
+        });
+        throw fetchError;
+      }
       
       // Prepare context data
       const contextData = {
@@ -605,70 +625,6 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
 
   return (
     <div className="relative w-full max-w-4xl mx-auto">
-      {/* Voice Mode Toggle - Mobile Responsive */}
-      <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="text-sm text-cyan-300/80 font-medium">Röstläge:</div>
-          <div className="flex items-center gap-1 bg-cyan-900/20 border border-cyan-400/20 rounded-lg p-1">
-            <button
-              onClick={() => dispatch({ type: "SET_VOICE_MODE", mode: 'basic' })}
-              className={`px-2 sm:px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                voiceMode === 'basic' 
-                  ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/30' 
-                  : 'text-cyan-400/70 hover:text-cyan-300'
-              }`}
-            >
-              <span className="hidden sm:inline">VoiceBox (Grundläggande)</span>
-              <span className="sm:hidden">VoiceBox</span>
-            </button>
-            <button
-              onClick={() => dispatch({ type: "SET_VOICE_MODE", mode: 'advanced' })}
-              className={`px-2 sm:px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                voiceMode === 'advanced' 
-                  ? 'bg-purple-500/20 text-purple-200 border border-purple-400/30' 
-                  : 'text-cyan-400/70 hover:text-cyan-300'
-              }`}
-            >
-              <span className="hidden sm:inline">VoiceClient (Avancerad)</span>
-              <span className="sm:hidden">VoiceClient</span>
-            </button>
-          </div>
-        </div>
-        
-        {/* Voice Settings - Mobile Responsive */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <select 
-            value={voiceSettings.personality}
-            onChange={(e) => setVoiceSettings(prev => ({ ...prev, personality: e.target.value }))}
-            className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
-          >
-            <option value="alice">Alice</option>
-            <option value="formal">Formell</option>
-            <option value="casual">Casual</option>
-          </select>
-          
-          <select 
-            value={voiceSettings.emotion}
-            onChange={(e) => setVoiceSettings(prev => ({ ...prev, emotion: e.target.value }))}
-            className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
-          >
-            <option value="neutral">Neutral</option>
-            <option value="happy">Glad</option>
-            <option value="calm">Lugn</option>
-            <option value="confident">Självsäker</option>
-            <option value="friendly">Vänlig</option>
-          </select>
-          
-          <select 
-            value={voiceSettings.voiceQuality}
-            onChange={(e) => setVoiceSettings(prev => ({ ...prev, voiceQuality: e.target.value }))}
-            className="px-2 py-1 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs"
-          >
-            <option value="medium">Medium</option>
-            <option value="high">Hög</option>
-          </select>
-        </div>
-      </div>
 
       {/* Voice Components */}
       {voiceMode === 'basic' ? (
