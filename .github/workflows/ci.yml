@@ -111,6 +111,40 @@ jobs:
           bandit -r . -f json -o bandit-report.json || true
           bandit -r . -f txt
 
+      - name: Generate and validate OpenAPI schema
+        run: |
+          cd server
+          python -c "
+          from app import app
+          import json
+          import os
+          
+          # Generate OpenAPI schema
+          openapi_schema = app.openapi()
+          
+          # Save schema to file
+          with open('openapi.json', 'w') as f:
+              json.dump(openapi_schema, f, indent=2)
+          
+          # Basic validation
+          required_fields = ['openapi', 'info', 'paths']
+          for field in required_fields:
+              assert field in openapi_schema, f'Missing required field: {field}'
+          
+          # Validate endpoints exist
+          paths = openapi_schema['paths']
+          assert '/api/health' in paths, 'Missing /api/health endpoint'
+          assert '/api/metrics' in paths, 'Missing /api/metrics endpoint'
+          
+          print('✅ OpenAPI schema validation passed')
+          print(f'Schema includes {len(paths)} endpoints')
+          print('Generated endpoints:')
+          for path in paths:
+              print(f'  - {path}')
+          "
+        env:
+          PYTHONPATH: ${{ github.workspace }}/server
+
       - name: Run tests with coverage
         run: |
           cd server
@@ -162,6 +196,7 @@ jobs:
             server/coverage.xml
             server/coverage.json
             server/coverage-badge.svg
+            server/openapi.json
           retention-days: 30
 
   # Web Frontend CI
@@ -293,6 +328,16 @@ jobs:
           cd alice-tools
           npm ci
 
+      - name: Lint with ESLint
+        run: |
+          cd alice-tools
+          npm run lint
+
+      - name: Check code formatting
+        run: |
+          cd alice-tools
+          npm run format -- --check
+
       - name: Type checking
         run: |
           cd alice-tools
@@ -348,6 +393,16 @@ jobs:
         run: |
           cd nlu-agent
           npm ci
+
+      - name: Lint with ESLint
+        run: |
+          cd nlu-agent
+          npm run lint
+
+      - name: Check code formatting
+        run: |
+          cd nlu-agent
+          npm run format -- --check
 
       - name: Type checking
         run: |

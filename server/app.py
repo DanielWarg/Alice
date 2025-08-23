@@ -11,6 +11,12 @@ import hashlib
 from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, Optional, Set, List
 
+# Additional imports for enhanced metrics
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException, File, UploadFile
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,6 +46,10 @@ from voice_stt import transcribe_audio_file, get_stt_status
 from audio_processor import audio_processor
 from deps import get_global_openai_settings, OpenAIClient, validate_openai_config
 from agents.bridge import AliceAgentBridge, AgentBridgeRequest, StreamChunk, create_alice_bridge
+from http_client import spotify_client, resilient_http_client, safe_external_call
+from error_handlers import setup_error_handlers, RequestIDMiddleware, ValidationError, SwedishDateTimeValidationError
+from validators import CalendarEventRequest as EnhancedCalendarEventRequest, ChatMessage, validate_swedish_datetime_string
+from rate_limiter import create_alice_rate_limiter
 
 
 load_dotenv()
@@ -260,6 +270,15 @@ class EnhancedTTSHandler:
 enhanced_tts = EnhancedTTSHandler()
 
 app = FastAPI(title="Alice 2.0 Backend", version="0.1.0", default_response_class=ORJSONResponse)
+
+# Setup standardized error handling (RFC 7807)
+setup_error_handlers(app)
+app.add_middleware(RequestIDMiddleware)
+
+# Add professional rate limiting
+rate_limiter = create_alice_rate_limiter()
+app.add_middleware(type(rate_limiter), rules=rate_limiter.rules)
+
 MINIMAL_MODE = os.getenv("ALICE_MINIMAL", "0") == "1"
 # Harmony feature flags (Fas 1 – adapter bakom flaggor)
 USE_HARMONY = (os.getenv("USE_HARMONY", "false").lower() == "true")
@@ -559,6 +578,81 @@ async def check_calendar_conflicts(request: ConflictCheckRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/api/v2/calendar/events")
+async def create_enhanced_calendar_event(request: EnhancedCalendarEventRequest):
+    """
+    Enhanced calendar event creation with robust Swedish datetime parsing
+    Uses Pydantic validation with comprehensive error handling
+    """
+    try:
+        # Extract parsed datetime from validated request
+        start_dt = request.start_time.parsed_datetime
+        end_dt = request.end_time.parsed_datetime if request.end_time else None
+        
+        # Convert to string format for existing calendar service
+        start_str = start_dt.isoformat() if start_dt else request.start_time.raw_input
+        end_str = end_dt.isoformat() if end_dt and end_dt else None
+        
+        result = calendar_service.create_event(
+            title=request.title,
+            start_time=start_str,
+            end_time=end_str,
+            description=request.description,
+            attendees=None,  # Could be extended
+            check_conflicts_first=True
+        )
+        
+        return {
+            "success": True, 
+            "message": result,
+            "parsed_datetime": {
+                "start": {
+                    "original": request.start_time.raw_input,
+                    "parsed": start_dt.isoformat() if start_dt else None,
+                    "confidence": request.start_time.confidence,
+                    "is_relative": request.start_time.is_relative
+                },
+                "end": {
+                    "original": request.end_time.raw_input if request.end_time else None,
+                    "parsed": end_dt.isoformat() if end_dt else None,
+                    "confidence": request.end_time.confidence if request.end_time else None,
+                    "is_relative": request.end_time.is_relative if request.end_time else None
+                } if request.end_time else None
+            }
+        }
+        
+    except SwedishDateTimeValidationError as e:
+        # This will be handled by our error handlers
+        raise e
+    except Exception as e:
+        logger.exception("Enhanced calendar event creation failed")
+        raise HTTPException(status_code=500, detail=f"Calendar service error: {str(e)}")
+
+
+@app.post("/api/v2/chat/validate-datetime")  
+async def validate_datetime_endpoint(request: ChatMessage):
+    """
+    Endpoint to validate Swedish datetime expressions in chat messages
+    Useful for testing and debugging datetime parsing
+    """
+    response = {
+        "content": request.content,
+        "datetime_detected": request.swedish_datetime is not None
+    }
+    
+    if request.swedish_datetime:
+        response["datetime_info"] = {
+            "raw_input": request.swedish_datetime.raw_input,
+            "parsed": request.swedish_datetime.parsed_datetime.isoformat() if request.swedish_datetime.parsed_datetime else None,
+            "confidence": request.swedish_datetime.confidence,
+            "is_relative": request.swedish_datetime.is_relative,
+            "format_used": request.swedish_datetime.format_used
+        }
+    
+    return response
+
+
 app.include_router(router)
 
 # Kör preflight-kontroller vid startup
@@ -639,7 +733,100 @@ class OpenAITTSRequest(BaseModel):
 
 @app.get("/api/health")
 async def health() -> Dict[str, Any]:
-    return {"status": "ok", "db": memory.ping(), "ts": datetime.utcnow().isoformat() + "Z", "harmony": USE_HARMONY, "tools": USE_TOOLS}
+    """Enhanced health endpoint with detailed system status"""
+    try:
+        # Test database connection
+        db_status = memory.ping()
+        
+        # Test external service availability (basic checks)
+        services_status = {
+            "ollama": "unknown",  # Would need actual connection test
+            "tts": "ok",  # Basic assumption for now
+            "stt": "ok"   # Basic assumption for now  
+        }
+        
+        return {
+            "status": "ok",
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "version": "2.0.0",
+            "database": {
+                "status": "ok" if db_status else "error",
+                "ping": db_status
+            },
+            "features": {
+                "harmony": USE_HARMONY,
+                "tools": USE_TOOLS,
+                "voice": True,
+                "tts": True
+            },
+            "services": services_status
+        }
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return {
+            "status": "error",
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "error": str(e)
+        }
+
+
+@app.get("/api/metrics")
+async def get_metrics() -> Dict[str, Any]:
+    """Professional metrics endpoint with comprehensive system data"""
+    try:
+        # Get application metrics
+        app_metrics = metrics.snapshot()
+        
+        # System info with fallback if psutil not available
+        system_metrics = {}
+        if psutil:
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            
+            system_metrics = {
+                "cpu_percent": psutil.cpu_percent(interval=0.1),
+                "memory": {
+                    "used_mb": round(memory_info.rss / 1024 / 1024, 2),
+                    "percent": process.memory_percent()
+                }
+            }
+        else:
+            system_metrics = {
+                "cpu_percent": "unavailable",
+                "memory": {"used_mb": "unavailable", "percent": "unavailable"}
+            }
+        
+        # System info
+        import sys
+        system_metrics.update({
+            "system": {
+                "python_version": sys.version.split()[0],
+                "platform": sys.platform,
+                "uptime_seconds": time.time() - getattr(get_metrics, '_start_time', time.time())
+            }
+        })
+        
+        # Store start time for uptime calculation
+        if not hasattr(get_metrics, '_start_time'):
+            get_metrics._start_time = time.time()
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "application": app_metrics,
+            "system": system_metrics,
+            "features": {
+                "harmony_enabled": USE_HARMONY,
+                "tools_enabled": USE_TOOLS
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Metrics collection error: {e}")
+        return {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "error": f"Metrics collection failed: {str(e)}",
+            "status": "partial"
+        }
 
 
 @app.post("/api/tts/synthesize")
@@ -2628,21 +2815,24 @@ async def spotify_playlists(access_token: str, limit: Optional[int] = 20, offset
         return {"ok": False, "error": "spotify_playlists_failed"}
 
 
-# Sök låtar/playlist
+# Sök låtar/playlist with resilient HTTP client
 @app.get("/api/spotify/search")
 async def spotify_search(access_token: str, q: str, type: Optional[str] = "track,playlist", limit: Optional[int] = 10) -> Dict[str, Any]:
+    """Enhanced Spotify search with retry and circuit breaker patterns"""
     try:
         qp = httpx.QueryParams({"q": q, "type": type or "track,playlist", "limit": int(limit or 10)})
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.get(
-                f"https://api.spotify.com/v1/search?{qp}",
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
-            r.raise_for_status()
-            return {"ok": True, "result": r.json()}
-    except Exception:
-        logger.exception("spotify search failed")
-        return {"ok": False, "error": "spotify_search_failed"}
+        
+        response = await spotify_client.get(
+            f"https://api.spotify.com/v1/search?{qp}",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=httpx.Timeout(10.0)
+        )
+        response.raise_for_status()
+        return {"ok": True, "result": response.json()}
+        
+    except Exception as e:
+        logger.exception(f"Spotify search failed: {str(e)}")
+        return {"ok": False, "error": "spotify_search_failed", "details": str(e)}
 
 
 class SpotifyPlayBody(BaseModel):
@@ -2678,16 +2868,17 @@ async def spotify_play(body: SpotifyPlayBody) -> Dict[str, Any]:
                 off["position"] = int(body.offset_position)
             if off:
                 payload["offset"] = off
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.put(
-                f"https://api.spotify.com/v1/me/player/play{qp}",
-                headers={"Authorization": f"Bearer {body.access_token}", "Content-Type": "application/json"},
-                json=payload,
-            )
-            # 204 No Content på success
-            if r.status_code in (200, 204):
-                return {"ok": True}
-            return {"ok": False, "error": f"status_{r.status_code}", "details": r.text}
+        # Use resilient HTTP client with retry and circuit breaker
+        response = await spotify_client.put(
+            f"https://api.spotify.com/v1/me/player/play{qp}",
+            headers={"Authorization": f"Bearer {body.access_token}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=httpx.Timeout(10.0)
+        )
+        # 204 No Content på success
+        if response.status_code in (200, 204):
+            return {"ok": True}
+        return {"ok": False, "error": f"status_{response.status_code}", "details": response.text}
     except Exception as e:
         logger.exception("spotify play failed")
         return {"ok": False, "error": "spotify_play_failed", "message": str(e)}

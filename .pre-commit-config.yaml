@@ -1,0 +1,200 @@
+# Alice AI Assistant - Pre-commit Configuration
+# Professional-grade code quality enforcement for multi-language codebase
+# Ensures consistent formatting, linting, and type checking across Python and TypeScript
+
+repos:
+  # Python Code Quality & Formatting
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=1024']  # Allow files up to 1MB
+      - id: debug-statements
+      - id: check-docstring-first
+      - id: check-case-conflict
+      - id: check-symlinks
+      - id: destroyed-symlinks
+
+  # Python Import Sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: isort (python)
+        args: ["--profile", "black", "--line-length=88"]
+        files: ^server/.*\.py$
+
+  # Python Code Formatting (Black)
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+        name: black (python)
+        language_version: python3
+        args: [--line-length=88]
+        files: ^server/.*\.py$
+
+  # Python Linting and Formatting (Ruff) - Modern alternative to flake8, isort, etc.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.4
+    hooks:
+      - id: ruff
+        name: ruff (python linting)
+        args: [--fix]
+        files: ^server/.*\.py$
+      - id: ruff-format
+        name: ruff (python formatting)
+        files: ^server/.*\.py$
+
+  # Python Type Checking (MyPy)
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.9.0
+    hooks:
+      - id: mypy
+        name: mypy (python type checking)
+        files: ^server/.*\.py$
+        args: [--ignore-missing-imports, --show-error-codes]
+        additional_dependencies: 
+          - types-requests
+          - types-python-dateutil
+
+  # TypeScript/JavaScript Linting (ESLint)
+  - repo: local
+    hooks:
+      - id: eslint-web
+        name: eslint (web frontend)
+        entry: bash -c 'cd web && npm run lint'
+        language: system
+        files: ^web/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+      
+      - id: eslint-alice-tools
+        name: eslint (alice-tools)
+        entry: bash -c 'cd alice-tools && npm run lint 2>/dev/null || echo "No lint script in alice-tools"'
+        language: system
+        files: ^alice-tools/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+
+      - id: eslint-nlu-agent
+        name: eslint (nlu-agent)
+        entry: bash -c 'cd nlu-agent && npm run lint 2>/dev/null || echo "No lint script in nlu-agent"'
+        language: system
+        files: ^nlu-agent/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+
+  # TypeScript Compilation Check
+  - repo: local
+    hooks:
+      - id: tsc-web
+        name: TypeScript compilation check (web)
+        entry: bash -c 'cd web && npx tsc --noEmit'
+        language: system
+        files: ^web/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      - id: tsc-alice-tools
+        name: TypeScript compilation check (alice-tools)
+        entry: bash -c 'cd alice-tools && npx tsc --noEmit'
+        language: system
+        files: ^alice-tools/.*\.ts$
+        pass_filenames: false
+
+      - id: tsc-nlu-agent
+        name: TypeScript compilation check (nlu-agent)
+        entry: bash -c 'cd nlu-agent && npx tsc --noEmit'
+        language: system
+        files: ^nlu-agent/.*\.ts$
+        pass_filenames: false
+
+  # Prettier for TypeScript/JavaScript formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        name: prettier (web formatting)
+        files: ^web/.*\.(ts|tsx|js|jsx|json|css|md)$
+        args: [--write]
+        exclude: |
+          (?x)^(
+              web/node_modules/.*|
+              web/\.next/.*|
+              web/out/.*|
+              web/build/.*
+          )$
+
+      - id: prettier
+        name: prettier (alice-tools formatting)
+        files: ^alice-tools/.*\.(ts|js|json|md)$
+        args: [--write]
+        exclude: |
+          (?x)^(
+              alice-tools/node_modules/.*|
+              alice-tools/dist/.*|
+              alice-tools/build/.*
+          )$
+
+      - id: prettier
+        name: prettier (nlu-agent formatting)
+        files: ^nlu-agent/.*\.(ts|js|json|md)$
+        args: [--write]
+        exclude: |
+          (?x)^(
+              nlu-agent/node_modules/.*|
+              nlu-agent/dist/.*|
+              nlu-agent/build/.*
+          )$
+
+  # Security: Detect secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: |
+          (?x)^(
+              .*\.lock$|
+              .*\.log$|
+              .*\.db$|
+              .*\.db-.*$|
+              .*node_modules/.*|
+              .*\.git/.*|
+              server/data/.*|
+              web/\.next/.*
+          )$
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint
+        name: markdownlint
+        args: [--fix]
+        exclude: |
+          (?x)^(
+              CHANGELOG\.md$|
+              node_modules/.*|
+              \.next/.*
+          )$
+
+  # YAML linting
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        name: yamllint
+        args: [-c=.yamllint.yml]
+
+# Global configuration
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [commit]
+
+# Minimum pre-commit version
+minimum_pre_commit_version: '3.0.0'

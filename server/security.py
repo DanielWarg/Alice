@@ -77,18 +77,44 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         
         # Content Security Policy - Prevent XSS
-        csp_policy = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "  # Allow inline scripts for dev
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: blob:; "
-            "media-src 'self' data: blob:; "
-            "connect-src 'self' ws: wss: https://api.openai.com https://api.spotify.com https://accounts.google.com; "
-            "font-src 'self'; "
-            "object-src 'none'; "
-            "base-uri 'self'; "
-            "frame-ancestors 'none'"
-        )
+        # Enhanced CSP with proper Next.js support and external API allowlist
+        is_production = os.getenv("ALICE_ENVIRONMENT", "development") == "production"
+        
+        if is_production:
+            # Stricter CSP for production
+            csp_policy = (
+                "default-src 'self'; "
+                "script-src 'self'; "
+                "style-src 'self' 'unsafe-inline'; "  # Next.js requires inline styles
+                "img-src 'self' data: blob: https:; "
+                "media-src 'self' data: blob:; "
+                "connect-src 'self' ws: wss: "
+                "https://api.openai.com https://api.spotify.com "
+                "https://accounts.google.com https://oauth2.googleapis.com; "
+                "font-src 'self' data:; "
+                "object-src 'none'; "
+                "base-uri 'self'; "
+                "frame-ancestors 'none'; "
+                "form-action 'self'; "
+                "upgrade-insecure-requests"
+            )
+        else:
+            # Development CSP (more permissive)
+            csp_policy = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: blob: https:; "
+                "media-src 'self' data: blob:; "
+                "connect-src 'self' ws: wss: "
+                "https://api.openai.com https://api.spotify.com "
+                "https://accounts.google.com https://oauth2.googleapis.com "
+                "http://localhost:* http://127.0.0.1:*; "
+                "font-src 'self' data:; "
+                "object-src 'none'; "
+                "base-uri 'self'; "
+                "frame-ancestors 'none'"
+            )
         response.headers["Content-Security-Policy"] = csp_policy
         
         # X-Frame-Options - Prevent clickjacking
@@ -111,17 +137,36 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # X-Permitted-Cross-Domain-Policies - Limit Flash/PDF policies
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
         
-        # CORS headers for allowed origins
+        # Additional modern security headers
+        response.headers["X-DNS-Prefetch-Control"] = "off"  # Disable DNS prefetching
+        response.headers["X-Download-Options"] = "noopen"   # IE download security
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"  # COEP
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"     # COOP
+        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"  # CORP
+        
+        # Server identification (minimize info disclosure)
+        response.headers["Server"] = "Alice/2.0"
+        
+        # Enhanced CORS headers for allowed origins
         origin = request.headers.get("origin")
-        if origin in self.allowed_origins:
+        if origin and origin in self.allowed_origins:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
             response.headers["Access-Control-Allow-Headers"] = (
                 "Content-Type, Authorization, X-Requested-With, "
-                "Accept, Origin, Cache-Control, X-File-Name"
+                "Accept, Origin, Cache-Control, X-File-Name, "
+                "X-Request-ID, X-CSRF-Token, X-Alice-Version"
+            )
+            response.headers["Access-Control-Expose-Headers"] = (
+                "X-Request-ID, X-Alice-Security, X-Alice-Version, "
+                "X-RateLimit-Limit, X-RateLimit-Remaining"
             )
             response.headers["Access-Control-Max-Age"] = "86400"  # 24 hours
+        elif origin:
+            # Log unauthorized origin attempts
+            logger.warning(f"CORS request from unauthorized origin: {origin} for {request.url.path}")
+            # Do not set CORS headers for unauthorized origins
         
         # Custom Alice headers for debugging (non-production)
         if os.getenv("ALICE_DEBUG", "0") == "1":

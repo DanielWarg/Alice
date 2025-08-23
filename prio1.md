@@ -35,11 +35,11 @@
 
 ## 2️⃣ **Projektmetadata & Mallar**
 
-- [ ] CONTRIBUTING.md beskriver hur man sätter upp dev-miljö, kör tester och gör PR
-- [ ] CODE_OF_CONDUCT.md finns (Contributor Covenant)
-- [ ] SECURITY.md (sårbarhetsrapportering, kontaktväg, patch-policy)
-- [ ] SUPPORT.md (hur man får hjälp, prioriteringspolicy)
-- [ ] .github/ISSUE_TEMPLATE (bug/feature) och PULL_REQUEST_TEMPLATE finns
+- [x] CONTRIBUTING.md beskriver hur man sätter upp dev-miljö, kör tester och gör PR
+- [x] CODE_OF_CONDUCT.md finns (Contributor Covenant)
+- [x] SECURITY.md (sårbarhetsrapportering, kontaktväg, patch-policy)
+- [x] SUPPORT.md (hur man får hjälp, prioriteringspolicy)
+- [x] .github/ISSUE_TEMPLATE (bug/feature) och PULL_REQUEST_TEMPLATE finns
 
 ---
 
@@ -78,10 +78,10 @@
 
 ## 6️⃣ **Bygg & Tooling**
 
-- [ ] Makefile med "make dev", "make test", "make up" (docker-compose), "make lint"
-- [ ] Pre-commit hooks (ruff/black/mypy för Python; eslint/prettier/tsc för web)
-- [ ] Strikta typer: mypy (Python) och "strict" i tsconfig (web)
-- [ ] Lint-fel blockerar merge via CI
+- [x] Makefile med "make dev", "make test", "make up" (docker-compose), "make lint"
+- [x] Pre-commit hooks (ruff/black/mypy för Python; eslint/prettier/tsc för web)
+- [x] Strikta typer: mypy (Python) och "strict" i tsconfig (web)
+- [x] Lint-fel blockerar merge via CI
 
 ---
 
@@ -127,19 +127,19 @@
 - [x] STT (Whisper): svensk modellversion, latensmål och fallback-väg (CPU/GPU)
 - [x] TTS (Piper): licenser för röster dokumenterade, cache-policy klar, volym/latensmål
 - [x] VoiceBox i HUD har data-testid och e2e-test som verifierar rendering
-- [ ] Resilience: rimlig hantering av mikrofonfel, ingen UI-crash, loggat tydligt
+- [x] Resilience: rimlig hantering av mikrofonfel, ingen UI-crash, loggat tydligt
 
 ---
 
 ## 1️⃣1️⃣ **Backend (FastAPI) & API**
 
-- [ ] /health och /metrics (minst hälsa; metrics kan vara enkel) finns
-- [ ] OpenAPI schema publiceras och valideras i CI (schema-driven)
-- [ ] Timeouts, retries, circuit-breaker (minst backoff) på externa API-anrop
-- [ ] Felhantering: standardiserat fel-schema (problem+json eller liknande)
-- [ ] Inputvalidering med pydantic; robust datum/tid-parsning (svenska)
-- [ ] CORS låst till rätt origins; HTTP-säkerhetsheaders korrekt (via middleware)
-- [ ] Rate-limit eller åtminstone skydd mot oavsiktlig spam (lokalt)
+- [x] /health och /metrics (minst hälsa; metrics kan vara enkel) finns
+- [x] OpenAPI schema publiceras och valideras i CI (schema-driven)
+- [x] Timeouts, retries, circuit-breaker (minst backoff) på externa API-anrop
+- [x] Felhantering: standardiserat fel-schema (problem+json eller liknande)
+- [x] Inputvalidering med pydantic; robust datum/tid-parsning (svenska)
+- [x] CORS låst till rätt origins; HTTP-säkerhetsheaders korrekt (via middleware)
+- [x] Rate-limit eller åtminstone skydd mot oavsiktlig spam (lokalt)
 
 ---
 
@@ -254,7 +254,7 @@
 - [x] Svensk datum/tid-parsning verifierad i test (fredag 14:00, imorgon, måndag)
 - [x] Spotify: spela/pausa/sök testade med stub och minst ett "riktigt" smoke (nightly)
 - [x] Gmail/Calendar: scope och felhantering verifierade; inga tokens i logg
-- [ ] HUD: voicebox och calendar-widget har data-testid och går igenom Playwright-spec
+- [x] HUD: voicebox och calendar-widget har data-testid och går igenom Playwright-spec
 
 ---
 
@@ -281,16 +281,16 @@
 | Category | Progress | Priority | Estimated Hours |
 |----------|----------|----------|-----------------|
 | 1. Repo & Branching | 6/6 | ✅ Complete | 4h |
-| 2. Project Metadata | 0/5 | 🟡 High | 6h |
+| 2. Project Metadata | 5/5 | ✅ Complete | 6h |
 | 3. Documentation | 0/8 | 🟡 High | 12h |
 | 4. Configuration & Secrets | 5/5 | ✅ Complete | 8h |
 | 5. Dependencies & Supply Chain | 0/5 | 🟡 High | 6h |
-| 6. Build & Tooling | 0/4 | 🟡 High | 4h |
+| 6. Build & Tooling | 4/4 | ✅ Complete | 4h |
 | 7. CI/CD | 6/6 | ✅ Complete | 10h |
 | 8. Test Strategy | 8/8 | ✅ Complete | 16h |
 | 9. NLU/ML Quality | 7/7 | ✅ Complete | 12h |
-| 10. Voice Chain & Audio | 0/5 | 🟡 High | 8h |
-| 11. Backend & API | 0/7 | 🟡 High | 10h |
+| 10. Voice Chain & Audio | 5/5 | ✅ Complete | 8h |
+| 11. Backend & API | 7/7 | ✅ Complete | 10h |
 | 12. Tool Router & Permissions | 0/4 | 🟡 High | 6h |
 | 13. Integrations | 0/5 | 🟡 High | 8h |
 | 14. Frontend HUD | 0/6 | 🟡 High | 12h |
@@ -302,7 +302,7 @@
 | 20. Quality Assurance | 4/4 | ✅ Complete | 4h |
 | 21. SRE & Operations | 0/4 | 🟢 Medium | 6h |
 | 22. Legal & Communication | 0/3 | 🟢 Medium | 2h |
-| 23. Alice-Specific Controls | 0/6 | 🔴 Critical | 12h |
+| 23. Alice-Specific Controls | 6/6 | ✅ Complete | 12h |
 | 24. Metrics/KPI | 0/4 | 🟡 High | 4h |
 | 25. Final Cleanup | 0/4 | 🟡 High | 4h |
 
