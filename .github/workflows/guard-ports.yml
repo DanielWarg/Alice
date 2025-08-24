@@ -1,0 +1,13 @@
+name: guard-ports
+on: [pull_request]
+jobs:
+  no-3001:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail if port 3001 appears
+        run: |
+          if grep -RIn "3001" web docs server | grep -v ".env" ; then
+            echo "Found stray port 3001. Standard is 3000."; exit 1
+          fi
+          echo "✅ Port consistency OK"
