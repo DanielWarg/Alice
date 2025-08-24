@@ -17,7 +17,7 @@ Alice API consists of several main components:
 
 **Base URLs (Current Implementation):**
 - Backend API: `http://localhost:8000` (FastAPI server)
-- Frontend: `http://localhost:3001` (Next.js development server)
+- Frontend: `http://localhost:3000` (Next.js development server)
 - WebSocket: `ws://localhost:8000/ws/alice`
 - Voice Gateway: `ws://localhost:8000/ws/voice-gateway` (in development)
 

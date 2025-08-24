@@ -447,7 +447,7 @@ netstat -tulpn | grep -E ":3000|:8000"
 
 # Change ports if needed:
 # Backend: PORT=8001 python run.py
-# Frontend: PORT=3001 npm run dev
+# Frontend: PORT=3000 npm run dev
 ```
 
 **3. CORS Configuration**
@@ -457,7 +457,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

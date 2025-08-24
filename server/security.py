@@ -24,9 +24,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Default to localhost for development, configurable for production
         self.allowed_origins = allowed_origins or [
             "http://localhost:3000",
-            "http://localhost:3001", 
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:3001"
+            "http://127.0.0.1:3000"
         ]
         
         # Add production origins from environment
@@ -268,7 +266,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
 def get_security_config() -> Dict[str, str]:
     """Get security configuration from environment"""
     return {
-        "allowed_origins": os.getenv("ALICE_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001"),
+        "allowed_origins": os.getenv("ALICE_ALLOWED_ORIGINS", "http://localhost:3000"),
         "force_https": os.getenv("FORCE_HTTPS_HEADERS", "0"),
         "debug_mode": os.getenv("ALICE_DEBUG", "0"),
         "csrf_exempt_paths": os.getenv("CSRF_EXEMPT_PATHS", "/health,/metrics,/api/docs")

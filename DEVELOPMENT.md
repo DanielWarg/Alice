@@ -391,7 +391,7 @@ Alice's voice system now supports:
 
 **Test TTS:**
 1. Start Alice (`./start_alice.sh`)
-2. Open http://localhost:3001
+2. Open http://localhost:3000
 3. Click "Test TTS" in VoiceBox
 4. Test different personalities and emotions
 

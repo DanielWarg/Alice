@@ -100,6 +100,11 @@ Related to #
 - [ ] API endpoints are properly secured
 - [ ] Environment variables are used for secrets
 
+## 🔧 Technical Standards Checklist
+- [ ] Port consistency: Frontend uses 3000, Backend uses 8000 (no 3001 references)
+- [ ] No hardcoded credentials or API keys in code
+- [ ] Only .env.example files with placeholders committed
+
 ## 📊 Performance Impact
 <!-- Describe any performance implications -->
 

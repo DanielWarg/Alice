@@ -85,7 +85,7 @@ cd web
 npm run dev
 ```
 
-Öppna http://localhost:3001, klicka på mikrofon-knappen, säg "Hej Alice" på svenska.
+Öppna http://localhost:3000, klicka på mikrofon-knappen, säg "Hej Alice" på svenska.
 
 ## 📞 **Contact & Questions**
 

@@ -107,7 +107,7 @@ cd server && python run.py --demo &
 cd ../web && npm install && npm run dev
 ```
 
-**🎉 Open [http://localhost:3001](http://localhost:3001) and say "Hej Alice!"**
+**🎉 Open [http://localhost:3000](http://localhost:3000) and say "Hej Alice!"**
 
 > **Prerequisites**: Python 3.9+, Node.js 18+, and Ollama with `gpt-oss:20b` ([setup guide](VOICE_SETUP.md))
 
