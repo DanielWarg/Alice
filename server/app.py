@@ -47,6 +47,8 @@ from intent_router import get_intent_router
 from voice_stt import transcribe_audio_file, get_stt_status
 from audio_processor import audio_processor, voice_gateway_audio_processor
 from deps import get_global_openai_settings, OpenAIClient, validate_openai_config
+from services import probe_api
+from services import voice_gateway as voice_gateway_service
 from agents.bridge import AliceAgentBridge, AgentBridgeRequest, StreamChunk, create_alice_bridge
 from http_client import spotify_client, resilient_http_client, safe_external_call
 from error_handlers import setup_error_handlers, RequestIDMiddleware, ValidationError, SwedishDateTimeValidationError
@@ -730,6 +732,12 @@ async def validate_datetime_endpoint(request: ChatMessage):
 
 
 app.include_router(router)
+
+# Include new service APIs
+app.include_router(probe_api.router)
+
+# Setup VoiceGateway WebSocket route
+voice_gateway_service.setup(app)
 
 # Kör preflight-kontroller vid startup
 @app.on_event("startup")
@@ -1991,6 +1999,66 @@ async def voice_gateway_websocket(websocket: WebSocket, session_id: str):
     """
     voice_gateway_mgr = get_voice_gateway_manager(memory)
     await voice_gateway_mgr.handle_voice_gateway_session(websocket, session_id)
+
+# Alias endpoint for /ws/voice-gateway (without session_id) - auto-generates session
+@app.websocket("/ws/voice-gateway")
+async def voice_gateway_websocket_alias(websocket: WebSocket):
+    """
+    Voice-Gateway WebSocket alias endpoint - auto-generates session_id
+    Maintains compatibility with frontend VoiceGatewayClient
+    """
+    import uuid
+    session_id = f"vgw_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+    logging.info(f"Voice Gateway WebSocket connection - auto-generated session: {session_id}")
+    
+    voice_gateway_mgr = get_voice_gateway_manager(memory)
+    await voice_gateway_mgr.handle_voice_gateway_session(websocket, session_id)
+
+# Status endpoint for voice gateway
+@app.get("/api/voice-gateway/status")
+async def voice_gateway_status():
+    """Voice Gateway status endpoint"""
+    return JSONResponse({
+        "ok": True, 
+        "service": "voice-gateway",
+        "ts": int(time.time()),
+        "endpoints": [
+            "/ws/voice-gateway",
+            "/ws/voice-gateway/{session_id}",
+            "/ws/alice"
+        ]
+    })
+
+# Simple calendar endpoint for frontend
+@app.get("/api/calendar/today")
+async def calendar_today():
+    """Simple calendar endpoint returning demo data"""
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    
+    # Demo events for testing
+    demo_events = [
+        {
+            "id": "demo-1",
+            "title": "Morning standup",
+            "start": (now.replace(hour=9, minute=0, second=0, microsecond=0)).isoformat(),
+            "end": (now.replace(hour=9, minute=30, second=0, microsecond=0)).isoformat(),
+            "location": "Teams"
+        },
+        {
+            "id": "demo-2", 
+            "title": "Alice development session",
+            "start": (now.replace(hour=10, minute=0, second=0, microsecond=0)).isoformat(),
+            "end": (now.replace(hour=12, minute=0, second=0, microsecond=0)).isoformat(),
+            "location": "Dev environment"
+        }
+    ]
+    
+    return JSONResponse({
+        "ok": True,
+        "events": demo_events,
+        "date": now.isoformat()[:10]
+    })
 
 
 class ActBody(BaseModel):
