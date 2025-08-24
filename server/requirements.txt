@@ -13,6 +13,8 @@ google-auth-oauthlib
 pytz
 faster-whisper
 cryptography
+numpy
+openai
 
 # Authentication & Security
 sqlalchemy

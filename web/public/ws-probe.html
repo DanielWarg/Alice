@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8"/>
+<title>WS Probe</title>
+<script>
+(async () => {
+  const url = (new URLSearchParams(location.search)).get('url') || 'ws://127.0.0.1:8000/ws/voice-gateway';
+  const ws = new WebSocket(url);
+  ws.onopen = () => console.log('OPEN OK', url);
+  ws.onmessage = (e) => console.log('MSG', e.data);
+  ws.onerror = (e) => console.error('ERR', e);
+  ws.onclose = () => console.log('CLOSE');
+})();
+</script>
+<body>Open console (F12). Add ?url=ws://… to test another path.</body>

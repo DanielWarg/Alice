@@ -225,11 +225,19 @@ class VoiceGatewayManager:
             
             while True:
                 try:
-                    # Receive message from frontend
-                    data = await websocket.receive_json()
+                    # Receive message from frontend - handle both JSON and binary audio
+                    message = await websocket.receive()
                     
-                    # Route message based on type
-                    await self._handle_gateway_message(websocket, session_id, data)
+                    if message["type"] == "websocket.receive":
+                        if "text" in message:
+                            # JSON message (control commands)
+                            data = json.loads(message["text"])
+                            await self._handle_gateway_message(websocket, session_id, data)
+                        elif "bytes" in message:
+                            # Binary audio data (PCM16)
+                            audio_data = message["bytes"]
+                            logger.info(f"Received binary audio data for session {session_id}: {len(audio_data)} bytes")
+                            await self._handle_audio_data(websocket, session_id, audio_data)
                     
                 except WebSocketDisconnect:
                     break
@@ -281,6 +289,96 @@ class VoiceGatewayManager:
                 "type": "error",
                 "message": f"Okänd meddelandetyp: {message_type}"
             })
+    
+    async def _handle_audio_data(self, websocket: WebSocket, session_id: str, audio_data: bytes):
+        """Handle binary PCM16 audio data directly from frontend"""
+        try:
+            # Convert binary data to numpy array for processing
+            import numpy as np
+            
+            # PCM16 data: 2 bytes per sample, little-endian, signed
+            audio_samples = np.frombuffer(audio_data, dtype=np.int16)
+            
+            # Calculate energy for VAD
+            audio_float = audio_samples.astype(np.float32) / 32768.0
+            rms = np.sqrt(np.mean(audio_float ** 2)) if len(audio_float) > 0 else 0.0
+            
+            # Create AudioChunk
+            timestamp = time.time()
+            chunk = AudioChunk(
+                data=audio_data,
+                timestamp=timestamp,
+                format="pcm16",
+                sample_rate=16000,
+                channels=1,
+                energy_level=rms
+            )
+            
+            # Add to audio buffer
+            if session_id in self.audio_buffers:
+                buffer = self.audio_buffers[session_id]
+                buffer.add_chunk(chunk)
+                
+                # Check if we have sufficient audio for processing
+                if buffer.has_sufficient_audio(min_duration_ms=1000):  # 1 second
+                    # Simple VAD based on energy
+                    is_speech = rms > 0.01  # Simple threshold
+                    
+                    if is_speech:
+                        # Get combined audio data
+                        combined_audio = buffer.get_combined_audio()
+                        
+                        # Process speech segment  
+                        await self._process_speech_segment(websocket, session_id, combined_audio)
+                        
+                        # Clear buffer after processing
+                        buffer.clear()
+                        
+        except Exception as e:
+            logger.error(f"Error processing binary audio data for session {session_id}: {e}")
+    
+    async def _process_speech_segment(self, websocket: WebSocket, session_id: str, audio_bytes: bytes):
+        """Process detected speech segment with STT"""
+        try:
+            logger.info(f"Processing speech segment for session {session_id} ({len(audio_bytes)} bytes)")
+            
+            # For now, simulate STT result
+            text = "test fråga från mikrofon"  # Replace with actual STT call
+            
+            if text and len(text.strip()) > 0:
+                logger.info(f"STT Result for session {session_id}: {text}")
+                
+                # Send transcript back to frontend
+                await websocket.send_json({
+                    "type": "transcript",
+                    "text": text.strip(),
+                    "session_id": session_id
+                })
+                
+                # Process the text with Alice (your existing chat logic)
+                response = await self._process_voice_query(text, session_id)
+                
+                # Send response back to frontend
+                if response:
+                    await websocket.send_json({
+                        "type": "response",
+                        "text": response,
+                        "session_id": session_id
+                    })
+                    
+        except Exception as e:
+            logger.error(f"Error processing speech segment for session {session_id}: {e}")
+    
+    async def _process_voice_query(self, text: str, session_id: str) -> str:
+        """Process voice query using existing Alice chat logic"""
+        try:
+            # Use your existing chat processing logic
+            # This should integrate with your main chat system
+            response = f"Alice svarar på: '{text}'"  # Replace with actual Alice processing
+            return response
+        except Exception as e:
+            logger.error(f"Error processing voice query for session {session_id}: {e}")
+            return "Förlåt, jag kunde inte bearbeta din fråga."
     
     async def _handle_audio_start(self, websocket: WebSocket, session_id: str, data: Dict[str, Any]):
         """Handle audio stream start"""

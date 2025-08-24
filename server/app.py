@@ -20,18 +20,18 @@ except ImportError:
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException, File, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from security import configure_secure_app
+from .security import configure_secure_app
 from pydantic import BaseModel, Field
 import logging
 from dotenv import load_dotenv
 import httpx
 
-from memory import MemoryStore
-from decision import EpsilonGreedyBandit, simulate_first
-from prompts.system_prompts import system_prompt as SP, developer_prompt as DP
-from metrics import metrics
-from training import stream_dataset
-from core import (
+from .memory import MemoryStore
+from .decision import EpsilonGreedyBandit, simulate_first
+from .prompts.system_prompts import system_prompt as SP, developer_prompt as DP
+from .metrics import metrics
+from .training import stream_dataset
+from .core import (
     list_tool_specs, 
     validate_and_execute_tool,
     enabled_tools,
@@ -46,9 +46,10 @@ from voice_gateway import get_voice_gateway_manager
 from intent_router import get_intent_router
 from voice_stt import transcribe_audio_file, get_stt_status
 from audio_processor import audio_processor, voice_gateway_audio_processor
-from deps import get_global_openai_settings, OpenAIClient, validate_openai_config
-from services import probe_api
+from .deps import get_global_openai_settings, OpenAIClient, validate_openai_config
+from .services import probe_api
 from services import voice_gateway as voice_gateway_service
+from .services import ambient_memory, realtime_asr, reflection
 from agents.bridge import AliceAgentBridge, AgentBridgeRequest, StreamChunk, create_alice_bridge
 from http_client import spotify_client, resilient_http_client, safe_external_call
 from error_handlers import setup_error_handlers, RequestIDMiddleware, ValidationError, SwedishDateTimeValidationError
@@ -735,6 +736,9 @@ app.include_router(router)
 
 # Include new service APIs
 app.include_router(probe_api.router)
+app.include_router(ambient_memory.router)
+app.include_router(realtime_asr.router)
+app.include_router(reflection.router)
 
 # Setup VoiceGateway WebSocket route
 voice_gateway_service.setup(app)
