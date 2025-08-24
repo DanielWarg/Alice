@@ -1,18 +1,20 @@
-# 🛠️ Alice Hybrid Development Guide
+# 🛠️ Alice Development Guide
 
-Complete development guide for the Alice Hybrid AI Assistant Platform. This guide covers everything from hybrid architecture development to production deployment with privacy-first design.
+Development guide for Alice AI Assistant Platform. Currently implements a working voice system with local AI, with plans for advanced hybrid architecture.
+
+> **🚧 Important:** Read [PROJECT_STATUS.md](PROJECT_STATUS.md) first to understand current implementation vs future vision!
 
 > **🇸🇪 Svenska:** [docs/sv/DEVELOPMENT.md](docs/sv/DEVELOPMENT.md) - Full Swedish version available
 
 ## 🚀 **Quick Start for Developers**
 
-### Prerequisites
-- **Python 3.9+** - Backend and AI core
-- **Node.js 18+** - Frontend and build tools
+### Prerequisites (Current System)
+- **Python 3.9+** - Backend FastAPI server
+- **Node.js 18+** - Frontend Next.js application
 - **Git** - Version control
-- **Ollama** - Local AI model (gpt-oss:20B)
-- **OpenAI API Key** - For hybrid voice pipeline (required for fast responses)
-- **HTTPS development environment** - For microphone/WebRTC features
+- **Ollama with gpt-oss:20B** - Local AI model (required)
+- **Modern browser** - For voice recognition (Chrome/Safari/Firefox)
+- **OpenAI API Key** - Optional (for future hybrid features)
 
 ### Local Development Environment
 

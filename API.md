@@ -9,18 +9,17 @@ Complete API documentation for the Alice AI Assistant Platform. Alice provides R
 Alice API consists of several main components:
 
 - **REST API**: Main HTTP endpoints for chat, TTS, tool execution
-- **Voice Pipeline**: OpenAI Realtime API integration with WebRTC streaming
-- **WebSocket**: Real-time communication for HUD updates and voice streaming
-- **NLU Agent**: Natural language understanding and intent classification
+- **Voice System**: Currently Browser SpeechRecognition, planned OpenAI Realtime API integration
+- **WebSocket**: Real-time communication for HUD updates (voice streaming in development)
+- **NLU Processing**: Intent classification and Swedish language understanding
 - **Agent Bridge**: Server-Sent Events (SSE) for streaming agent responses
-- **Tool System**: Modular system for extensible functionality
+- **Tool System**: Modular system for extensible functionality (calendar, weather, etc.)
 
-**Base URLs:**
-- Backend API: `http://localhost:8000`
-- Frontend API: `http://localhost:3000/api` (Next.js API routes)
-- NLU Agent: `http://localhost:7071`
+**Base URLs (Current Implementation):**
+- Backend API: `http://localhost:8000` (FastAPI server)
+- Frontend: `http://localhost:3001` (Next.js development server)
 - WebSocket: `ws://localhost:8000/ws/alice`
-- Voice WebSocket: `ws://localhost:8000/ws/voice/{session_id}`
+- Voice Gateway: `ws://localhost:8000/ws/voice-gateway` (in development)
 
 ## Authentication
 

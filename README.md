@@ -46,17 +46,17 @@ Alice is the **world's first production-ready AI assistant** designed specifical
 - Understands "lagom", "fika", and Swedish communication patterns
 - Optimized for Swedish grammar, syntax, and regional dialects
 
-**🔒 Hybrid Privacy-First Architecture**
-- Fast voice responses via OpenAI Realtime API for optimal user experience
-- All complex reasoning, tools, and sensitive data processing stays local with gpt-oss:20B
-- Privacy boundaries clearly defined - simple voice transcripts via API, everything else local
+**🔒 Privacy-First Architecture (Current: Simplified, Vision: Advanced Hybrid)**
+- **Current Implementation**: Browser SpeechRecognition → Local gpt-oss:20B processing (fully private)
+- **Vision**: Hybrid pipeline with OpenAI Realtime API for fast voice + local reasoning for complex tasks
+- All sensitive data and complex reasoning stays local - only basic voice transcripts would use cloud APIs
 - GDPR-compliant by design with user control over data sharing
 
-**⚡ Real-Time Performance**
-- <300ms voice response latency via OpenAI Realtime API for simple queries
-- <2000ms response time for complex local AI processing and tool execution
-- Intelligent routing: fast cloud responses + deep local thinking
-- 3-10x faster TTS with intelligent MD5 caching
+**⚡ Performance (Honest Current State + Vision)**
+- **Current**: 10-30s response time with local Ollama gpt-oss:20B model
+- **Vision**: <300ms voice response latency via OpenAI Realtime API for simple queries
+- **Vision**: Intelligent routing between fast cloud responses + deep local thinking
+- **Current**: Working Swedish voice recognition with Browser SpeechRecognition API
 
 **🤖 Autonomous Intelligence**
 - Agent Core v1 for complex multi-step task orchestration
@@ -107,9 +107,34 @@ cd server && python run.py --demo &
 cd ../web && npm install && npm run dev
 ```
 
-**🎉 Open [http://localhost:3000](http://localhost:3000) and say "Hej Alice!"**
+**🎉 Open [http://localhost:3001](http://localhost:3001) and say "Hej Alice!"**
 
-> **Prerequisites**: Python 3.9+, Node.js 18+, and Ollama with `gpt-oss:20b` ([setup guide](STARTUP.md))
+> **Prerequisites**: Python 3.9+, Node.js 18+, and Ollama with `gpt-oss:20b` ([setup guide](VOICE_SETUP.md))
+
+---
+
+## 🚧 Development Status & Roadmap
+
+**Current Status (v2.0 - Functioning Foundation):**
+- ✅ **Voice Input**: Working Swedish voice recognition via Browser SpeechRecognition API
+- ✅ **Local AI**: Full conversation capabilities with Ollama gpt-oss:20b 
+- ✅ **Core Features**: Calendar, weather, memory, agent workflows
+- ✅ **Security**: CORS, authentication, rate limiting
+- ✅ **Tests**: 100+ automated tests with CI/CD pipeline
+
+**Next Phase (v2.1 - Advanced Voice Pipeline):**
+- 🔄 **Hybrid Voice Architecture**: OpenAI Realtime API + local reasoning
+- 🔄 **WebRTC Integration**: Sub-second voice response times
+- 🔄 **Intelligent Routing**: Fast cloud voice + complex local processing
+- 🔄 **Wake Word Detection**: "Hej Alice" activation
+
+**Vision (v3.0 - Enterprise Ready):**
+- 🎯 **Multi-user Support**: Teams and organizations
+- 🎯 **Advanced Agents**: Autonomous multi-step workflows
+- 🎯 **Integrations**: Microsoft 365, Google Workspace, Slack
+- 🎯 **Mobile App**: Native iOS/Android applications
+
+> **For New Contributors**: Alice currently has a working voice system using simple browser APIs. The documentation describes our ambitious vision for advanced hybrid voice, which we're actively working towards. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to help build the future!
 
 ---
 

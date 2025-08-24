@@ -1,34 +1,43 @@
-# 🎤 Alice Hybrid Voice Pipeline Setup Guide
+# 🎤 Alice Voice System Setup Guide
 
-Comprehensive guide for setting up Alice's hybrid voice pipeline - fast responses via OpenAI Realtime API + local thinking with gpt-oss:20B for optimal performance and privacy.
+Setup guide for Alice's voice system - currently using Browser SpeechRecognition with local processing, with plans for advanced hybrid architecture.
 
 > **🇸🇪 Svenska:** [docs/sv/VOICE_SETUP.md](docs/sv/VOICE_SETUP.md) - Full Swedish version available
 
-## 🚀 **Quick Start**
+## 🚧 **Current Implementation vs Vision**
+
+### **Current Voice System (v2.0 - Working Now):**
+- ✅ **Browser SpeechRecognition API** for Swedish voice input (sv-SE)
+- ✅ **Fully local processing** with Ollama gpt-oss:20B model
+- ✅ **Complete privacy** - no cloud APIs required for voice functionality
+- ✅ **10-30 second response times** depending on hardware
+
+### **Planned Advanced Hybrid (v2.1 - In Development):**
+- 🔄 **OpenAI Realtime API** for sub-second voice responses
+- 🔄 **WebRTC streaming** for real-time audio processing  
+- 🔄 **Intelligent routing** between fast cloud responses + local reasoning
+- 🔄 **Wake word detection** with "Hej Alice"
+
+## 🚀 **Quick Start (Current System)**
 
 ### Prerequisites
 
 - **Python 3.9+** with pip
 - **Node.js 18+** with npm
-- **Ollama** with gpt-oss:20B model
-- **OpenAI API Key** (required for hybrid voice features)
+- **Ollama** with gpt-oss:20B model installed
+- **Modern browser** with microphone support
 - **HTTPS environment** (for microphone access in production)
 
-### Privacy-First Hybrid Design
+### Current Privacy-First Design
 
-Alice's hybrid architecture balances speed with privacy:
+Alice's current implementation is **100% private**:
 
-**What goes to OpenAI Realtime API:**
-- Simple voice transcripts for fast responses (greetings, weather, time)
-- Basic conversational queries that don't involve personal data
-- Audio streams for real-time processing (<300ms response time)
-
-**What stays local (gpt-oss:20B):**
-- All complex reasoning and multi-step workflows
-- Tool execution (calendar, Gmail, Spotify integration)
-- Personal data processing and document RAG
-- Sensitive information and private conversations
-- All Swedish cultural context and personality
+**Everything stays local:**
+- Voice recognition via Browser SpeechRecognition API
+- All AI processing with local Ollama gpt-oss:20B model
+- Tool execution (calendar, weather, integrations)
+- Personal data and conversations never leave your device
+- Full Swedish language support and cultural context
 
 ### Basic Installation
 
