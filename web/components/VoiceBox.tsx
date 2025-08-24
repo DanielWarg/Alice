@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { createAudioEnhancer } from '../lib/audio-enhancement.js'
 import { createVoiceActivityDetector } from '../lib/voice-activity-detection.js'
 import WaveVisualizer from './WaveVisualizer'
-import VoiceGatewayClient, { VoiceGatewayHandle } from './VoiceGatewayClient'
+import { trace } from './lib/voice-trace'
 
 /**
  * Alice Voice Box – Mic‑driven Visualizer
@@ -140,11 +140,10 @@ export default function VoiceBox({
   // Speech recognition
   const recognitionRef = useRef<any>(null)
   
-  // VoiceGateway integration
-  const voiceGatewayRef = useRef<VoiceGatewayHandle>(null)
-  const [voiceGatewayConnected, setVoiceGatewayConnected] = useState(false)
-  const [voiceGatewayActive, setVoiceGatewayActive] = useState(false)
+  // Speech Recognition integration (simplified)
   const speechRecognitionRef = useRef<any>(null)
+  const [voiceGatewayActive, setVoiceGatewayActive] = useState(false) // Simple boolean state
+  const [sid] = useState(() => trace.start("voicebox")) // egen session för knappen
 
   // DOM & smoothing state
   const barsWrapRef = useRef<HTMLDivElement | null>(null)
@@ -300,7 +299,7 @@ export default function VoiceBox({
   
   const fetchVoiceInfo = async () => {
     try {
-      const response = await fetch('/api/tts/voices')
+      const response = await fetch('http://127.0.0.1:8000/api/tts/voices')
       if (response.ok) {
         const data = await response.json()
         setVoiceInfo(data)
@@ -835,7 +834,7 @@ export default function VoiceBox({
     
     try {
       // First try enhanced TTS endpoint
-      const response = await fetch('/api/tts/synthesize', {
+      const response = await fetch('http://127.0.0.1:8000/api/tts/synthesize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -951,41 +950,27 @@ export default function VoiceBox({
     window.speechSynthesis.speak(utterance)
   }
 
-  // VoiceGateway control functions
-  const startVoiceGateway = async () => {
+  // Simple Voice Control using Browser SpeechRecognition
+  const startVoiceRecognition = async () => {
+    console.log("🎙️ MIC BUTTON CLICKED - Starting voice recognition");
+    trace.ev(sid, "ui.mic.click", { statusBefore: voiceGatewayActive });
     try {
-      console.log('🎙️ [VoiceBox] Starting VoiceGateway from mic button');
-      console.log('🎙️ [VoiceBox] voiceGatewayRef.current:', !!voiceGatewayRef.current);
-      
-      if (voiceGatewayRef.current) {
-        console.log('🎙️ [VoiceBox] Calling voiceGatewayRef.current.start()');
-        await voiceGatewayRef.current.start();
-        console.log('🎙️ [VoiceBox] VoiceGateway start completed');
-        setVoiceGatewayActive(true);
-        setLive(true);
-      } else {
-        console.error('❌ [VoiceBox] VoiceGatewayClient ref not available');
-        setError('VoiceGateway inte tillgänglig');
-      }
-    } catch (error) {
-      console.error('❌ [VoiceBox] Failed to start VoiceGateway:', error);
-      setError('Kunde inte starta röstgateway: ' + error.message);
-      setVoiceGatewayActive(false);
-      setLive(false);
+      console.log("🎙️ Calling start() function...");
+      // Start browser speech recognition instead of WebSocket
+      await start(); // Use existing VoiceBox start() function
+      console.log("🎙️ start() completed, setting UI active");
+      setVoiceGatewayActive(true); // Update UI state
+    } catch (e: any) {
+      console.error("🎙️ ERROR in startVoiceRecognition:", e);
+      trace.error(sid, "ui.mic.error", e);
+      setError(`Speech recognition fel: ${e.message}`);
     }
   };
 
-  const stopVoiceGateway = async () => {
-    try {
-      console.log('Stopping VoiceGateway from mic button');
-      if (voiceGatewayRef.current) {
-        voiceGatewayRef.current.stop();
-        setVoiceGatewayActive(false);
-        setLive(false);
-      }
-    } catch (error) {
-      console.error('Failed to stop VoiceGateway:', error);
-    }
+  const stopVoiceRecognition = async () => {
+    trace.ev(sid, "ui.mic.click", { action: "stop" });
+    stop(); // Use existing VoiceBox stop() function  
+    setVoiceGatewayActive(false); // Update UI state
   };
 
   return (
@@ -994,7 +979,7 @@ export default function VoiceBox({
         {/* Status Mic Icon - Top Right */}
         <div className="absolute top-4 right-4 z-10">
           <button 
-            onClick={voiceGatewayActive ? stopVoiceGateway : startVoiceGateway}
+            onClick={voiceGatewayActive ? stopVoiceRecognition : startVoiceRecognition}
             className={`
               relative w-5 h-5 transition-all duration-300 cursor-pointer hover:scale-110
               ${voiceGatewayActive ? 'text-red-500 animate-pulse' : 'text-gray-500/60 hover:text-gray-400'}
@@ -1028,37 +1013,40 @@ export default function VoiceBox({
           />
         </div>
 
+        {/* Debug Status Panel - Bottom of VoiceBox */}
+        {(new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("voiceDebug") === "1") && (
+          <div className="mt-4 p-3 bg-black/30 rounded-lg text-xs text-cyan-300/80 space-y-2 border border-cyan-400/20">
+            <div className="flex items-center justify-between">
+              <div>Status: <span className="font-mono text-cyan-200">{voiceGatewayStatus}</span></div>
+              <div>sid: <span className="font-mono text-cyan-200">{sid}</span></div>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => console.table((window as any).voiceTrace?.dump() || [])}
+                className="border border-cyan-400/30 px-2 py-1 rounded hover:bg-cyan-400/10"
+              >
+                Dump logs
+              </button>
+              <button
+                onClick={() => (window as any).voiceTrace?.clear()}
+                className="border border-cyan-400/30 px-2 py-1 rounded hover:bg-cyan-400/10"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => (window as any).voiceTrace?.level('info')}
+                className="border border-cyan-400/30 px-2 py-1 rounded hover:bg-cyan-400/10"
+              >
+                Level: Info
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Inner ring to match Alice HUD Pane style */}
         <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-cyan-300/10" />
         
-        {/* Hidden VoiceGatewayClient for backend integration */}
-        <div style={{ display: 'none' }}>
-          <VoiceGatewayClient
-            ref={voiceGatewayRef}
-            onTranscript={(text, isFinal) => {
-              if (isFinal && onVoiceInput) {
-                onVoiceInput(text);
-              }
-            }}
-            onError={(error) => {
-              console.error('VoiceGatewayClient error:', error);
-              setError('Röstgateway fel: ' + error);
-              setVoiceGatewayActive(false);
-            }}
-            onConnectionChange={(connected) => {
-              console.log('VoiceGateway connection:', connected);
-              setVoiceGatewayConnected(connected);
-            }}
-            onVoiceState={(state) => {
-              console.log('VoiceGateway state:', state);
-              // Update active state based on voice state
-              setVoiceGatewayActive(state === 'listening' || state === 'processing' || state === 'thinking');
-            }}
-            personality={personality}
-            emotion={emotion}
-            voiceQuality={voiceQuality}
-          />
-        </div>
+        {/* Simple Speech Recognition - no complex WebSocket needed */}
       </div>
     </div>
   )
