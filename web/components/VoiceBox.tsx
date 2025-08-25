@@ -1017,7 +1017,7 @@ export default function VoiceBox({
         {(new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("voiceDebug") === "1") && (
           <div className="mt-4 p-3 bg-black/30 rounded-lg text-xs text-cyan-300/80 space-y-2 border border-cyan-400/20">
             <div className="flex items-center justify-between">
-              <div>Status: <span className="font-mono text-cyan-200">{voiceGatewayStatus}</span></div>
+              <div>Status: <span className="font-mono text-cyan-200">{voiceGatewayActive ? 'active' : 'idle'}</span></div>
               <div>sid: <span className="font-mono text-cyan-200">{sid}</span></div>
             </div>
             <div className="flex space-x-2">

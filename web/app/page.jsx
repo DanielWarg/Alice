@@ -488,6 +488,8 @@ function ThreeBGAdvanced() {
 function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net, provider = 'local' }) {
   const [voiceInput, setVoiceInput] = useState('');
   const { state, dispatch } = useHUD();
+  const voiceBoxRef = useRef(null);
+  const isTTSPlayingRef = useRef(false);
   const voiceMode = state.voiceMode; // Get voice mode from global HUD state
   const [voiceSettings, setVoiceSettings] = useState({
     personality: 'alice',
@@ -496,6 +498,12 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
   });
   
   const handleVoiceInput = async (text) => {
+    // Block voice input while TTS is playing to prevent echo
+    if (isTTSPlayingRef.current) {
+      console.log('🚫 Blocked voice input during TTS:', text);
+      return;
+    }
+    
     if (process.env.NODE_ENV === 'development') {
       console.log('Alice Core received voice input:', text);
     }
@@ -568,8 +576,9 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
         prompt: q, 
         model: 'gpt-oss:20b', 
         stream: false, 
-        provider,
-        context: contextData 
+        provider: 'local', // Use local for voice conversations (OpenAI key issues)
+        context: contextData,
+        raw: true // Skip RAG for natural voice conversations
       };
       
       // Create streaming message entry
@@ -593,6 +602,36 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
             ? { ...msg, text: `Alice: ${j.text}`, streaming: false }
             : msg
         ));
+        
+        // Play Alice's response as speech
+        try {
+          const ttsResponse = await fetch('http://127.0.0.1:8000/api/tts/synthesize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: j.text,
+              personality: voiceSettings.personality,
+              emotion: voiceSettings.emotion,
+              voice: voiceSettings.voiceQuality === 'high' ? 'sv_SE-nst-high' : 'sv_SE-nst-medium',
+              cache: true
+            })
+          });
+          
+          if (ttsResponse.ok) {
+            const ttsData = await ttsResponse.json();
+            if (ttsData.success) {
+              // Play the TTS audio
+              const audioBuffer = Uint8Array.from(atob(ttsData.audio_data), c => c.charCodeAt(0));
+              const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+              const audio = new Audio(URL.createObjectURL(blob));
+              await audio.play();
+              console.log('🔊 Alice TTS playback completed');
+            }
+          }
+        } catch (ttsError) {
+          console.error('TTS playback failed:', ttsError);
+          // TTS failure shouldn't break voice conversation
+        }
       } else {
         // Error response
         setJournal((J) => J.map(msg => 
@@ -630,6 +669,7 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
       {/* Voice Components */}
       {voiceMode === 'basic' ? (
         <VoiceBox 
+          ref={voiceBoxRef}
           bars={7}
           smoothing={0.15}
           minScale={0.1}
@@ -1020,10 +1060,11 @@ function HUDInner() {
                       systemMetrics: { cpu, mem, net }
                     };
                     const chatPayload = { 
-                      prompt: q, 
-                      model: 'gpt-oss:20b', 
+                      prompt: q + " (svara kort och naturligt på svenska, max 2 meningar)", // Request shorter responses
+                      model: 'gpt-4o-mini', 
                       stream: false, 
-                      provider,
+                      provider: 'openai',  // Use OpenAI for voice conversations
+                      raw: true,           // Skip RAG for natural conversation 
                       context: contextData 
                     };
                     if (process.env.NODE_ENV === 'development') {
@@ -1053,6 +1094,50 @@ function HUDInner() {
                       let currentText = '';
                       const words = fullText.split(' ');
                       
+                      // Start TTS generation immediately (parallel with typewriter)
+                      const ttsPromise = (async () => {
+                        try {
+                          // Force stop ALL speech recognition to prevent feedback
+                          if (window.speechSynthesis) {
+                            window.speechSynthesis.cancel(); // Stop any ongoing TTS
+                          }
+                          
+                          // Stop browser speech recognition globally
+                          const speechRecognitionInstances = document.querySelectorAll('[data-speech-recognition]');
+                          speechRecognitionInstances.forEach(el => {
+                            if ((el as any)._speechRecognition) {
+                              (el as any)._speechRecognition.stop();
+                            }
+                          });
+                          
+                          console.log('🤫 Stopped all speech recognition for TTS');
+                          
+                          const ttsResponse = await fetch('http://127.0.0.1:8000/api/tts/synthesize', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              text: j.text,
+                              personality: 'alice',
+                              emotion: 'friendly', 
+                              voice: 'sv_SE-nst-medium',
+                              cache: true
+                            })
+                          });
+                          
+                          if (ttsResponse.ok) {
+                            const ttsData = await ttsResponse.json();
+                            if (ttsData.success) {
+                              return ttsData;
+                            }
+                          }
+                          return null;
+                        } catch (error) {
+                          console.error('TTS generation failed:', error);
+                          return null;
+                        }
+                      })();
+
+                      // Faster typewriter effect (parallel with TTS generation)
                       for (let i = 0; i < words.length; i++) {
                         currentText += (i > 0 ? ' ' : '') + words[i];
                         
@@ -1062,9 +1147,37 @@ function HUDInner() {
                             : msg
                         ));
                         
-                        // Delay between words (faster than real streaming)
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                        // Faster delay for snappier feeling
+                        await new Promise(resolve => setTimeout(resolve, 50));
                       }
+                      
+                      // Wait for TTS to be ready and play immediately
+                      const ttsData = await ttsPromise;
+                      if (ttsData) {
+                        try {
+                          const audioBuffer = Uint8Array.from(atob(ttsData.audio_data), c => c.charCodeAt(0));
+                          const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+                          const audio = new Audio(URL.createObjectURL(blob));
+                          
+                          await new Promise((resolve, reject) => {
+                            audio.onended = resolve;
+                            audio.onerror = reject;
+                            audio.play().catch(reject);
+                          });
+                          
+                          console.log('🔊 Fast TTS playback completed');
+                        } catch (audioError) {
+                          console.error('Audio playback failed:', audioError);
+                        }
+                      }
+                      
+                      // Resume microphone after short delay
+                      setTimeout(async () => {
+                        if (voiceBoxRef.current && voiceBoxRef.current.start) {
+                          await voiceBoxRef.current.start();
+                          console.log('🎙️ Microphone resumed');
+                        }
+                      }, 300);
                       
                       // Mark as complete
                       setJournal((J) => J.map(msg => 

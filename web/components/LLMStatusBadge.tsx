@@ -31,18 +31,23 @@ export default function LLMStatusBadge({ className = "" }: LLMStatusBadgeProps) 
   const [error, setError] = useState<string | null>(null)
 
   const fetchStatus = async () => {
+    console.log('🔄 Fetching LLM status from http://127.0.0.1:8000/api/v1/llm/status')
     try {
-      const response = await fetch('/api/v1/llm/status')
+      const response = await fetch('http://127.0.0.1:8000/api/v1/llm/status')
+      console.log('📡 LLM Status response:', response.status, response.statusText)
       if (response.ok) {
         const data = await response.json()
+        console.log('✅ LLM Status data:', data)
         setStatus(data)
         setError(null)
       } else {
-        setError(`HTTP ${response.status}`)
+        const errorMsg = `HTTP ${response.status}`
+        console.log('❌ LLM Status error:', errorMsg)
+        setError(errorMsg)
       }
     } catch (err) {
+      console.error('❌ LLM status fetch failed:', err)
       setError('Network error')
-      console.error('LLM status fetch failed:', err)
     } finally {
       setIsLoading(false)
     }
@@ -50,10 +55,11 @@ export default function LLMStatusBadge({ className = "" }: LLMStatusBadgeProps) 
 
   useEffect(() => {
     fetchStatus()
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchStatus, 30000)
+    // Refresh every 5 seconds when there's an error, otherwise every 30 seconds
+    const refreshInterval = error ? 5000 : 30000
+    const interval = setInterval(fetchStatus, refreshInterval)
     return () => clearInterval(interval)
-  }, [])
+  }, [error])
 
   const getStatusColor = (): string => {
     if (isLoading || error) return 'bg-gray-600'

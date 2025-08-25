@@ -21,7 +21,8 @@ export default function WaveVisualizer({ isActive, className = '' }: WaveVisuali
       initializeAudio()
     } else {
       cleanupAudio()
-      startIdleWave()
+      // No idle wave - just clean canvas
+      clearCanvas()
     }
 
     return cleanupAudio
@@ -49,7 +50,7 @@ export default function WaveVisualizer({ isActive, className = '' }: WaveVisuali
       animateAudioWave()
     } catch (error) {
       console.error('Error initializing audio:', error)
-      startIdleWave()
+      clearCanvas()
     }
   }
 
@@ -72,6 +73,15 @@ export default function WaveVisualizer({ isActive, className = '' }: WaveVisuali
     dataArrayRef.current = null
   }
 
+  const clearCanvas = () => {
+    if (!canvasRef.current) return
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+    }
+  }
+
   const animateAudioWave = () => {
     if (!canvasRef.current || !analyserRef.current || !dataArrayRef.current) return
 
@@ -84,9 +94,9 @@ export default function WaveVisualizer({ isActive, className = '' }: WaveVisuali
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    // Draw waveform
+    // Draw waveform with thicker line for better visibility
     ctx.strokeStyle = '#06b6d4'
-    ctx.lineWidth = 2
+    ctx.lineWidth = 3
     ctx.beginPath()
 
     const sliceWidth = canvas.width / dataArrayRef.current.length
@@ -94,7 +104,8 @@ export default function WaveVisualizer({ isActive, className = '' }: WaveVisuali
 
     for (let i = 0; i < dataArrayRef.current.length; i++) {
       const v = dataArrayRef.current[i] / 128.0
-      const y = (v * canvas.height) / 2
+      // Use almost full canvas height for dramatic waves when sound is detected
+      const y = ((v - 1.0) * canvas.height * 1.2) + (canvas.height / 2)
 
       if (i === 0) {
         ctx.moveTo(x, y)
@@ -116,54 +127,6 @@ export default function WaveVisualizer({ isActive, className = '' }: WaveVisuali
     animationRef.current = requestAnimationFrame(animateAudioWave)
   }
 
-  const startIdleWave = () => {
-    if (!canvasRef.current) return
-
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    let time = 0
-    
-    const animateIdleWave = () => {
-      time += 0.02
-      
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-      // Draw idle sine wave
-      ctx.strokeStyle = '#6b7280'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-
-      const amplitude = 20 + Math.sin(time * 0.5) * 5
-      const frequency = 0.02
-      const centerY = canvas.height / 2
-
-      for (let x = 0; x < canvas.width; x++) {
-        const y = centerY + Math.sin(x * frequency + time) * amplitude
-        
-        if (x === 0) {
-          ctx.moveTo(x, y)
-        } else {
-          ctx.lineTo(x, y)
-        }
-      }
-
-      ctx.stroke()
-
-      // Add subtle glow
-      ctx.shadowColor = '#6b7280'
-      ctx.shadowBlur = 5
-      ctx.stroke()
-      ctx.shadowBlur = 0
-
-      if (!isActive) {
-        animationRef.current = requestAnimationFrame(animateIdleWave)
-      }
-    }
-
-    animateIdleWave()
-  }
 
   // Handle canvas resize
   useEffect(() => {
