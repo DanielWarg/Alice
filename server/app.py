@@ -2031,6 +2031,22 @@ async def voice_gateway_websocket(websocket: WebSocket, session_id: str):
     voice_gateway_mgr = get_voice_gateway_manager(memory)
     await voice_gateway_mgr.handle_voice_gateway_session(websocket, session_id)
 
+@app.websocket("/ws/voice/ambient")
+async def b3_ambient_voice_websocket(websocket: WebSocket):
+    """
+    B3 Always-On Ambient Voice WebSocket endpoint.
+    
+    Handles:
+    - Real-time Swedish ASR with OpenAI Whisper
+    - Ambient memory ingestion with importance scoring
+    - Privacy-aware data processing
+    - Graceful error handling and fallbacks
+    - Feature flags for component testing
+    """
+    from b3_safe_websocket import get_b3_safe_manager
+    safe_manager = get_b3_safe_manager()
+    await safe_manager.handle_safe_websocket(websocket)
+
 # Alias endpoint for /ws/voice-gateway (without session_id) - auto-generates session
 @app.websocket("/ws/voice-gateway")
 async def voice_gateway_websocket_alias(websocket: WebSocket):

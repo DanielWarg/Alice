@@ -536,11 +536,41 @@ class B3AmbientTranscriber:
             should_store=score >= 2
         )
     
-    async def _mock_memory_ingestor(self, chunks: List[AmbientChunk]):
-        """Mock memory ingestor for testing"""
-        logger.info(f"Mock memory ingestor: would store {len(chunks)} chunks")
-        for chunk in chunks:
-            logger.debug(f"Chunk: {chunk.text[:50]}... (score: {chunk.importance.get('score') if chunk.importance else 0})")
+    async def _real_memory_ingestor(self, chunks: List[AmbientChunk]):
+        """Real memory ingestor - stores important chunks in database"""
+        try:
+            from services.ambient_memory import get_ambient_memory_service
+            memory_service = get_ambient_memory_service()
+            
+            stored_count = 0
+            for chunk in chunks:
+                if chunk.importance and chunk.importance.get('should_store', False):
+                    try:
+                        await memory_service.store_ambient_chunk({
+                            'text': chunk.text,
+                            'timestamp': chunk.timestamp.isoformat(),
+                            'importance_score': chunk.importance.get('score', 0),
+                            'reasons': chunk.importance.get('reasons', []),
+                            'source': 'b3_ambient'
+                        })
+                        stored_count += 1
+                        logger.debug(f"Stored chunk: {chunk.text[:50]}... (score: {chunk.importance.get('score')})")
+                    except Exception as e:
+                        logger.warning(f"Failed to store chunk: {e}")
+            
+            logger.info(f"Memory ingestor: stored {stored_count}/{len(chunks)} chunks")
+            
+        except ImportError:
+            logger.warning("Ambient memory service not available, using fallback storage")
+            # Fallback to simple logging for now
+            logger.info(f"Fallback memory ingestor: would store {len(chunks)} chunks")
+            for chunk in chunks:
+                if chunk.importance and chunk.importance.get('should_store', False):
+                    logger.info(f"Important: {chunk.text[:50]}... (score: {chunk.importance.get('score')})")
+                    
+        except Exception as e:
+            logger.error(f"Memory ingestion failed: {e}")
+            # Don't crash, just log the error
 
 # Global instance
 _ambient_transcriber = None

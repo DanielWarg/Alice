@@ -129,17 +129,43 @@ class B3BargeInController:
             # Try to import and stop TTS processes
             # This would integrate with actual TTS system
             
-            # Mock TTS stop for now
+            # Real TTS stop implementation
             logger.debug(f"Stopping TTS session: {session_id}")
             
             # Remove from active sessions
             self.active_tts_sessions.discard(session_id)
             
-            # TODO: Integrate with actual TTS system
-            # Examples:
-            # - Stop OpenAI TTS stream
-            # - Stop local TTS (Piper, etc.)
-            # - Cancel queued TTS requests
+            # Integrate with actual TTS system
+            try:
+                # Try to stop OpenAI TTS stream if available
+                from core.tts_manager import get_tts_manager
+                tts_manager = get_tts_manager()
+                if hasattr(tts_manager, 'stop_tts_session'):
+                    await tts_manager.stop_tts_session(session_id)
+                    logger.info(f"Stopped TTS session via TTS manager: {session_id}")
+                    
+            except ImportError:
+                logger.debug("TTS manager not available, using basic stop")
+                
+            except Exception as e:
+                logger.warning(f"Failed to stop TTS via manager: {e}")
+                
+            # Additional TTS stop methods
+            try:
+                # Stop local TTS processes if running
+                import psutil
+                for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                    try:
+                        cmdline = proc.info.get('cmdline', [])
+                        if any('piper' in str(arg).lower() or 'tts' in str(arg).lower() for arg in cmdline):
+                            if session_id in str(cmdline):
+                                proc.terminate()
+                                logger.info(f"Terminated TTS process for session {session_id}")
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        continue
+                        
+            except ImportError:
+                logger.debug("psutil not available for TTS process termination")
             
         except Exception as e:
             logger.error(f"Error stopping TTS session {session_id}: {e}")

@@ -255,7 +255,22 @@ class B3AmbientVoiceManager:
             logger.info("Hard mute released")
             
         elif command == "clear_memory":
-            # TODO: Implement memory clearing
+            # Implement memory clearing for privacy
+            try:
+                from b3_privacy_hooks import get_b3_privacy_manager, ForgetRequest
+                privacy_manager = get_b3_privacy_manager()
+                
+                # Create forget request for recent session data
+                forget_request = ForgetRequest(
+                    time_range="last_hour"  # Clear last hour of data
+                )
+                
+                await privacy_manager.process_forget_request(forget_request)
+                logger.info(f"Processed memory clearing request for session {session_id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to clear memory for session {session_id}: {e}")
+            
             logger.info(f"Memory clear requested for session {session_id}")
             
         # Send status update after control command

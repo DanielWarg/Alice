@@ -145,17 +145,38 @@ class B3PrivacyHooks:
                 if request.keywords:
                     search_terms.extend(request.keywords)
                 
-                # Mock memory search - in real implementation would use memory store search
-                # For now, return empty list as we don't have search implemented
-                all_memories = []
+                # Real memory search implementation
+                try:
+                    from services.ambient_memory import get_ambient_memory_service
+                    memory_service = get_ambient_memory_service()
+                    all_memories = await memory_service.search_memories(
+                        search_terms=search_terms,
+                        limit=1000  # Get all matching for deletion
+                    )
+                except ImportError:
+                    logger.warning("Ambient memory service not available for privacy deletion")
+                    all_memories = []
+                except Exception as e:
+                    logger.error(f"Memory search failed for privacy deletion: {e}")
+                    all_memories = []
                 
             elif request.time_range:
                 # Delete by time range
                 cutoff_time = self._get_time_cutoff(request.time_range)
                 if cutoff_time:
-                    # Mock time-based deletion
-                    # Would query memory store for memories older than cutoff_time
-                    all_memories = []
+                    # Real time-based deletion implementation
+                    try:
+                        from services.ambient_memory import get_ambient_memory_service
+                        memory_service = get_ambient_memory_service()
+                        all_memories = await memory_service.get_memories_before_time(
+                            cutoff_time=cutoff_time
+                        )
+                    except ImportError:
+                        logger.warning("Ambient memory service not available for time-based privacy deletion")
+                        all_memories = []
+                    except Exception as e:
+                        logger.error(f"Time-based memory query failed for privacy deletion: {e}")
+                        all_memories = []
             
         except Exception as e:
             logger.error(f"Error finding memories to forget: {e}")
