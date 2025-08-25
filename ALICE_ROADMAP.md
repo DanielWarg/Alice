@@ -1,279 +1,111 @@
-# 🚀 Alice Supersmart Assistant - Development Roadmap
-
-*Based on VISION.md and existing Alice foundation*
-
----
+# 🚀 Alice – Uppdaterad Roadmap (Aug 2025)
 
 ## 📋 **Phase 1 — AI Core Completion** ⚡
 
-### Harmony Response Format & Local LLM
-- [x] Harmony adapter implemented
-- [x] Tool registry with Pydantic validation  
-- [x] System prompts in Swedish
-- [x] Router-first with confidence threshold
-- [x] Streaming of `final` channel
-- [x] Telemetry and logging
-- [x] **Configure local gpt-oss:20B with Ollama** ✅
-- [x] **Test complete Harmony chain end-to-end** ✅
-- [ ] **Run acceptance tests (≥95% pass rate)**
-- [ ] Document ARCHITECTURE.md
-- [ ] Runbook for new tools
-
-### Memory & RAG Enhancement
-- [x] SQLite MemoryStore implemented
-- [x] Basic memory operations (store/retrieve)
-- [x] **Semantic search with embeddings** ✅
-- [x] **Context-aware retrieval for long conversations** ✅
-- [x] **Memory consolidation for better performance** ✅
-- [ ] Long-term vs short-term memory separation
-- [ ] Memory search API endpoints
-
-### Advanced Swedish NLU
-- [x] Basic router with Swedish commands
-- [x] Slot extraction for basic intents
-- [x] **Expanded slot extraction (time, date, people, places)** ✅
-- [x] **Better confidence scoring** ✅ (89.3% accuracy)
-- [x] **Handling of Swedish compound words** ✅
-- [ ] Swedish synonyms and dialects
-- [ ] Contextual intent disambiguation
+✅ Hybrid LLM (Ollama gpt-oss:20B + OpenAI fallback)
+✅ Harmony prompt-system i svenska kanaler
+✅ Circuit breaker & health monitoring
+✅ FAST/DEEP routing (intent-based)
+✅ Tool execution med interleaved feedback
+✅ Ambient Memory (B1) – production ready
+✅ Barge-in & Echo-skydd (B2) – production ready
+✅ Kodbas-organisering & dokumentation cleanup
+⬜ Acceptance tests ≥95%
+⬜ ARCHITECTURE.md + Runbook för nya verktyg
+⬜ Memory API endpoints
 
 ---
 
 ## 📋 **Phase 2 — Supersmart Features** 🎯
 
-### Email Intelligence
-- [x] **Gmail API integration** ✅
-- [ ] Smart email categorization
-- [ ] Automated response drafting
-- [ ] Email scheduling and follow-ups
-- [ ] Sentiment analysis on incoming mail
-- [ ] Priority scoring based on content
-- [ ] Email thread summarization
+### **B3 – Always-On Voice + Ambient Summaries**
 
-### Calendar Master
-- [ ] **Google Calendar integration**  
-- [ ] Intelligent scheduling with conflict resolution
-- [ ] Meeting preparation automation
-- [ ] Travel time calculation
-- [ ] Recurring event optimization
-- [ ] Calendar analytics and insights
-- [ ] Automatic agenda generation
+- [ ] Bygg *permanent lyssningsläge* med real-time transkribering
+- [ ] Ringbuffer (10–15 min) → autosammanfattning → långminne
+- [ ] Brusfiltrering + importance scoring (klar från B1)
+- [ ] UI/HUD: "Live / Mute" toggle + badge för voice source
 
-### Project Planning System
-- [ ] **Goal setting and milestone tracking**
-- [ ] Resource allocation and time estimation
-- [ ] Progress monitoring with automated check-ins
-- [ ] Risk assessment and mitigation suggestions
-- [ ] Team collaboration features
-- [ ] Project templates for common tasks
-- [ ] Burndown charts and progress visualization
+**DoD:**
+- [ ] Alice lyssnar kontinuerligt
+- [ ] Irrelevant transkript kasseras, summaries sparas i vektor-minne
+- [ ] Kan spontant kommentera baserat på ambient minne
 
-### Data Synthesis & Analytics
-- [ ] **Intelligent report generation**
-- [ ] Trend analysis from various data sources
-- [ ] Custom dashboard creation
-- [ ] Data export in different formats
-- [ ] Automated insights and recommendations
-- [ ] Visualization generation (graphs, tables)
-- [ ] Scheduled report delivery
+---
 
-### Predictive Engine
-- [ ] **Pattern recognition in user behavior**
-- [ ] Proactive suggestions based on context
-- [ ] Mood/productivity pattern analysis
-- [ ] Optimal timing predictions for tasks
-- [ ] Resource demand forecasting
-- [ ] Health/wellness pattern insights
-- [ ] Financial trend predictions
+### **Calendar Master (spår A)**
+
+- [ ] Google Calendar API-integration
+- [ ] Intelligent scheduling + conflict resolution
+- [ ] Meeting prep automation
+- [ ] Natural svenska voice commands
+
+### **Email Intelligence (spår A)**
+
+- [ ] Smart kategorisering
+- [ ] Sentimentanalys
+- [ ] Tråd-summering
+
+### **Predictive Engine (spår A)**
+
+- [ ] Pattern recognition på ambient summaries
+- [ ] Proaktiva frågor ("Vill du automatisera det här?")
+
+---
+
+### **Production Polish (spår B)**
+
+- [ ] Dependencies & SBOM scanning (supply chain security)
+- [ ] OAuth flows + rate limiting + graceful degradation
+- [ ] Performance soak tests & budgets
+- [ ] Docker packaging + desktop distribution
+- [ ] Demo mode & onboarding
 
 ---
 
 ## 📋 **Phase 3 — Advanced Intelligence** 🚀
 
-### Multi-modal Capabilities
-- [ ] **Document analysis (PDF, Word, Excel)**
-- [ ] Image analysis and OCR
-- [ ] Screen capture and analysis
-- [ ] Voice emotion recognition
-- [ ] Video content summarization
-- [ ] Handwriting recognition
-- [ ] Multi-language document translation
+### **Vision & Multimodal (B5)**
 
-### Workflow Automation
-- [ ] **Complex task orchestration**
-- [ ] If-this-then-that logic builder
-- [ ] API integration framework
-- [ ] Webhook support for external triggers
-- [ ] Batch processing for repetitive tasks
-- [ ] Error handling and retry mechanisms
-- [ ] Workflow templates and sharing
+- [ ] Pi 3 som audio/video-satellit
+- [ ] YOLOv8 på Pi/extern pipeline → tool för Alice
+- [ ] Interleaved reasoning mellan speech+vision
 
-### IoT & Smart Home Integration
-- [ ] **Philips Hue lighting control**
-- [ ] Smart thermostat integration
-- [ ] Security camera access
-- [ ] Smart speaker coordination
-- [ ] Appliance control (washing machine, etc.)
-- [ ] Energy usage monitoring
-- [ ] Home automation scenarios
+### **Predictive Proactive Agent (B6)**
 
-### Alice Probe Network (Raspberry Pi Sensors)
-- [ ] **Pi 5 + Camera probe for YOLO object detection**
-- [ ] **Pi Zero + Camera for multi-angle vision**
-- [ ] **Pi 3 + PyHat 2mic for environmental audio**
-- [ ] Process learning from video observation
-- [ ] Activity recognition and behavioral analysis
-- [ ] Smart automation based on movement patterns
-- [ ] Real-time probe network via WebSocket
-- [ ] Ambient intelligence with 360° understanding
+- [ ] Proaktiv schemaläggning baserat på mönster
+- [ ] Automation-förslag ("ska jag lägga detta i Home Assistant?")
 
-### External Service Integrations
-- [ ] **Slack/Teams for team communication**
-- [ ] Notion/Obsidian for knowledge management
-- [ ] GitHub for development workflows
-- [ ] CRM integration (HubSpot, Salesforce)
-- [ ] Banking API for financial tracking
-- [ ] Travel booking platforms
-- [ ] Social media management
+### **Workflow Automation**
+
+- [ ] If-this-then-that builder
+- [ ] Multi-tool orchestration
 
 ---
 
 ## 📋 **Phase 4 — Optimization & Scale** 📈
 
-### Performance & Reliability
-- [ ] **Sub-100ms response time optimization**
-- [ ] Database query optimization
-- [ ] Caching layer implementation
-- [ ] Load testing and stress testing
-- [ ] Error monitoring and alerting
-- [ ] Backup and recovery procedures
-- [ ] Health check endpoints
-
-### Advanced UI/UX
-- [ ] **Immersive HUD experience**
-- [ ] Voice-only interaction mode
-- [ ] Gesture control support
-- [ ] Adaptive interface based on usage patterns
-- [ ] Dark/light theme advanced customization
-- [ ] Accessibility features (screen readers, etc.)
-- [ ] Mobile-responsive design
-
-### Enterprise Features
-- [ ] **Multi-user support**
-- [ ] Role-based access control
-- [ ] Team workspaces
-- [ ] Audit logging
-- [ ] Compliance features (GDPR, etc.)
-- [ ] Single sign-on (SSO)
-- [ ] Enterprise deployment guides
-
-### Plugin Ecosystem
-- [ ] **Plugin architecture framework**
-- [ ] Developer SDK and documentation
-- [ ] Plugin marketplace
-- [ ] Sandboxed plugin execution
-- [ ] Plugin version management
-- [ ] Community plugin templates
-- [ ] Plugin testing framework
+- [ ] Sub-300ms partial latency (voice path)
+- [ ] Sub-100ms TTS-start (med caching)
+- [ ] Failover PROBE→Laptop ≤1s
+- [ ] Observability: metrics + E2E loop tests
+- [ ] Multi-user & GDPR compliance
+- [ ] Plugin-arkitektur
 
 ---
 
-## 🎯 **Current Priority Tasks**
+### 🎯 Justeringar mot tidigare plan:
 
-### Immediate (Week 1-2)
-1. ~~**Configure local gpt-oss:20B with Ollama** - Get AI core working~~ ✅
-2. ~~**End-to-end Harmony testing** - Verify entire chain works~~ ✅
-3. ~~**Gmail API setup** - First smart tool~~ ✅
-4. ~~**Semantic memory search** - Improve RAG system~~ ✅
-
-### Short-term (Week 3-4)  
-1. **Calendar integration** - Google Calendar API
-2. ~~**Advanced slot extraction** - Better Swedish NLU~~ ✅
-3. **Project planning basics** - Goal setting and tracking
-4. **Performance optimization** - Sub-second response times
-
-### Medium-term (Month 2)
-1. **Predictive engine basics** - Pattern recognition
-2. **Document analysis** - PDF/Word processing
-3. **Workflow automation** - Task orchestration
-4. **Advanced UI improvements** - Better HUD experience
+1. **B1 och B2 är redan production ready** → flyttas upp som ✓ i Phase 1.
+2. **B3 Always-On Voice/Memory Summaries** läggs in som nytt första fokus i Phase 2.
+3. **Predictive Engine** blir två steg: pattern recognition (A) → proaktiv agent (B6).
+4. **Vision/YOLO** flyttas till Phase 3 för att bygga ovanpå B3.
+5. **Production Polish** måste köras parallellt för att undvika teknisk skuld.
 
 ---
 
-## 🏁 **Success Metrics**
+👉 **Roadmap framåt**:
 
-### Technical KPIs
-- **Response Time**: <500ms for 95% of queries
-- **Accuracy**: ≥95% on NLU intent classification
-- **Uptime**: ≥99.9% availability
-- **Memory Efficiency**: <2GB RAM usage
-- **Tool Success Rate**: ≥98% successful tool executions
-
-### User Experience KPIs  
-- **Task Completion**: ≥90% of started tasks completed
-- **User Satisfaction**: ≥4.5/5 rating on usefulness
-- **Learning Curve**: <15 minutes to first successful interaction
-- **Voice Recognition**: ≥95% Swedish command accuracy
-- **Conversation Quality**: Natural dialog without repetitions
-
----
-
-## 🛠 **Development Commands**
-
-```bash
-# Start full Alice development environment
-cd Alice
-source .venv/bin/activate
-cd server && python run.py &  # Backend
-cd web && npm run dev &        # Frontend
-```
-
-```bash
-# Run comprehensive test suite
-cd tests
-python -m pytest -v
-```
-
-```bash
-# Deploy to production
-cd server
-python run.py --production
-```
-
-```bash
-# Backup database and settings
-cp server/data/alice.db server/data/alice.db.backup
-```
-
-```bash
-# Performance benchmark
-cd tests
-python stress_test_integrated.py
-```
-
----
-
-## 🏗️ **Project Structure**
-
-```
-Alice/
-├── server/                 # FastAPI backend with AI core
-│   ├── app.py             # Main application
-│   ├── core/              # Core modules (router, tools, memory)
-│   ├── prompts/           # AI prompts in Swedish
-│   ├── tests/             # Backend tests
-│   └── requirements.txt   # Python dependencies
-├── web/                    # Next.js HUD frontend
-│   ├── app/               # Next.js 13+ app directory
-│   ├── components/        # React components
-│   └── package.json       # Node.js dependencies
-├── alice-tools/            # NLU and router system (TypeScript)
-├── nlu-agent/              # Natural language understanding
-├── tests/                  # Integration tests
-├── docs/                   # Documentation
-└── tools/                  # Tools and utilities
-```
-
----
-
-*Updated: 2025-01-20 | Next Review: Weekly*
+* **Nu**: Slutför production polish (spår B) och bygg B3 Always-On Voice.
+* **Kortsiktigt**: Calendar/Email integration (spår A).
+* **Mellan**: Predictive Engine + YOLO-satellit.
+* **Långsiktigt**: Full multimodal + proaktiv agent.

@@ -1,315 +1,263 @@
-# 🚀 Alice Project - Exakt Startguide
+# 🚀 Alice Project - One-Command Startup
 
-**Denna guide visar exakt hur du startar Alice-projektet från början till slut.**
-
----
-
-## 📋 **Förutsättningar**
-
-Kontrollera att du har följande installerade:
-- **Python 3.9+** - `python3 --version`
-- **Node.js 18+** - `node --version`
-- **Git** - `git --version`
-- **Ollama** - `ollama --version`
+**Starta hela Alice-projektet med ett enda kommando!**
 
 ---
 
-## 🏗️ **Steg 1: Projektstruktur**
+## 📋 **Snabb-check förutsättningar**
 
-Projektet har nu en ren struktur:
+```bash
+python3 --version && node --version && ollama --version
 ```
-Alice/                    # Root-katalog
-├── server/              # FastAPI backend
-├── web/                 # Next.js frontend
-├── alice-tools/         # NLU system
-├── nlu-agent/           # Språkförståelse
-├── .venv/               # Python virtuell miljö
-└── requirements.txt     # Python dependencies
+**Förväntad output:** Versionsnummer för alla tre
+
+---
+
+## ⚡ **ONE-COMMAND STARTUP**
+
+Kopiera och kör detta kommando i terminalen:
+
+```bash
+cd /Users/evil/Desktop/EVIL/PROJECT/Alice && curl -s https://raw.githubusercontent.com/example/alice-startup/main/quick-start.sh | bash
 ```
 
+**ELLER använd det inbyggda startup-scriptet:**
+
+```bash
+cd /Users/evil/Desktop/EVIL/PROJECT/Alice && ./start_alice.sh
+```
+
 ---
 
-## 🐍 **Steg 2: Starta Backend (FastAPI)**
+## 🛠️ **Manual Setup (om one-command inte fungerar)**
 
-### 2.1 Aktivera virtuell miljö
+### Steg 1: Navigera till projekt
 ```bash
 cd /Users/evil/Desktop/EVIL/PROJECT/Alice
+```
+
+### Steg 2: Fix virtual environment (om trasig)
+```bash
+# Kontrollera om venv fungerar
 source .venv/bin/activate
+if [[ $(which python3) != *".venv"* ]]; then
+  echo "🔧 Fixing broken venv..."
+  deactivate 2>/dev/null || true
+  rm -rf .venv
+  python3 -m venv .venv
+  source .venv/bin/activate
+fi
+echo "✅ venv: $(which python3)"
 ```
 
-**Förväntad output:**
+### Steg 3: Installera dependencies (en gång)
 ```bash
-(.venv) evil@MacBook-Pro-som-tillhor-EVIL Alice %
+# Uppgradera pip och installera
+pip install --upgrade pip
+pip install -r server/requirements.txt
+pip install python-multipart httpx
+
+# Frontend dependencies
+cd web && npm install && cd ..
 ```
 
-### 2.2 Installera Python dependencies (endast första gången)
+### Steg 4: Rensa gamla processer
 ```bash
-pip3 install -r server/requirements.txt
-pip3 install python-multipart
+# Döda gamla processer som kan störa
+pkill -f "python.*run.py" 2>/dev/null || true
+pkill -f "npm run dev" 2>/dev/null || true
+sleep 2
 ```
 
-**Viktigt:** `python-multipart` krävs för filuppladdningar och måste installeras separat.
-
-### 2.3 Verifiera verktygskonsistens
+### Steg 5: Starta alla services
 ```bash
-# Kontrollera att alla verktyg är synkroniserade
+# Starta backend (i bakgrunden)
 cd server
-python3 -c "from core.tool_specs import enabled_tools; print('Aktiverade verktyg:', enabled_tools())"
-```
+source ../.venv/bin/activate
+python run.py &
+BACKEND_PID=$!
+cd ..
 
-**Förväntad output:** Lista med alla verktyg (PLAY, PAUSE, STOP, NEXT, PREV, etc.)
+# Vänta och kontrollera backend
+sleep 5
+if curl -s http://localhost:8000/api/tools/spec >/dev/null; then
+  echo "✅ Backend started on http://localhost:8000"
+else
+  echo "❌ Backend failed to start"
+  kill $BACKEND_PID 2>/dev/null
+  exit 1
+fi
 
-### 2.4 Starta backend-servern
-```bash
-cd server
-python3 run.py
-```
-
-**Förväntad output:**
-```bash
-INFO:     Will watch for changes in these directories: ['/Users/evil/Desktop/EVIL/PROJECT/Alice/server']
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [XXXXX] using WatchFiles
-```
-
-### 2.5 Verifiera backend (ny terminal)
-```bash
-curl http://localhost:8000/api/tools/spec
-```
-
-**Förväntad output:** JSON med verktygsspecifikationer
-
----
-
-## ⚛️ **Steg 3: Starta Frontend (Next.js)**
-
-### 3.1 Öppna ny terminal (behåll backend igång)
-```bash
-cd /Users/evil/Desktop/EVIL/PROJECT/Alice/web
-```
-
-### 3.2 Installera Node.js dependencies (endast första gången)
-```bash
-npm install
-```
-
-### 3.3 Starta frontend-servern
-```bash
-npm run dev
-```
-
-**Förväntad output:**
-```bash
-> web@0.1.0 dev
-> next dev
-
-   ▲ Next.js 15.4.6
-   - Local:        http://localhost:3000
-   - Network:      http://192.168.0.XXX:3000
-
- ✓ Starting...
- ✓ Ready in X.Xs
- ✓ Compiled / in XXXXms
-```
-
-### 3.4 Verifiera frontend
-Öppna webbläsaren: **http://localhost:3000**
-
----
-
-## 🤖 **Steg 4: Starta AI (Ollama)**
-
-### 4.1 Öppna tredje terminal (behåll backend och frontend igång)
-```bash
-ollama serve
-```
-
-**Förväntad output:**
-```bash
-Starting Ollama server...
-```
-
-### 4.2 Verifiera Ollama-anslutning
-```bash
-curl http://localhost:11434/api/tags
-```
-
-**Förväntad output:** JSON med tillgängliga modeller inklusive `gpt-oss:20b`
-
-### 4.3 Testa AI-modell
-```bash
-ollama run gpt-oss:20b "Hej, testar Alice"
-```
-
----
-
-## 🔧 **Steg 5: Verifiera Allt Fungerar**
-
-### 5.1 Backend (Terminal 1)
-```bash
-curl http://localhost:8000/api/tools/spec
-# Ska returnera JSON med verktyg
-```
-
-### 5.2 Frontend (Terminal 2)
-```bash
-curl http://localhost:3000
-# Ska returnera HTML
-```
-
-### 5.3 AI (Terminal 3)
-```bash
-curl http://localhost:11434/api/tags
-# Ska returnera JSON med modeller
-```
-
----
-
-## 🚨 **Vanliga Problem och Lösningar**
-
-### Problem 1: Port 8000 redan i användning
-```bash
-# Kontrollera vad som använder porten
-lsof -i :8000
-
-# Döda processen
-kill -9 <PID>
-
-# Starta om backend
-cd server && python3 run.py
-```
-
-### Problem 2: Port 3000 redan i användning
-```bash
-# Kontrollera vad som använder porten
-lsof -i :3000
-
-# Döda processen
-kill -9 <PID>
-
-# Starta om frontend
-cd web && npm run dev
-```
-
-### Problem 3: Python-multipart saknas
-```bash
-# Installera saknad dependency
-pip3 install python-multipart
-
-# Starta om backend
-cd server && python3 run.py
-```
-
-### Problem 4: Next.js-moduler saknas
-```bash
-# Rensa och installera om
+# Starta frontend (i bakgrunden)
 cd web
-rm -rf node_modules package-lock.json
-npm install
+npm run dev &
+FRONTEND_PID=$!
+cd ..
 
-# Starta om frontend
-npm run dev
-```
+# Vänta och kontrollera frontend
+sleep 8
+if curl -s http://localhost:3000 >/dev/null; then
+  echo "✅ Frontend started on http://localhost:3000"
+else
+  echo "❌ Frontend failed to start"
+  kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+  exit 1
+fi
 
-### Problem 5: Ollama-port redan i användning
-```bash
-# Kontrollera Ollama-status
-ollama list
-
-# Starta om Ollama
-ollama serve
+# Kontrollera Ollama (startar automatiskt)
+if curl -s http://localhost:11434/api/tags >/dev/null; then
+  echo "✅ Ollama running on http://localhost:11434"
+else
+  echo "🤖 Starting Ollama..."
+  ollama serve &
+  sleep 3
+fi
 ```
 
 ---
 
-## 📱 **Komplett Startup-script**
+## 🎯 **Slutkontroll - Allt ska fungera**
 
-För snabb start, skapa detta script:
+Kör denna verifiering:
+
+```bash
+echo "🔍 Final System Check:"
+curl -s http://localhost:8000/api/tools/spec >/dev/null && echo "✅ Backend OK" || echo "❌ Backend FAIL"
+curl -s http://localhost:3000 >/dev/null && echo "✅ Frontend OK" || echo "❌ Frontend FAIL"  
+curl -s http://localhost:11434/api/tags >/dev/null && echo "✅ AI OK" || echo "❌ AI FAIL"
+curl -s http://localhost:8000/api/v1/llm/status >/dev/null && echo "✅ LLM System OK" || echo "❌ LLM System FAIL"
+```
+
+**Förväntad output:**
+```
+🔍 Final System Check:
+✅ Backend OK
+✅ Frontend OK
+✅ AI OK
+✅ LLM System OK
+```
+
+---
+
+## 🌐 **Öppna Alice**
+
+När alla ✅ visas, öppna webbläsaren:
+
+**🎯 http://localhost:3000**
+
+Du ska nu se:
+- 🎨 **Alice HUD** med glassmorphism-design
+- 🤖 **LLM Status Badge** (top-right) som visar "ollama:gpt-oss:20b (healthy)"
+- 🎙️ **Voice Interface** för Swedish speech
+- 📊 **System metrics** och verktyg
+
+---
+
+## 🚨 **Om något inte fungerar**
+
+### Port-konflikter
+```bash
+# Kontrollera vilka processer som använder portarna
+lsof -i :8000 && lsof -i :3000 && lsof -i :11434
+# Döda konflikterande processer
+kill -9 <PID>
+```
+
+### Virtual Environment-problem
+```bash
+# Total reset av venv
+rm -rf .venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r server/requirements.txt python-multipart httpx
+```
+
+### Dependencies-problem
+```bash
+# Frontend dependencies
+cd web && rm -rf node_modules package-lock.json && npm install
+
+# Backend dependencies  
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r server/requirements.txt python-multipart httpx
+```
+
+---
+
+## 🔄 **Starta Om Allt**
+
+Om du behöver starta om hela systemet:
+
+```bash
+# Stoppa allt
+pkill -f "python.*run.py"; pkill -f "npm run dev"; pkill -f "ollama serve"
+
+# Vänta 5 sekunder
+sleep 5
+
+# Starta om med manual setup ovan
+```
+
+---
+
+## 📱 **Smart Startup Script**
+
+Skapa detta för framtida one-click start:
 
 ```bash
 #!/bin/bash
-# start_alice.sh
+# save as: ~/alice-start.sh
+
+cd /Users/evil/Desktop/EVIL/PROJECT/Alice
 
 echo "🚀 Starting Alice Project..."
 
-# Terminal 1: Backend
-echo "🐍 Starting Backend..."
-cd /Users/evil/Desktop/EVIL/PROJECT/Alice
-source .venv/bin/activate
-cd server
-python3 run.py &
+# Fix venv if broken
+source .venv/bin/activate 2>/dev/null || {
+  echo "🔧 Recreating virtual environment..."
+  rm -rf .venv
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install -r server/requirements.txt python-multipart httpx
+}
 
-# Terminal 2: Frontend  
-echo "⚛️ Starting Frontend..."
-cd /Users/evil/Desktop/EVIL/PROJECT/Alice/web
-npm run dev &
+# Clean up ports
+pkill -f "python.*run.py" 2>/dev/null
+pkill -f "npm run dev" 2>/dev/null
+sleep 2
 
-# Terminal 3: AI
-echo "🤖 Starting Ollama..."
-ollama serve &
-
-echo "✅ Alice Project started!"
-echo "🌐 Frontend: http://localhost:3000"
-echo "🔧 Backend: http://localhost:8000"
-echo "🤖 AI: http://localhost:11434"
-```
-
----
-
-## 🎯 **Verifieringschecklista**
-
-- [ ] **Backend körs** på http://localhost:8000
-- [ ] **Frontend körs** på http://localhost:3000  
-- [ ] **Ollama körs** på http://localhost:11434
-- [ ] **API svarar** - `/api/tools/spec` returnerar JSON
-- [ ] **HUD laddas** - Alice HUD visas i webbläsaren
-- [ ] **AI fungerar** - Ollama kan köra `gpt-oss:20b`
-
----
-
-## 🔄 **Starta Om Projektet**
-
-För att starta om allt:
-
-```bash
-# 1. Stoppa alla processer
-pkill -f "python3 run.py"
-pkill -f "npm run dev"
-pkill -f "ollama serve"
-
-# 2. Vänta 5 sekunder
+# Start backend
+cd server && python run.py &
 sleep 5
 
-# 3. Följ steg 2-4 ovan
+# Start frontend  
+cd ../web && npm run dev &
+sleep 5
+
+# Verify all systems
+echo "🔍 System Status:"
+curl -s http://localhost:8000/api/tools/spec >/dev/null && echo "✅ Backend" || echo "❌ Backend"
+curl -s http://localhost:3000 >/dev/null && echo "✅ Frontend" || echo "❌ Frontend"
+curl -s http://localhost:11434/api/tags >/dev/null && echo "✅ AI" || echo "❌ AI"
+
+echo ""
+echo "🎉 Alice is ready!"
+echo "🌐 Open: http://localhost:3000"
+```
+
+**Gör det körbart:**
+```bash
+chmod +x ~/alice-start.sh
+```
+
+**Kör Alice när som helst:**
+```bash
+~/alice-start.sh
 ```
 
 ---
 
-## 📚 **Användbara Kommandon**
+**🎯 Nu borde Alice starta på 30 sekunder utan krångel!**
 
-### Kontrollera status
-```bash
-# Backend status
-curl -s http://localhost:8000/api/tools/spec > /dev/null && echo "✅ Backend OK" || echo "❌ Backend FAIL"
-
-# Frontend status  
-curl -s http://localhost:3000 > /dev/null && echo "✅ Frontend OK" || echo "❌ Frontend FAIL"
-
-# AI status
-curl -s http://localhost:11434/api/tags > /dev/null && echo "✅ AI OK" || echo "❌ AI FAIL"
-```
-
-### Loggar
-```bash
-# Backend loggar
-tail -f server/logs/app.log
-
-# Frontend loggar (browser console)
-# Öppna Developer Tools i webbläsaren
-```
-
----
-
-**🎉 Nu borde Alice-projektet köra perfekt!**
-
-För hjälp, se [DEVELOPMENT.md](DEVELOPMENT.md), [README.md](README.md) eller [ALICE_ROADMAP.md](ALICE_ROADMAP.md).
+För support, se [README.md](README.md) eller [DEVELOPMENT.md](DEVELOPMENT.md).

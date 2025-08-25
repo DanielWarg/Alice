@@ -26,3 +26,9 @@ email-validator
 
 # Additional security
 bcrypt
+
+# B3 Always-On Voice System
+websockets
+python-multipart
+psutil
+prometheus_client

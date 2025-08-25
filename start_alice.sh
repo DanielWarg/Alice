@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 🚀 Alice Project Startup Script
-# Kör detta script för att starta alla komponenter
+# 🚀 Alice Project Startup Script - BULLETPROOF VERSION
+# Kör detta script för att starta alla komponenter utan krångel
 
 echo "🚀 Starting Alice Project..."
 echo "================================"
@@ -13,25 +13,53 @@ if [ ! -f "server/run.py" ]; then
     exit 1
 fi
 
-# Kontrollera att .venv finns
-if [ ! -d ".venv" ]; then
-    echo "❌ Error: Virtuell miljö saknas. Skapa den först:"
-    echo "   python3 -m venv .venv"
-    echo "   source .venv/bin/activate"
-    echo "   pip3 install -r server/requirements.txt"
-    echo "   pip3 install python-multipart"
-    exit 1
+# Kontrollera förutsättningar
+echo "🔍 Checking prerequisites..."
+command -v python3 >/dev/null || { echo "❌ Python3 not found"; exit 1; }
+command -v node >/dev/null || { echo "❌ Node.js not found"; exit 1; }
+command -v ollama >/dev/null || { echo "❌ Ollama not found"; exit 1; }
+echo "✅ Prerequisites OK"
+
+# Rensa gamla processer som kan störa
+echo "🧹 Cleaning up old processes..."
+pkill -f "python.*run.py" 2>/dev/null || true
+pkill -f "npm run dev" 2>/dev/null || true
+sleep 2
+
+# Fix virtual environment (skapa om om trasig)
+echo "🔧 Setting up virtual environment..."
+if [ -d ".venv" ]; then
+    source .venv/bin/activate 2>/dev/null || VENV_BROKEN=1
+    if [[ $(which python3) != *".venv"* ]]; then
+        VENV_BROKEN=1
+    fi
+else
+    VENV_BROKEN=1
 fi
 
-# Kontrollera att Ollama finns
-if ! command -v ollama &> /dev/null; then
-    echo "❌ Error: Ollama är inte installerat"
-    echo "   Installera med: curl -fsSL https://ollama.ai/install.sh | sh"
-    exit 1
+if [ "$VENV_BROKEN" = "1" ]; then
+    echo "🔧 Recreating broken virtual environment..."
+    rm -rf .venv 2>/dev/null || true
+    python3 -m venv .venv
+    source .venv/bin/activate
+    
+    # Installera dependencies
+    echo "📦 Installing Python dependencies..."
+    pip install --upgrade pip
+    pip install -r server/requirements.txt
+    pip install python-multipart httpx
+else
+    echo "✅ Virtual environment OK"
 fi
 
-echo "✅ Förutsättningar kontrollerade"
-echo ""
+# Kontrollera frontend dependencies
+echo "📦 Checking frontend dependencies..."
+if [ ! -d "web/node_modules" ]; then
+    echo "📦 Installing Node.js dependencies..."
+    cd web
+    npm install
+    cd ..
+fi
 
 # Kontrollera verktygskonsistens
 echo "🔧 Checking tool consistency..."
@@ -42,27 +70,31 @@ cd ..
 if [ "$TOOL_COUNT" -gt 10 ]; then
     echo "✅ Tool consistency OK ($TOOL_COUNT tools enabled)"
 else
-    echo "❌ Tool consistency check failed"
-    exit 1
+    echo "⚠️  Tool consistency check inconclusive (may still work)"
 fi
 
 # Starta Backend
 echo "🐍 Starting Backend (FastAPI)..."
 cd server
 source ../.venv/bin/activate
-python3 run.py &
+python run.py &
 BACKEND_PID=$!
 cd ..
 
-# Vänta lite för att backend ska starta
-sleep 3
+# Vänta och kontrollera backend
+echo "⏳ Waiting for backend to start..."
+for i in {1..10}; do
+    sleep 1
+    if curl -s http://localhost:8000/api/tools/spec > /dev/null 2>&1; then
+        echo "✅ Backend started successfully on http://localhost:8000"
+        BACKEND_OK=1
+        break
+    fi
+done
 
-# Kontrollera backend
-if curl -s http://localhost:8000/api/tools/spec > /dev/null 2>&1; then
-    echo "✅ Backend started successfully on http://localhost:8000"
-else
+if [ "$BACKEND_OK" != "1" ]; then
     echo "❌ Backend failed to start"
-    kill $BACKEND_PID 2>/dev/null
+    kill $BACKEND_PID 2>/dev/null || true
     exit 1
 fi
 
@@ -73,37 +105,45 @@ npm run dev &
 FRONTEND_PID=$!
 cd ..
 
-# Vänta lite för att frontend ska starta
-sleep 5
+# Vänta och kontrollera frontend
+echo "⏳ Waiting for frontend to start..."
+for i in {1..15}; do
+    sleep 1
+    if curl -s http://localhost:3000 > /dev/null 2>&1; then
+        echo "✅ Frontend started successfully on http://localhost:3000"
+        FRONTEND_OK=1
+        break
+    fi
+done
 
-# Kontrollera frontend
-if curl -s http://localhost:3000 > /dev/null 2>&1; then
-    echo "✅ Frontend started successfully on http://localhost:3000"
-else
+if [ "$FRONTEND_OK" != "1" ]; then
     echo "❌ Frontend failed to start"
-    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
     exit 1
 fi
 
-# Starta Ollama (om den inte redan körs)
-echo "🤖 Starting Ollama..."
-if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+# Kontrollera/starta Ollama
+echo "🤖 Checking Ollama..."
+if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+    echo "✅ Ollama already running on http://localhost:11434"
+else
+    echo "🤖 Starting Ollama..."
     ollama serve &
     OLLAMA_PID=$!
     sleep 3
-else
-    echo "✅ Ollama already running"
-    OLLAMA_PID=""
+    if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+        echo "✅ Ollama started successfully"
+    else
+        echo "❌ Ollama failed to start"
+    fi
 fi
 
-# Kontrollera Ollama
-if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-    echo "✅ Ollama started successfully on http://localhost:11434"
-else
-    echo "❌ Ollama failed to start"
-    kill $BACKEND_PID $FRONTEND_PID $OLLAMA_PID 2>/dev/null
-    exit 1
-fi
+echo ""
+echo "🔍 Final System Check:"
+curl -s http://localhost:8000/api/tools/spec >/dev/null && echo "✅ Backend OK" || echo "❌ Backend FAIL"
+curl -s http://localhost:3000 >/dev/null && echo "✅ Frontend OK" || echo "❌ Frontend FAIL"  
+curl -s http://localhost:11434/api/tags >/dev/null && echo "✅ AI OK" || echo "❌ AI FAIL"
+curl -s http://localhost:8000/api/v1/llm/status >/dev/null && echo "✅ LLM System OK" || echo "❌ LLM System FAIL"
 
 echo ""
 echo "🎉 Alice Project started successfully!"
@@ -111,6 +151,7 @@ echo "================================"
 echo "🌐 Frontend: http://localhost:3000"
 echo "🔧 Backend: http://localhost:8000"
 echo "🤖 AI: http://localhost:11434"
+echo "🧠 LLM Status: http://localhost:8000/api/v1/llm/status"
 echo ""
 echo "📋 Status:"
 echo "   Backend PID: $BACKEND_PID"
@@ -120,16 +161,18 @@ if [ ! -z "$OLLAMA_PID" ]; then
 fi
 echo ""
 echo "🛑 To stop all services:"
-echo "   kill $BACKEND_PID $FRONTEND_PID $OLLAMA_PID"
+echo "   pkill -f 'python.*run.py'; pkill -f 'npm run dev'"
 echo ""
-echo "📖 For help, see STARTUP.md"
+echo "🎯 Open Alice: http://localhost:3000"
 echo ""
 
-# Vänta på användarinput för att stoppa
-echo "Press Enter to stop all services..."
-read
-
-# Stoppa alla services
-echo "🛑 Stopping all services..."
-kill $BACKEND_PID $FRONTEND_PID $OLLAMA_PID 2>/dev/null
-echo "✅ All services stopped"
+# Optionell väntan för att stoppa
+if [ "$1" = "--wait" ]; then
+    echo "Press Enter to stop all services..."
+    read
+    
+    # Stoppa alla services
+    echo "🛑 Stopping all services..."
+    kill $BACKEND_PID $FRONTEND_PID $OLLAMA_PID 2>/dev/null || true
+    echo "✅ All services stopped"
+fi

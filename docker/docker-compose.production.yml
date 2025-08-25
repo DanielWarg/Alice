@@ -1,0 +1,471 @@
+# Alice AI Assistant - Enhanced Production Docker Compose
+# Production-optimized multi-service deployment with comprehensive monitoring
+
+version: '3.8'
+
+# =============================================================================
+# Services Configuration
+# =============================================================================
+services:
+  # Alice Backend - Main application server
+  alice-backend:
+    build:
+      context: .
+      dockerfile: docker/production.dockerfile
+      target: production
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${GIT_COMMIT:-}
+    image: alice-ai/backend:${IMAGE_TAG:-latest}
+    container_name: alice-backend
+    hostname: alice-backend
+    restart: unless-stopped
+    
+    # Environment configuration
+    environment:
+      # Core application settings
+      ALICE_ENV: ${ALICE_ENV:-production}
+      ALICE_DEBUG: ${ALICE_DEBUG:-false}
+      ALICE_LOG_LEVEL: ${ALICE_LOG_LEVEL:-INFO}
+      ALICE_HOST: ${ALICE_HOST:-0.0.0.0}
+      ALICE_PORT: ${ALICE_PORT:-8000}
+      ALICE_WORKERS: ${ALICE_WORKERS:-4}
+      
+      # Database configuration
+      DATABASE_URL: ${DATABASE_URL:-postgresql://alice:${POSTGRES_PASSWORD}@alice-db:5432/alice}
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
+      DATABASE_POOL_MAX_OVERFLOW: ${DATABASE_POOL_MAX_OVERFLOW:-20}
+      DATABASE_POOL_TIMEOUT: ${DATABASE_POOL_TIMEOUT:-30}
+      
+      # API Keys (from environment or secrets)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      
+      # Performance settings
+      TTS_CACHE_MAX_SIZE_MB: ${TTS_CACHE_MAX_SIZE_MB:-500}
+      TTS_CACHE_EXPIRY_HOURS: ${TTS_CACHE_EXPIRY_HOURS:-168}
+      VOICE_BUFFER_SIZE_MB: ${VOICE_BUFFER_SIZE_MB:-50}
+      PERFORMANCE_MONITORING_ENABLED: ${PERFORMANCE_MONITORING_ENABLED:-true}
+      PERFORMANCE_MONITORING_INTERVAL: ${PERFORMANCE_MONITORING_INTERVAL:-30}
+      
+      # B1/B2 System configuration
+      AMBIENT_RAW_TTL_MIN: ${AMBIENT_RAW_TTL_MIN:-120}
+      BARGE_IN_SENSITIVITY: ${BARGE_IN_SENSITIVITY:-0.7}
+      ECHO_CANCELLATION_ENABLED: ${ECHO_CANCELLATION_ENABLED:-true}
+      
+      # Security settings
+      SECURE_COOKIES: ${SECURE_COOKIES:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+      
+      # External service timeouts
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-30}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60}
+      
+    # Port mapping
+    ports:
+      - "${ALICE_BACKEND_PORT:-8000}:8000"
+    
+    # Volume mounts for persistent data
+    volumes:
+      - alice-data:/app/data
+      - alice-logs:/app/logs
+      - alice-models:/app/models
+      - alice-config:/app/config
+      - /dev/snd:/dev/snd:ro  # Audio device access
+    
+    # Device access for audio processing
+    devices:
+      - /dev/snd:/dev/snd
+    
+    # Enhanced health check
+    healthcheck:
+      test: ["CMD", "./scripts/health-check.sh", "quick"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
+    
+    # Startup probe for Kubernetes compatibility
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alice-backend.rule=Host(`${ALICE_DOMAIN:-alice.local}`) && PathPrefix(`/api`)"
+      - "traefik.http.services.alice-backend.loadbalancer.server.port=8000"
+      - "traefik.http.services.alice-backend.loadbalancer.healthcheck.path=/health"
+      - "prometheus.scrape=true"
+      - "prometheus.port=8000"
+      - "prometheus.path=/metrics"
+    
+    # Network configuration
+    networks:
+      - alice-network
+      - monitoring-network
+    
+    # Dependencies
+    depends_on:
+      alice-db:
+        condition: service_healthy
+      alice-redis:
+        condition: service_healthy
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${BACKEND_CPU_LIMIT:-4.0}'
+          memory: ${BACKEND_MEMORY_LIMIT:-4G}
+        reservations:
+          cpus: '${BACKEND_CPU_RESERVATION:-1.0}'
+          memory: ${BACKEND_MEMORY_RESERVATION:-1G}
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 3
+        window: 60s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+        labels: "service=alice-backend"
+
+  # Alice Frontend - Next.js web application
+  alice-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${GIT_COMMIT:-}
+    image: alice-ai/frontend:${IMAGE_TAG:-latest}
+    container_name: alice-frontend
+    hostname: alice-frontend
+    restart: unless-stopped
+    
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://alice-backend:8000}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://alice-backend:8000}
+      NEXT_PUBLIC_ENVIRONMENT: ${ALICE_ENV:-production}
+    
+    ports:
+      - "${ALICE_FRONTEND_PORT:-3000}:3000"
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alice-frontend.rule=Host(`${ALICE_DOMAIN:-alice.local}`)"
+      - "traefik.http.services.alice-frontend.loadbalancer.server.port=3000"
+    
+    networks:
+      - alice-network
+    
+    depends_on:
+      alice-backend:
+        condition: service_healthy
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '${FRONTEND_CPU_LIMIT:-2.0}'
+          memory: ${FRONTEND_MEMORY_LIMIT:-1G}
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+        labels: "service=alice-frontend"
+
+  # Database - PostgreSQL with optimization
+  alice-db:
+    image: postgres:15-alpine
+    container_name: alice-db
+    hostname: alice-db
+    restart: unless-stopped
+    
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-alice}
+      POSTGRES_USER: ${POSTGRES_USER:-alice}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "${POSTGRES_INITDB_ARGS:---auth-host=scram-sha-256}"
+      
+      # Performance tuning
+      POSTGRES_SHARED_BUFFERS: ${POSTGRES_SHARED_BUFFERS:-256MB}
+      POSTGRES_EFFECTIVE_CACHE_SIZE: ${POSTGRES_EFFECTIVE_CACHE_SIZE:-1GB}
+      POSTGRES_WORK_MEM: ${POSTGRES_WORK_MEM:-64MB}
+      POSTGRES_MAINTENANCE_WORK_MEM: ${POSTGRES_MAINTENANCE_WORK_MEM:-256MB}
+    
+    volumes:
+      - alice-postgres:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./docker/postgres/conf:/etc/postgresql/conf.d:ro
+    
+    command: >
+      postgres
+      -c shared_buffers=${POSTGRES_SHARED_BUFFERS:-256MB}
+      -c effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-1GB}
+      -c work_mem=${POSTGRES_WORK_MEM:-64MB}
+      -c maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM:-256MB}
+      -c max_connections=${POSTGRES_MAX_CONNECTIONS:-100}
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c log_statement=error
+      -c log_min_duration_statement=1000
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alice} -d ${POSTGRES_DB:-alice}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    
+    networks:
+      - alice-network
+      - monitoring-network
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '${DB_CPU_LIMIT:-2.0}'
+          memory: ${DB_MEMORY_LIMIT:-2G}
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+        labels: "service=alice-db"
+
+  # Redis - Caching and session storage
+  alice-redis:
+    image: redis:7-alpine
+    container_name: alice-redis
+    hostname: alice-redis
+    restart: unless-stopped
+    
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory ${REDIS_MAXMEMORY:-512mb}
+      --maxmemory-policy allkeys-lru
+      --tcp-keepalive 60
+      --save 900 1 300 10 60 10000
+    
+    volumes:
+      - alice-redis:/data
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    
+    networks:
+      - alice-network
+      - monitoring-network
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: ${REDIS_MEMORY_LIMIT:-768M}
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: alice-prometheus
+    hostname: prometheus
+    restart: unless-stopped
+    
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alice_alerts.yml:/etc/prometheus/alice_alerts.yml:ro
+      - alice-prometheus:/prometheus
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}'
+    
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    
+    networks:
+      - monitoring-network
+    
+    profiles:
+      - monitoring
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: alice-grafana
+    hostname: grafana
+    restart: unless-stopped
+    
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: ${GRAFANA_PLUGINS:-}
+      GF_SMTP_ENABLED: ${GF_SMTP_ENABLED:-false}
+    
+    volumes:
+      - alice-grafana:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    
+    networks:
+      - monitoring-network
+    
+    depends_on:
+      - prometheus
+    
+    profiles:
+      - monitoring
+    
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: alice-loki
+    hostname: loki
+    restart: unless-stopped
+    
+    volumes:
+      - ./monitoring/loki/loki.yml:/etc/loki/local-config.yaml:ro
+      - alice-loki:/tmp/loki
+    
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    
+    command: -config.file=/etc/loki/local-config.yaml
+    
+    networks:
+      - monitoring-network
+    
+    profiles:
+      - monitoring
+      - logging
+
+# =============================================================================
+# Volumes Configuration
+# =============================================================================
+volumes:
+  # Application data
+  alice-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${ALICE_DATA_PATH:-./data}
+  
+  alice-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${ALICE_LOGS_PATH:-./logs}
+  
+  alice-models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${ALICE_MODELS_PATH:-./models}
+  
+  alice-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${ALICE_CONFIG_PATH:-./config}
+  
+  # Database storage
+  alice-postgres:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${POSTGRES_DATA_PATH:-./data/postgres}
+  
+  alice-redis:
+    driver: local
+  
+  # Monitoring storage
+  alice-prometheus:
+    driver: local
+  
+  alice-grafana:
+    driver: local
+  
+  alice-loki:
+    driver: local
+
+# =============================================================================
+# Networks Configuration
+# =============================================================================
+networks:
+  alice-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: alice-bridge
+  
+  monitoring-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: monitoring-bridge
+
+# =============================================================================
+# Configuration Profiles
+# =============================================================================
+# Usage:
+#   docker-compose --profile monitoring up    # Start with monitoring
+#   docker-compose --profile logging up       # Start with logging
+#   docker-compose up                          # Start core services only

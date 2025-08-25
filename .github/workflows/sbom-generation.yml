@@ -1,0 +1,470 @@
+# SBOM (Software Bill of Materials) Generation
+# Generates comprehensive software inventory for supply chain security
+
+name: SBOM Generation & Security Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run weekly on Mondays at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+    name: Generate SBOM and Scan for Vulnerabilities
+    
+    outputs:
+      sbom-python-artifact: ${{ steps.sbom-python.outputs.artifact-name }}
+      sbom-node-artifact: ${{ steps.sbom-node.outputs.artifact-name }}
+      vulnerability-count: ${{ steps.scan-vulnerabilities.outputs.vulnerability-count }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          # Install Python dependencies
+          cd server
+          pip install -r requirements.txt
+          cd ..
+          
+          # Install Node.js dependencies
+          cd web
+          npm ci
+          cd ../alice-tools
+          npm ci
+          cd ../nlu-agent
+          npm ci
+          cd ../tools
+          npm ci
+          cd ..
+
+      - name: Install SBOM tools
+        run: |
+          # Install Syft for SBOM generation
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          
+          # Install Grype for vulnerability scanning
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          
+          # Verify installations
+          syft version
+          grype version
+
+      - name: Generate Python SBOM
+        id: sbom-python
+        run: |
+          # Generate SBOM for Python backend
+          syft packages dir:server -o spdx-json=sbom-python.json
+          syft packages dir:server -o syft-json=sbom-python-syft.json
+          syft packages dir:server -o cyclonedx-json=sbom-python-cyclonedx.json
+          
+          # Generate human-readable report
+          syft packages dir:server -o table > sbom-python-report.txt
+          
+          echo "artifact-name=sbom-python-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
+      - name: Generate Node.js SBOMs
+        id: sbom-node
+        run: |
+          # Generate SBOM for each Node.js project
+          
+          # Web frontend
+          syft packages dir:web -o spdx-json=sbom-web.json
+          syft packages dir:web -o syft-json=sbom-web-syft.json
+          syft packages dir:web -o table > sbom-web-report.txt
+          
+          # Alice tools
+          syft packages dir:alice-tools -o spdx-json=sbom-alice-tools.json
+          syft packages dir:alice-tools -o syft-json=sbom-alice-tools-syft.json
+          syft packages dir:alice-tools -o table > sbom-alice-tools-report.txt
+          
+          # NLU agent
+          syft packages dir:nlu-agent -o spdx-json=sbom-nlu-agent.json
+          syft packages dir:nlu-agent -o syft-json=sbom-nlu-agent-syft.json
+          syft packages dir:nlu-agent -o table > sbom-nlu-agent-report.txt
+          
+          # Debug tools
+          syft packages dir:tools -o spdx-json=sbom-tools.json
+          syft packages dir:tools -o syft-json=sbom-tools-syft.json
+          syft packages dir:tools -o table > sbom-tools-report.txt
+          
+          # Combined Node.js SBOM
+          cat sbom-*-report.txt > sbom-node-combined-report.txt
+          
+          echo "artifact-name=sbom-node-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
+      - name: Generate Container SBOM (if Docker files exist)
+        run: |
+          # Check if Dockerfiles exist and generate SBOMs
+          if [ -f "Dockerfile.backend" ]; then
+            echo "Generating SBOM for backend container..."
+            syft packages oci-dir:. -o spdx-json=sbom-container-backend.json
+            syft packages oci-dir:. -o table > sbom-container-backend-report.txt
+          fi
+          
+          if [ -f "Dockerfile.frontend" ]; then
+            echo "Generating SBOM for frontend container..."
+            syft packages oci-dir:. -o spdx-json=sbom-container-frontend.json
+            syft packages oci-dir:. -o table > sbom-container-frontend-report.txt
+          fi
+
+      - name: Scan for vulnerabilities
+        id: scan-vulnerabilities
+        run: |
+          # Scan Python dependencies
+          grype sbom-python.json -o json > vulnerabilities-python.json
+          grype sbom-python.json -o table > vulnerabilities-python-report.txt
+          
+          # Scan Node.js dependencies
+          grype sbom-web.json -o json > vulnerabilities-web.json
+          grype sbom-web.json -o table > vulnerabilities-web-report.txt
+          
+          grype sbom-alice-tools.json -o json > vulnerabilities-alice-tools.json
+          grype sbom-alice-tools.json -o table > vulnerabilities-alice-tools-report.txt
+          
+          grype sbom-nlu-agent.json -o json > vulnerabilities-nlu-agent.json
+          grype sbom-nlu-agent.json -o table > vulnerabilities-nlu-agent-report.txt
+          
+          grype sbom-tools.json -o json > vulnerabilities-tools.json
+          grype sbom-tools.json -o table > vulnerabilities-tools-report.txt
+          
+          # Count total vulnerabilities
+          VULN_COUNT=$(cat vulnerabilities-*.json | jq -r '.matches | length' | awk '{sum += $1} END {print sum}')
+          echo "vulnerability-count=$VULN_COUNT" >> $GITHUB_OUTPUT
+          echo "Total vulnerabilities found: $VULN_COUNT"
+          
+          # Generate summary report
+          cat > vulnerability-summary.txt << EOF
+          # Alice AI Assistant - Vulnerability Scan Report
+          Generated: $(date)
+          
+          ## Summary
+          Total vulnerabilities found: $VULN_COUNT
+          
+          ## Python Backend
+          $(cat vulnerabilities-python-report.txt)
+          
+          ## Web Frontend
+          $(cat vulnerabilities-web-report.txt)
+          
+          ## Alice Tools
+          $(cat vulnerabilities-alice-tools-report.txt)
+          
+          ## NLU Agent
+          $(cat vulnerabilities-nlu-agent-report.txt)
+          
+          ## Debug Tools
+          $(cat vulnerabilities-tools-report.txt)
+          EOF
+
+      - name: Check vulnerability thresholds
+        run: |
+          # Define acceptable vulnerability thresholds
+          CRITICAL_THRESHOLD=0
+          HIGH_THRESHOLD=5
+          MEDIUM_THRESHOLD=20
+          
+          # Count vulnerabilities by severity
+          CRITICAL_COUNT=$(cat vulnerabilities-*.json | jq -r '.matches[] | select(.vulnerability.severity == "Critical") | .vulnerability.severity' | wc -l)
+          HIGH_COUNT=$(cat vulnerabilities-*.json | jq -r '.matches[] | select(.vulnerability.severity == "High") | .vulnerability.severity' | wc -l)
+          MEDIUM_COUNT=$(cat vulnerabilities-*.json | jq -r '.matches[] | select(.vulnerability.severity == "Medium") | .vulnerability.severity' | wc -l)
+          
+          echo "Critical vulnerabilities: $CRITICAL_COUNT (threshold: $CRITICAL_THRESHOLD)"
+          echo "High vulnerabilities: $HIGH_COUNT (threshold: $HIGH_THRESHOLD)"
+          echo "Medium vulnerabilities: $MEDIUM_COUNT (threshold: $MEDIUM_THRESHOLD)"
+          
+          # Fail if thresholds exceeded
+          if [ "$CRITICAL_COUNT" -gt "$CRITICAL_THRESHOLD" ]; then
+            echo "❌ CRITICAL: Found $CRITICAL_COUNT critical vulnerabilities (max allowed: $CRITICAL_THRESHOLD)"
+            exit 1
+          fi
+          
+          if [ "$HIGH_COUNT" -gt "$HIGH_THRESHOLD" ]; then
+            echo "⚠️ WARNING: Found $HIGH_COUNT high vulnerabilities (max allowed: $HIGH_THRESHOLD)"
+            # Don't fail on high vulnerabilities, but warn
+          fi
+          
+          if [ "$MEDIUM_COUNT" -gt "$MEDIUM_THRESHOLD" ]; then
+            echo "ℹ️ INFO: Found $MEDIUM_COUNT medium vulnerabilities (max allowed: $MEDIUM_THRESHOLD)"
+          fi
+          
+          echo "✅ Vulnerability check passed"
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-reports-${{ github.sha }}
+          path: |
+            sbom-*.json
+            sbom-*-report.txt
+            vulnerabilities-*.json
+            vulnerabilities-*-report.txt
+            vulnerability-summary.txt
+          retention-days: 90
+
+      - name: Create SARIF report for GitHub Security
+        if: github.event_name != 'pull_request'
+        run: |
+          # Convert Grype JSON to SARIF format (simplified)
+          cat > convert-to-sarif.py << 'EOF'
+          import json
+          import sys
+          from datetime import datetime
+          
+          def convert_grype_to_sarif(grype_files):
+              sarif = {
+                  "version": "2.1.0",
+                  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0.json",
+                  "runs": []
+              }
+              
+              for file_path in grype_files:
+                  try:
+                      with open(file_path, 'r') as f:
+                          grype_data = json.load(f)
+                      
+                      run = {
+                          "tool": {
+                              "driver": {
+                                  "name": "Grype",
+                                  "version": "0.74.0",
+                                  "informationUri": "https://github.com/anchore/grype"
+                              }
+                          },
+                          "results": []
+                      }
+                      
+                      for match in grype_data.get('matches', []):
+                          vuln = match.get('vulnerability', {})
+                          artifact = match.get('artifact', {})
+                          
+                          result = {
+                              "ruleId": vuln.get('id', 'unknown'),
+                              "message": {
+                                  "text": f"Vulnerability {vuln.get('id')} found in {artifact.get('name')} {artifact.get('version')}: {vuln.get('description', 'No description')}"
+                              },
+                              "level": "warning" if vuln.get('severity') in ['Medium', 'Low'] else "error",
+                              "locations": [{
+                                  "physicalLocation": {
+                                      "artifactLocation": {
+                                          "uri": artifact.get('locations', [{}])[0].get('path', 'unknown')
+                                      }
+                                  }
+                              }]
+                          }
+                          
+                          run["results"].append(result)
+                      
+                      sarif["runs"].append(run)
+                  except Exception as e:
+                      print(f"Error processing {file_path}: {e}", file=sys.stderr)
+              
+              return sarif
+          
+          if __name__ == "__main__":
+              files = ["vulnerabilities-python.json", "vulnerabilities-web.json", 
+                      "vulnerabilities-alice-tools.json", "vulnerabilities-nlu-agent.json",
+                      "vulnerabilities-tools.json"]
+              sarif_data = convert_grype_to_sarif(files)
+              
+              with open("vulnerability-scan.sarif", "w") as f:
+                  json.dump(sarif_data, f, indent=2)
+          EOF
+          
+          python convert-to-sarif.py
+
+      - name: Upload SARIF to GitHub Security
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: vulnerability-scan.sarif
+          category: dependency-vulnerabilities
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read vulnerability summary
+            let summary = '';
+            try {
+              summary = fs.readFileSync('vulnerability-summary.txt', 'utf8');
+            } catch (error) {
+              summary = 'Could not read vulnerability summary.';
+            }
+            
+            // Truncate if too long
+            if (summary.length > 65000) {
+              summary = summary.substring(0, 65000) + '\n\n... (truncated)';
+            }
+            
+            const vulnerabilityCount = '${{ steps.scan-vulnerabilities.outputs.vulnerability-count }}';
+            
+            const comment = `## 🔍 SBOM & Vulnerability Scan Results
+            
+            **Total vulnerabilities found:** ${vulnerabilityCount}
+            
+            <details>
+            <summary>📋 Detailed Vulnerability Report</summary>
+            
+            \`\`\`
+            ${summary}
+            \`\`\`
+            
+            </details>
+            
+            📦 **SBOM Reports available as workflow artifacts**
+            
+            ${vulnerabilityCount > 0 ? '⚠️ **Please review and address vulnerabilities before merging**' : '✅ **No vulnerabilities found**'}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  publish-sbom:
+    runs-on: ubuntu-latest
+    needs: generate-sbom
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: Publish SBOM to Release
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download SBOM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom-reports-${{ github.sha }}
+          path: ./sbom-artifacts
+
+      - name: Create SBOM release archive
+        run: |
+          cd sbom-artifacts
+          tar -czf ../alice-sbom-${{ github.sha }}.tar.gz *.json *.txt
+          cd ..
+          
+          # Create a summary file
+          cat > sbom-release-notes.md << EOF
+          # Alice AI Assistant - SBOM Release
+          
+          **Commit:** ${{ github.sha }}
+          **Date:** $(date)
+          **Vulnerabilities:** ${{ needs.generate-sbom.outputs.vulnerability-count }}
+          
+          This archive contains the Software Bill of Materials (SBOM) for Alice AI Assistant:
+          
+          ## Contents
+          - Python backend SBOM (SPDX, CycloneDX, Syft formats)
+          - Node.js frontend SBOMs (Web, Alice Tools, NLU Agent, Debug Tools)
+          - Container SBOMs (if applicable)
+          - Vulnerability scan reports
+          - Human-readable reports
+          
+          ## Formats
+          - **SPDX JSON**: Industry standard format for SBOM
+          - **CycloneDX JSON**: OWASP standard for supply chain component analysis
+          - **Syft JSON**: Native format with detailed metadata
+          - **Table format**: Human-readable reports
+          
+          ## Usage
+          These SBOMs can be used for:
+          - Supply chain security analysis
+          - Compliance reporting
+          - Vulnerability management
+          - License compliance checking
+          EOF
+
+      - name: Upload to GitHub Release (if tag exists)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            alice-sbom-${{ github.sha }}.tar.gz
+            sbom-release-notes.md
+          body_path: sbom-release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  security-advisory:
+    runs-on: ubuntu-latest
+    needs: generate-sbom
+    if: needs.generate-sbom.outputs.vulnerability-count > 0
+    name: Create Security Advisory (if needed)
+    
+    steps:
+      - name: Assess if advisory needed
+        run: |
+          VULN_COUNT="${{ needs.generate-sbom.outputs.vulnerability-count }}"
+          echo "Vulnerability count: $VULN_COUNT"
+          
+          # You can customize this logic based on your security policies
+          if [ "$VULN_COUNT" -gt 10 ]; then
+            echo "HIGH_SEVERITY_THRESHOLD_EXCEEDED=true" >> $GITHUB_ENV
+          else
+            echo "HIGH_SEVERITY_THRESHOLD_EXCEEDED=false" >> $GITHUB_ENV
+          fi
+
+      - name: Create issue for vulnerability review
+        if: env.HIGH_SEVERITY_THRESHOLD_EXCEEDED == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Security Review Required: ${vulnerabilityCount} vulnerabilities found`,
+              body: `## Security Alert
+              
+              The SBOM scan found **${{ needs.generate-sbom.outputs.vulnerability-count }}** vulnerabilities in our dependencies.
+              
+              ## Action Required
+              - [ ] Review vulnerability scan results in the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId})
+              - [ ] Assess impact of each vulnerability
+              - [ ] Create remediation plan
+              - [ ] Update dependencies or apply security patches
+              - [ ] Re-run security scan to verify fixes
+              
+              ## Artifacts
+              - SBOM reports are available as workflow artifacts
+              - Detailed vulnerability reports included
+              
+              **Priority:** High
+              **Assigned:** @evil
+              
+              This issue was automatically created by the SBOM generation workflow.
+              `,
+              labels: ['security', 'vulnerability', 'high-priority'],
+              assignees: ['evil']
+            });
+            
+            console.log(`Created security issue: ${issue.data.html_url}`);

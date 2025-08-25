@@ -20,18 +20,18 @@ except ImportError:
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException, File, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from .security import configure_secure_app
+from security import configure_secure_app
 from pydantic import BaseModel, Field
 import logging
 from dotenv import load_dotenv
 import httpx
 
-from .memory import MemoryStore
-from .decision import EpsilonGreedyBandit, simulate_first
-from .prompts.system_prompts import system_prompt as SP, developer_prompt as DP
-from .metrics import metrics
-from .training import stream_dataset
-from .core import (
+from memory import MemoryStore
+from decision import EpsilonGreedyBandit, simulate_first
+from prompts.system_prompts import system_prompt as SP, developer_prompt as DP
+from metrics import metrics
+from training import stream_dataset
+from core import (
     list_tool_specs, 
     validate_and_execute_tool,
     enabled_tools,
@@ -46,10 +46,14 @@ from voice_gateway import get_voice_gateway_manager
 from intent_router import get_intent_router
 from voice_stt import transcribe_audio_file, get_stt_status
 from audio_processor import audio_processor, voice_gateway_audio_processor
-from .deps import get_global_openai_settings, OpenAIClient, validate_openai_config
-from .services import probe_api
+from deps import get_global_openai_settings, OpenAIClient, validate_openai_config
+from services import probe_api
+from b3_ambient_voice import get_b3_ambient_manager
+from b3_barge_in_controller import router as barge_in_router
+from b3_privacy_hooks import router as privacy_router
+from b3_metrics import router as metrics_router
 from services import voice_gateway as voice_gateway_service
-from .services import ambient_memory, realtime_asr, reflection
+from services import ambient_memory, realtime_asr, reflection
 from agents.bridge import AliceAgentBridge, AgentBridgeRequest, StreamChunk, create_alice_bridge
 from http_client import spotify_client, resilient_http_client, safe_external_call
 from error_handlers import setup_error_handlers, RequestIDMiddleware, ValidationError, SwedishDateTimeValidationError
@@ -739,6 +743,29 @@ app.include_router(probe_api.router)
 app.include_router(ambient_memory.router)
 app.include_router(realtime_asr.router)
 app.include_router(reflection.router)
+app.include_router(barge_in_router)
+app.include_router(privacy_router)
+app.include_router(metrics_router)
+
+# Include LLM coordination system
+try:
+    from llm_router import router as llm_router
+    app.include_router(llm_router)
+    logger.info("LLM coordination endpoints enabled")
+except ImportError as e:
+    logger.warning(f"LLM coordination module not available: {e}")
+
+# Include production polish APIs for OAuth and service health
+try:
+    from google_oauth_router import router as google_oauth_router
+    from service_health_router import router as service_health_router
+    
+    app.include_router(google_oauth_router)
+    app.include_router(service_health_router)
+    
+    logger.info("Production OAuth and service health endpoints enabled")
+except ImportError as e:
+    logger.warning(f"Production polish modules not available: {e}")
 
 # Setup VoiceGateway WebSocket route
 voice_gateway_service.setup(app)
@@ -2017,6 +2044,22 @@ async def voice_gateway_websocket_alias(websocket: WebSocket):
     
     voice_gateway_mgr = get_voice_gateway_manager(memory)
     await voice_gateway_mgr.handle_voice_gateway_session(websocket, session_id)
+
+# B3 Ambient Voice WebSocket endpoint
+@app.websocket("/ws/voice/ambient")
+async def b3_ambient_voice_websocket(websocket: WebSocket):
+    """
+    B3 Always-On Ambient Voice WebSocket endpoint
+    
+    Handles:
+    - Continuous audio stream (16kHz PCM frames)
+    - Real-time transcription and VAD
+    - Ambient memory ingestion
+    - Privacy controls (mute/unmute)
+    - Proactive trigger events
+    """
+    ambient_mgr = get_b3_ambient_manager(memory)
+    await ambient_mgr.handle_ambient_voice(websocket)
 
 # Status endpoint for voice gateway
 @app.get("/api/voice-gateway/status")

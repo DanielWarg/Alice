@@ -11,6 +11,7 @@ import VoiceClient from './components/VoiceClient';
 import VoiceGatewayClient from '../components/VoiceGatewayClient';
 import CalendarWidget from '../components/CalendarWidget';
 import DocumentUpload from '../components/DocumentUpload';
+import LLMStatusBadge from '../components/LLMStatusBadge';
 
 const SAFE_BOOT = true; // <-- slå PÅ för att garantera uppstart i sandbox. Kan sättas till false när allt funkar.
 const UI_ONLY = false; // Backend integration enabled - full functionality
@@ -874,10 +875,13 @@ function HUDInner() {
       <div className="mx-auto max-w-7xl px-6 pt-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 opacity-80"><IconWifi className="h-4 w-4" /><IconBattery className="h-4 w-4" /><IconBell className="h-4 w-4" /></div>
-          <div className="flex items-center gap-2 text-cyan-300/80">
-            <IconClock className="h-4 w-4" />
-            <span className="tracking-widest text-xs uppercase" suppressHydrationWarning>{now}</span>
-            <span className="tracking-widest text-xs uppercase" suppressHydrationWarning>{dateInfo}</span>
+          <div className="flex items-center gap-2">
+            <LLMStatusBadge className="mr-2" />
+            <div className="flex items-center gap-2 text-cyan-300/80">
+              <IconClock className="h-4 w-4" />
+              <span className="tracking-widest text-xs uppercase" suppressHydrationWarning>{now}</span>
+              <span className="tracking-widest text-xs uppercase" suppressHydrationWarning>{dateInfo}</span>
+            </div>
           </div>
         </div>
         {globalError && (<div className="mt-3 rounded-xl border border-cyan-500/20 bg-cyan-900/20 p-3 text-xs text-cyan-300/90"><strong>Observerat globalt fel:</strong> {globalError}</div>)}

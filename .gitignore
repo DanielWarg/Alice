@@ -114,7 +114,26 @@ logs/
 # Test results
 test_results/
 *.jsonl
+
+# B3 WebSocket test files and debug logs
+test_*.html
+test_*.py
+test_*.log
+debug_*.html
+standalone_*.html
+
+# B3 audio processing temporary files
+audio_frames/
+frame_*.pcm
+buffer_*.wav
+
+# Documentation filtering (keep important JSON configs)
 *.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!jest.config.json
+!.eslintrc.json
 
 # Coverage reports
 htmlcov/

@@ -1,0 +1,512 @@
+# Comprehensive Security Scanning Pipeline
+# Multi-layer security analysis for Alice AI Assistant
+
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily security scans at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of scan to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - secrets
+          - dependencies
+          - code-analysis
+          - container
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  pull-requests: write
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  security-metadata:
+    runs-on: ubuntu-latest
+    name: Security Scan Preparation
+    outputs:
+      scan-id: ${{ steps.metadata.outputs.scan-id }}
+      timestamp: ${{ steps.metadata.outputs.timestamp }}
+    steps:
+      - name: Generate scan metadata
+        id: metadata
+        run: |
+          SCAN_ID="security-$(date +%Y%m%d-%H%M%S)-${{ github.run_number }}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "scan-id=$SCAN_ID" >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "Security scan ID: $SCAN_ID"
+
+  secrets-scanning:
+    runs-on: ubuntu-latest
+    name: Secrets & Credentials Scanning
+    if: github.event.inputs.scan_type == 'secrets' || github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == ''
+    needs: security-metadata
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog secrets scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Scan with GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Custom secrets patterns scan
+        run: |
+          cat > custom-secrets-patterns.txt << 'EOF'
+          # Alice AI specific patterns
+          (?i)(alice|openai|google|spotify)[-_]?(api[-_]?key|token|secret|password)\s*[=:]\s*[\"']?([a-zA-Z0-9\-_]{20,})
+          (?i)sk-[a-zA-Z0-9]{48}
+          (?i)AKIA[0-9A-Z]{16}
+          (?i)ya29\.[0-9A-Za-z\-_]+
+          (?i)[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com
+          EOF
+          
+          echo "🔍 Running custom secrets patterns scan..."
+          grep -r -E -f custom-secrets-patterns.txt . --exclude-dir=.git --exclude-dir=node_modules --exclude="*.log" || echo "No custom patterns found"
+
+      - name: Scan environment files
+        run: |
+          echo "🔍 Checking for exposed environment files..."
+          find . -name ".env*" -not -path "./node_modules/*" -not -path "./.git/*" | while read -r env_file; do
+            echo "Found env file: $env_file"
+            if [ -s "$env_file" ]; then
+              echo "⚠️ WARNING: Non-empty environment file found: $env_file"
+              # Check if it contains actual values (not just examples)
+              if grep -q "=" "$env_file" && ! grep -q "EXAMPLE\|TODO\|REPLACE" "$env_file"; then
+                echo "❌ CRITICAL: Environment file may contain real secrets: $env_file"
+                exit 1
+              fi
+            fi
+          done
+
+      - name: Check for hardcoded URLs and endpoints
+        run: |
+          echo "🔍 Scanning for hardcoded production URLs..."
+          PROD_PATTERNS="production\.alice|api\.alice|alice\.production|8000|3000"
+          
+          if grep -r -E "$PROD_PATTERNS" . --exclude-dir=.git --exclude-dir=node_modules --exclude="*.md" --exclude="*.yml" --exclude="*.yaml" --exclude="*.log"; then
+            echo "⚠️ WARNING: Found potential hardcoded production URLs"
+          else
+            echo "✅ No hardcoded production URLs found"
+          fi
+
+  dependency-security:
+    runs-on: ubuntu-latest
+    name: Dependency Security Analysis
+    if: github.event.inputs.scan_type == 'dependencies' || github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == ''
+    needs: security-metadata
+    
+    strategy:
+      matrix:
+        component: [python-backend, node-web, node-tools, node-nlu]
+        
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python (for Python components)
+        if: matrix.component == 'python-backend'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js (for Node components)
+        if: startsWith(matrix.component, 'node-')
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Python security scan
+        if: matrix.component == 'python-backend'
+        run: |
+          cd server
+          
+          # Install security tools
+          pip install safety bandit pip-audit
+          
+          # Safety scan for known vulnerabilities
+          echo "🔍 Running Safety scan..."
+          safety check --json > ../safety-report.json || true
+          safety check || true
+          
+          # Bandit for security issues in code
+          echo "🔍 Running Bandit security scan..."
+          bandit -r . -f json -o ../bandit-report.json || true
+          bandit -r . || true
+          
+          # Pip-audit for dependency vulnerabilities
+          echo "🔍 Running pip-audit..."
+          pip-audit --format=json --output=../pip-audit-report.json || true
+          pip-audit || true
+
+      - name: Node.js security scan
+        if: startsWith(matrix.component, 'node-')
+        run: |
+          # Determine directory based on component
+          case "${{ matrix.component }}" in
+            "node-web") cd web ;;
+            "node-tools") cd alice-tools ;;
+            "node-nlu") cd nlu-agent ;;
+          esac
+          
+          # Install dependencies
+          npm ci
+          
+          # Audit for vulnerabilities
+          echo "🔍 Running npm audit..."
+          npm audit --audit-level moderate --json > ../npm-audit-${{ matrix.component }}.json || true
+          npm audit --audit-level moderate || true
+          
+          # Check for outdated packages
+          echo "🔍 Checking outdated packages..."
+          npm outdated || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-security-${{ matrix.component }}-${{ needs.security-metadata.outputs.scan-id }}
+          path: |
+            *-report.json
+            npm-audit-*.json
+          retention-days: 30
+
+  code-analysis:
+    runs-on: ubuntu-latest
+    name: Static Code Analysis & SAST
+    if: github.event.inputs.scan_type == 'code-analysis' || github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == ''
+    needs: security-metadata
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: python, javascript
+          queries: security-extended,security-and-quality
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Python dependencies
+        run: |
+          cd server
+          pip install -r requirements.txt
+
+      - name: Install Node.js dependencies
+        run: |
+          cd web && npm ci
+          cd ../alice-tools && npm ci
+          cd ../nlu-agent && npm ci
+          cd ../tools && npm ci
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{matrix.language}}"
+
+      - name: Run Semgrep SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >- 
+            p/security-audit
+            p/python
+            p/javascript
+            p/typescript
+            p/docker
+            p/secrets
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Python-specific security analysis
+        run: |
+          cd server
+          
+          # Install additional security tools
+          pip install mypy pylint
+          
+          # Type checking (can reveal security issues)
+          echo "🔍 Running MyPy type checking..."
+          mypy . --ignore-missing-imports || true
+          
+          # Advanced linting with security focus
+          echo "🔍 Running Pylint with security plugins..."
+          pylint --load-plugins=pylint.extensions.docparams,pylint.extensions.check_elif \
+                 --disable=all --enable=security-related-issues,logging,exceptions,imports \
+                 . || true
+
+      - name: JavaScript/TypeScript security analysis
+        run: |
+          # Install ESLint security plugins
+          npm install -g eslint @microsoft/eslint-plugin-sdl eslint-plugin-security
+          
+          # Run security-focused linting
+          echo "🔍 Running ESLint security analysis..."
+          
+          cd web
+          npx eslint . --ext .js,.jsx,.ts,.tsx --config <(cat << 'EOF'
+          {
+            "extends": ["plugin:security/recommended", "plugin:@microsoft/sdl/required"],
+            "plugins": ["security", "@microsoft/sdl"],
+            "rules": {
+              "security/detect-object-injection": "error",
+              "security/detect-non-literal-fs-filename": "error",
+              "security/detect-non-literal-regexp": "error",
+              "security/detect-eval-with-expression": "error",
+              "security/detect-buffer-noassert": "error",
+              "security/detect-child-process": "error",
+              "security/detect-disable-mustache-escape": "error",
+              "security/detect-new-buffer": "error",
+              "security/detect-no-csrf-before-method-override": "error",
+              "security/detect-possible-timing-attacks": "error",
+              "security/detect-pseudoRandomBytes": "error",
+              "security/detect-unsafe-regex": "error",
+              "@microsoft/sdl/no-html-method": "error",
+              "@microsoft/sdl/no-inner-html": "error",
+              "@microsoft/sdl/no-msapp-exec-unsafe": "error"
+            },
+            "env": {
+              "browser": true,
+              "node": true,
+              "es2021": true
+            },
+            "parserOptions": {
+              "ecmaVersion": 2021,
+              "sourceType": "module"
+            }
+          }
+          EOF
+          ) || true
+
+  container-security:
+    runs-on: ubuntu-latest
+    name: Container & Infrastructure Security
+    if: github.event.inputs.scan_type == 'container' || github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == ''
+    needs: security-metadata
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Scan Dockerfiles with Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile.backend
+          format: sarif
+          output-file: hadolint-backend.sarif
+
+      - name: Scan frontend Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile.frontend
+          format: sarif
+          output-file: hadolint-frontend.sarif
+        continue-on-error: true
+
+      - name: Build containers for scanning
+        run: |
+          # Build backend container
+          if [ -f "Dockerfile.backend" ]; then
+            echo "Building backend container..."
+            docker build -f Dockerfile.backend -t alice-backend:security-scan .
+          fi
+          
+          # Build frontend container
+          if [ -f "Dockerfile.frontend" ]; then
+            echo "Building frontend container..."
+            docker build -f Dockerfile.frontend -t alice-frontend:security-scan .
+          fi
+
+      - name: Scan containers with Trivy
+        run: |
+          # Install Trivy
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+          
+          # Scan backend container
+          if docker images | grep -q alice-backend:security-scan; then
+            echo "🔍 Scanning backend container..."
+            trivy image --format sarif --output trivy-backend.sarif alice-backend:security-scan
+            trivy image alice-backend:security-scan
+          fi
+          
+          # Scan frontend container
+          if docker images | grep -q alice-frontend:security-scan; then
+            echo "🔍 Scanning frontend container..."
+            trivy image --format sarif --output trivy-frontend.sarif alice-frontend:security-scan
+            trivy image alice-frontend:security-scan
+          fi
+
+      - name: Scan docker-compose configuration
+        run: |
+          if [ -f "docker-compose.yml" ]; then
+            echo "🔍 Analyzing docker-compose.yml for security issues..."
+            
+            # Check for privileged containers
+            if grep -q "privileged.*true" docker-compose.yml; then
+              echo "⚠️ WARNING: Privileged containers found in docker-compose.yml"
+            fi
+            
+            # Check for host network mode
+            if grep -q "network_mode.*host" docker-compose.yml; then
+              echo "⚠️ WARNING: Host network mode found in docker-compose.yml"
+            fi
+            
+            # Check for volume mounts
+            if grep -q ":/.*:" docker-compose.yml; then
+              echo "ℹ️ INFO: Volume mounts found, reviewing for security..."
+              grep ":/.*:" docker-compose.yml
+            fi
+            
+            # Check for exposed ports
+            echo "ℹ️ INFO: Exposed ports analysis..."
+            grep -E "ports:|expose:" -A 2 docker-compose.yml || true
+          fi
+
+      - name: Upload container security artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-security-${{ needs.security-metadata.outputs.scan-id }}
+          path: |
+            *.sarif
+            trivy-*.sarif
+            hadolint-*.sarif
+          retention-days: 30
+
+      - name: Upload Trivy results to GitHub Security
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-backend.sarif'
+          category: 'container-security-backend'
+        continue-on-error: true
+
+      - name: Upload Hadolint results to GitHub Security
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'hadolint-backend.sarif'
+          category: 'dockerfile-security'
+        continue-on-error: true
+
+  security-summary:
+    runs-on: ubuntu-latest
+    name: Security Scan Summary
+    needs: [security-metadata, secrets-scanning, dependency-security, code-analysis, container-security]
+    if: always()
+    
+    steps:
+      - name: Collect scan results
+        run: |
+          echo "# Alice AI Assistant - Security Scan Summary" > security-summary.md
+          echo "**Scan ID:** ${{ needs.security-metadata.outputs.scan-id }}" >> security-summary.md
+          echo "**Timestamp:** ${{ needs.security-metadata.outputs.timestamp }}" >> security-summary.md
+          echo "**Commit:** ${{ github.sha }}" >> security-summary.md
+          echo "" >> security-summary.md
+          
+          echo "## Scan Results" >> security-summary.md
+          echo "| Component | Status | Details |" >> security-summary.md
+          echo "|-----------|---------|---------|" >> security-summary.md
+          echo "| Secrets Scanning | ${{ needs.secrets-scanning.result }} | TruffleHog, GitLeaks, Custom patterns |" >> security-summary.md
+          echo "| Dependency Security | ${{ needs.dependency-security.result }} | Python: Safety, Bandit, pip-audit / Node: npm audit |" >> security-summary.md
+          echo "| Code Analysis | ${{ needs.code-analysis.result }} | CodeQL, Semgrep SAST, ESLint Security |" >> security-summary.md
+          echo "| Container Security | ${{ needs.container-security.result }} | Trivy, Hadolint, Docker best practices |" >> security-summary.md
+          echo "" >> security-summary.md
+          
+          # Determine overall status
+          OVERALL_STATUS="✅ PASSED"
+          if [[ "${{ needs.secrets-scanning.result }}" == "failure" ]] || \
+             [[ "${{ needs.dependency-security.result }}" == "failure" ]] || \
+             [[ "${{ needs.code-analysis.result }}" == "failure" ]] || \
+             [[ "${{ needs.container-security.result }}" == "failure" ]]; then
+            OVERALL_STATUS="❌ FAILED"
+          fi
+          
+          echo "**Overall Status:** $OVERALL_STATUS" >> security-summary.md
+          echo "" >> security-summary.md
+          
+          if [[ "$OVERALL_STATUS" == "❌ FAILED" ]]; then
+            echo "## Action Required" >> security-summary.md
+            echo "- Review failed security scans" >> security-summary.md
+            echo "- Address identified security issues" >> security-summary.md
+            echo "- Re-run security scans to verify fixes" >> security-summary.md
+          else
+            echo "## ✅ All Security Scans Passed" >> security-summary.md
+            echo "Alice AI Assistant meets security requirements." >> security-summary.md
+          fi
+          
+          cat security-summary.md
+
+      - name: Upload security summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-summary-${{ needs.security-metadata.outputs.scan-id }}
+          path: security-summary.md
+          retention-days: 90
+
+      - name: Comment on PR with security results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let summary = '';
+            try {
+              summary = fs.readFileSync('security-summary.md', 'utf8');
+            } catch (error) {
+              summary = '⚠️ Could not read security summary.';
+            }
+            
+            const comment = `## 🔒 Security Scan Results
+            
+            ${summary}
+            
+            📊 **Detailed results available in workflow artifacts**
+            
+            ---
+            *Automated security scan for commit ${{ github.sha }}*
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
