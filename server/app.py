@@ -298,7 +298,7 @@ class EnhancedTTSHandler:
             
             # Build enhanced Piper command
             cmd = [
-                "python", "-m", "piper",
+                "python3", "-m", "piper",
                 "--model", model_path,
                 "--output_file", temp_path,
                 "--noise_scale", str(emotion_params["noise_scale"]),
@@ -767,6 +767,15 @@ try:
 except ImportError as e:
     logger.warning(f"Production polish modules not available: {e}")
 
+# Include B4 Proactive AI system
+try:
+    from proactive_router import router as proactive_router, start_proactive_system
+    app.include_router(proactive_router)
+    logger.info("B4 Proactive AI system endpoints enabled")
+except ImportError as e:
+    logger.warning(f"B4 Proactive system not available: {e}")
+    start_proactive_system = None
+
 # Setup VoiceGateway WebSocket route
 voice_gateway_service.setup(app)
 
@@ -977,7 +986,7 @@ async def _fallback_basic_tts(request: TTSRequest):
             return {"error": f"Voice model {request.voice} not found", "available": available_voices}
         
         cmd = [
-            "python", "-m", "piper",
+            "python3", "-m", "piper",
             "--model", model_path,
             "--output_file", temp_path
         ]
@@ -1222,9 +1231,12 @@ async def chat(body: ChatBody) -> Dict[str, Any]:
         pass
     
     # Minimal RAG: hämta relevanta textminnen via LIKE och inkludera i prompten
+    # Initialize context variables for all code paths
+    contexts = []
+    ctx_payload = []
+    ctx_text = ""
+    
     if MINIMAL_MODE or bool(body.raw):
-        contexts = []
-        ctx_payload = []
         full_prompt = f"Besvara på svenska.\n\nFråga: {body.prompt}\nSvar:"
     else:
         # Enhanced RAG retrieval with expanded search and reranking
@@ -2061,6 +2073,13 @@ async def voice_gateway_websocket_alias(websocket: WebSocket):
     voice_gateway_mgr = get_voice_gateway_manager(memory)
     await voice_gateway_mgr.handle_voice_gateway_session(websocket, session_id)
 
+# Legacy LLM status endpoint redirect (for compatibility)
+@app.get("/api/llm/status")
+async def llm_status_legacy():
+    """Legacy redirect to maintain compatibility with old client code"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/v1/llm/status", status_code=301)
+
 # B3 Ambient Voice WebSocket endpoint
 @app.websocket("/ws/voice/ambient")
 async def b3_ambient_voice_websocket(websocket: WebSocket):
@@ -2842,11 +2861,50 @@ async def ai_autonomous_loop() -> AsyncGenerator[None, None]:
 async def on_startup() -> None:
     # Start autonomous loop (non-blocking)
     asyncio.create_task(ai_autonomous_loop())
+    
+    # Start B4 proactive system if available
+    if start_proactive_system:
+        try:
+            await start_proactive_system()
+        except Exception as e:
+            logger.error(f"Failed to start proactive system: {e}")
+    
+    # Start Always-On Voice System
+    try:
+        from voice_always_on import create_always_on_voice, VoiceConfig
+        
+        # Initialize with production-ready config
+        voice_config = VoiceConfig(
+            wake_phrase="hej alice",
+            wake_sensitivity=0.7,
+            use_realtime_api=True,
+            realtime_voice="nova",
+            fast_response_timeout_ms=300
+        )
+        
+        voice_system = create_always_on_voice(voice_config)
+        await voice_system.start()
+        
+        # Store globally for access
+        app.state.voice_system = voice_system
+        logger.info("✅ Always-On Voice System started successfully")
+        
+    except Exception as e:
+        logger.warning(f"Always-On Voice System not available: {e}")
+        app.state.voice_system = None
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
     """Clean shutdown with authentication cleanup"""
     # await auth_shutdown_tasks()
+    
+    # Shutdown Always-On Voice System
+    if hasattr(app.state, 'voice_system') and app.state.voice_system:
+        try:
+            await app.state.voice_system.stop()
+            logger.info("Always-On Voice System stopped gracefully")
+        except Exception as e:
+            logger.error(f"Error stopping voice system: {e}")
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -3583,6 +3641,75 @@ async def api_voice_status():
         return status
     except Exception as e:
         logger.error(f"Voice status API error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ========== Always-On Voice System API Endpoints ==========
+
+@app.get("/api/voice/always-on/status")
+async def get_always_on_voice_status():
+    """Get Always-On Voice System status"""
+    try:
+        if hasattr(app.state, 'voice_system') and app.state.voice_system:
+            status = app.state.voice_system.get_status()
+            return {
+                "status": "ok",
+                "voice_system": status
+            }
+        else:
+            return {
+                "status": "not_available",
+                "message": "Always-On Voice System not initialized"
+            }
+    except Exception as e:
+        logger.error(f"Error getting voice system status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/voice/always-on/start")
+async def start_always_on_voice():
+    """Start Always-On Voice System"""
+    try:
+        if hasattr(app.state, 'voice_system') and app.state.voice_system:
+            await app.state.voice_system.start()
+            return {"status": "ok", "message": "Voice system started"}
+        else:
+            return {"status": "error", "message": "Voice system not available"}
+    except Exception as e:
+        logger.error(f"Error starting voice system: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/voice/always-on/stop")
+async def stop_always_on_voice():
+    """Stop Always-On Voice System"""
+    try:
+        if hasattr(app.state, 'voice_system') and app.state.voice_system:
+            await app.state.voice_system.stop()
+            return {"status": "ok", "message": "Voice system stopped"}
+        else:
+            return {"status": "error", "message": "Voice system not available"}
+    except Exception as e:
+        logger.error(f"Error stopping voice system: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/voice/realtime/usage")
+async def get_realtime_usage():
+    """Get OpenAI Realtime API usage statistics"""
+    try:
+        if (hasattr(app.state, 'voice_system') and app.state.voice_system and
+            hasattr(app.state.voice_system, 'realtime_client') and 
+            app.state.voice_system.realtime_client):
+            
+            usage_stats = app.state.voice_system.realtime_client.get_usage_stats()
+            return {
+                "status": "ok",
+                "usage": usage_stats
+            }
+        else:
+            return {
+                "status": "not_available",
+                "message": "OpenAI Realtime client not available"
+            }
+    except Exception as e:
+        logger.error(f"Error getting realtime usage: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ========== Voice-Gateway API Endpoints (Hybrid Architecture Phase 1) ==========
