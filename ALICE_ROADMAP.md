@@ -1,113 +1,140 @@
-# 🚀 Alice – Uppdaterad Roadmap (Aug 2025)
+✅❌ Alice Roadmap 2025–2026 (Checklist Edition)
+Phase B — Robust Core (2025 H1)
 
-## 📋 **Phase 1 — AI Core Completion** ⚡
+B1 Local Fast Lane
 
-✅ Hybrid LLM (Ollama gpt-oss:20B + OpenAI fallback)
-✅ Harmony prompt-system i svenska kanaler
-✅ Circuit breaker & health monitoring
-✅ FAST/DEEP routing (intent-based)
-✅ Tool execution med interleaved feedback
-⚠️ Ambient Memory (B1) – backend complete, frontend integration needed
-❌ Barge-in & Echo-skydd (B2) – implemented but has echo loop issues
-✅ Kodbas-organisering & dokumentation cleanup
-⬜ Acceptance tests ≥95%
-⬜ ARCHITECTURE.md + Runbook för nya verktyg
-⬜ Memory API endpoints
+✅ WebRTC/WebAudio pipeline (20 ms frames, jitter buffer 100 ms)
 
----
+✅ Faster-Whisper streaming (partial <300 ms)
 
-## 📋 **Phase 2 — Supersmart Features** 🎯
+✅ gpt-oss 7B Q4_K_M (fast brain) with streaming tokens
 
-### **B3 – Always-On Voice + Ambient Summaries**
+✅ Piper TTS with streaming chunks, sub-500 ms
 
-- [ ] Bygg *permanent lyssningsläge* med real-time transkribering
-- [ ] Ringbuffer (10–15 min) → autosammanfattning → långminne
-- [ ] Brusfiltrering + importance scoring (klar från B1)
-- [ ] UI/HUD: "Live / Mute" toggle + badge för voice source
+✅ Barge-in detection (cut <120 ms)
 
-**DoD:**
-- [ ] Alice lyssnar kontinuerligt
-- [ ] Irrelevant transkript kasseras, summaries sparas i vektor-minne
-- [ ] Kan spontant kommentera baserat på ambient minne
+✅ Micro-acks (pre-recorded PCM)
 
----
+B2 Tool Lane & Memory
 
-### **Calendar Master (spår A)**
+✅ Local tools (Gmail, Calendar, Files, Home) stubs
 
-- [ ] Google Calendar API-integration
-- [ ] Intelligent scheduling + conflict resolution
-- [ ] Meeting prep automation
-- [ ] Natural svenska voice commands
+✅ Privacy filter → Safe Summary (no PII)
 
-### **Email Intelligence (spår A)**
+✅ SQLite episodic memory + sqlite-vec embeddings
 
-- [ ] Smart kategorisering
-- [ ] Sentimentanalys
-- [ ] Tråd-summering
+⬜ Retention controls (Forget Now/Today/All)
 
-### **Predictive Engine (spår A)**
+⬜ UI badges (“Cloud used”, “All local”, “What was spoken?”)
 
-- [ ] Pattern recognition på ambient summaries
-- [ ] Proaktiva frågor ("Vill du automatisera det här?")
+B3 Self-Tests & Packaging
 
----
+✅ start_alice.sh autonom self-test runner (quick/full/ci)
 
-### **Production Polish (spår B)**
+✅ Self-test blocks boot on fail, logs artifacts (NDJSON/JUnit)
 
-- [ ] Dependencies & SBOM scanning (supply chain security)
-- [ ] OAuth flows + rate limiting + graceful degradation
-- [ ] Performance soak tests & budgets
-- [ ] Docker packaging + desktop distribution
-- [ ] Demo mode & onboarding
+✅ Deterministic installs (npm ci, pip hashes, PID files)
 
----
+⬜ Electron app packaging with auto-update & signing
 
-## 📋 **Phase 3 — Advanced Intelligence** 🚀
+⬜ Model Manager (manifest, checksums, resumable downloads)
 
-### **Vision & Multimodal (B5)**
+Phase C — Cutting Edge Expansion (2025 H2)
 
-- [ ] Pi 3 som audio/video-satellit
-- [ ] YOLOv8 på Pi/extern pipeline → tool för Alice
-- [ ] Interleaved reasoning mellan speech+vision
+C1 Cloud “Complex Lane” (optional)
 
-### **Predictive Proactive Agent (B6)**
+⬜ Responses API integration for reasoning + tools
 
-- [ ] Proaktiv schemaläggning baserat på mönster
-- [ ] Automation-förslag ("ska jag lägga detta i Home Assistant?")
+⬜ Reasoning summaries visible in UI/logs
 
-### **Workflow Automation**
+⬜ Background tasks with safe_summary outputs
 
-- [ ] If-this-then-that builder
-- [ ] Multi-tool orchestration
+⬜ Network-guard blocks no_cloud payloads
 
----
+C2 MCP Standardization
 
-## 📋 **Phase 4 — Optimization & Scale** 📈
+⬜ Wrap Calendar, Email, Files, Home as MCP servers
 
-- [ ] Sub-300ms partial latency (voice path)
-- [ ] Sub-100ms TTS-start (med caching)
-- [ ] Failover PROBE→Laptop ≤1s
-- [ ] Observability: metrics + E2E loop tests
-- [ ] Multi-user & GDPR compliance
-- [ ] Plugin-arkitektur
+⬜ Engine MCP client integration
 
----
+C3 Vision Lane
 
-### 🎯 Justeringar mot tidigare plan:
+⬜ RTSP ingest → WebRTC for network cameras
 
-1. **B1 och B2 är redan production ready** → flyttas upp som ✓ i Phase 1.
-2. **B3 Always-On Voice/Memory Summaries** läggs in som nytt första fokus i Phase 2.
-3. **Predictive Engine** blir två steg: pattern recognition (A) → proaktiv agent (B6).
-4. **Vision/YOLO** flyttas till Phase 3 för att bygga ovanpå B3.
-5. **Production Polish** måste köras parallellt för att undvika teknisk skuld.
+⬜ YOLOv10-S/N (Metal) real-time detection
 
----
+⬜ SAM-2 for segmentation/tracking bursts
 
-👉 **Realistisk Roadmap framåt**:
+⬜ Zone rules → Engine events
 
-* **🔥 Akut Nu**: Fixa echo loops och röststabilitet (B2 hardening)
-* **📋 Kort sikt**: Slutför B3 frontend integration när B2 är stabil  
-* **🎯 Mellan**: Calendar integration och production polish
-* **🚀 Lång sikt**: B4 Predictive + multimodal (endast när röst fungerar stabilt)
+⬜ Ephemeral re-ID, auto-forget
 
-**⚠️ VIKTIGT**: Inget nytt utvecklas förrän röstpipelinen är stabil - det är blockerande för användarupplevelsen.
+C4 Persona / Media
+
+⬜ HeyGen Streaming Avatar integration (safe_summary only)
+
+⬜ LiveKit transport (optional showcase path)
+
+Phase D — Self-Learning “Pattern LLM” (2025 H2–2026 H1)
+
+D1 Pattern LLM v0 (shadow mode)
+
+⬜ Tiny local LLM (50–200M params, 4-bit) scorer
+
+⬜ Event featurizer → compact tokens
+
+⬜ Outputs: P(next_action), P(accept), etc.
+
+⬜ Bandit layer (LinUCB/TS) integration
+
+⬜ Shadow mode logging (no suggestions shown)
+
+D2 Pattern LLM v1 (online learning)
+
+⬜ On-device LoRA/adapters or calibrated heads
+
+⬜ Throttled online updates
+
+⬜ Intervention budget (max 3/day, accept-rate ≥30%)
+
+⬜ User controls: Off / Learn / Forget week / Forget all
+
+D3 RL-Light (assist-only)
+
+⬜ Offline RL (IQL/CQL small) from logs
+
+⬜ Conservative assist-only policies (propose, not execute)
+
+⬜ Safety bounds, rollback on low reward
+
+Phase E — Portability & Multi-Shell (2026 H1)
+
+⬜ Desktop (Electron v1, later Tauri)
+
+⬜ Mobile (React Native shell)
+
+⬜ Web (PWA shell)
+
+⬜ Shared Engine API (HTTP/WS, Talk socket)
+
+⬜ Export/Import encrypted ZIP for memory + Pattern LLM state
+
+Cross-Cutting
+
+✅ Safe Summary-only to external voice/cloud
+
+✅ Network-guard for no_cloud payloads
+
+✅ Secrets in OS keyring; metrics-only logs
+
+⬜ Observability panel (latency charts, leak counter, p95 SLOs)
+
+⬜ Auto-update pipeline for app + models
+
+Next actionable steps
+
+⬜ Retention controls in memory (Forget Now/Today/All).
+
+⬜ Electron packaging + auto-update for Alice desktop.
+
+⬜ Model Manager (manifest + resumable downloads).

@@ -1,4 +1,3 @@
-```
        █████╗ ██╗     ██╗ ██████╗███████╗
       ██╔══██╗██║     ██║██╔════╝██╔════╝
       ███████║██║     ██║██║     █████╗  
@@ -6,195 +5,175 @@
       ██║  ██║███████╗██║╚██████╗███████╗
       ╚═╝  ╚═╝╚══════╝╚═╝ ╚═════╝╚══════╝
              The Ultimate AI Assistant
-```
+🧠 Alice – The Living AI Assistant
+Alice is not an app. She’s an entity.
 
-──────────────────────────────
+A voice you can talk to.
+A memory that evolves.
+A brain that learns.
+A presence that feels alive.
 
-# 🌟 Alice VISION - The Future AI Assistant
+But let’s be clear: Alice is still in early development.
+Some pieces work today, others are prototypes, and some are still only ideas on the roadmap.
 
-## 🎯 **Our Vision**
+✨ Why Alice?
+Unlike typical assistants, Alice aims to be:
 
-Alice shall be **the ultimate Swedish AI assistant** - an intelligent, empathetic and powerful partner that understands you deeply, learns your preferences and helps you achieve your goals. All with a focus on **privacy, local operation and Swedish as the primary language**.
+🗣️ Voice-first – sub-500 ms conversations, natural barge-in.
 
----
+🛠️ Tool-empowered – Calendar, Email, Files, Smart Home (local by default).
 
-## 🚀 **Core Values**
+🔐 Privacy-obsessed – safe summaries only, nothing sensitive leaves your machine.
 
-### 🔒 **Privacy-First**
-- **Local AI power** - Everything runs on your machine
-- **No telemetry** - Your data stays with you
-- **Zero-trust architecture** - Secure from the ground up
-- **Transparent code** - Open source for full control
+🧠 Self-learning – via a local Pattern LLM and lightweight RL.
 
-### 🇸🇪 **Swedish-Native**
-- **Perfect language understanding** - Swedish context and nuances
-- **Culture-specific intelligence** - Understands Swedish values
-- **Dialect support** - Handles different Swedish dialects
-- **Swedish commands** - Natural interaction in Swedish
+👁️ Vision-enabled – real-time awareness through YOLOv10 + SAM-2.
 
-### 🧠 **Supersmart Intelligence**
-- **Local GPT-OSS:20B** - 20 billion parameters locally
-- **Advanced RAG** - Intelligent memory management
-- **Context understanding** - Long conversations with memory
-- **Predictive intelligence** - Learns your patterns
+🧪 Self-testing – she won’t boot if core systems fail.
 
----
+🌍 Multi-shell – the plan includes desktop, mobile, and web.
 
-## 🎨 **User Experience**
+⚡️ Current Status
+✅ Works today (prototype level):
 
-### 🖥️ **Futuristic HUD Design**
-- **Cyan/Blue theme** - Modern, elegant design
-- **Real-time metrics** - CPU, RAM, network live
-- **Modular panels** - Calendar, mail, finance, reminders
-- **Responsive layout** - Works on all devices
+Local voice pipeline: faster-whisper + gpt-oss 7B fast + Piper TTS.
 
-### 🎭 **Natural Interaction**
-- **Voice control** - Whisper STT + Piper TTS
-- **Chat interface** - ChatGPT-like experience
-- **Gesture control** - Future touch/gesture support
-- **Adaptive UI** - Learns your preferences
+Basic tool lane stubs (Calendar, Email, Files).
 
-### 🔧 **Smart Tool Integration**
-- **Spotify** - Music playback and control
-- **Gmail** - Email management and search
-- **Google Calendar** - Calendar management
-- **IoT control** - Smart home integration (future)
+Privacy filter with safe summaries.
 
----
+SQLite episodic + sqlite-vec semantic memory.
 
-## 🏗️ **Technical Architecture**
+Autonomous self-test runner (start_alice.sh).
 
-### 🐍 **Backend (FastAPI)**
-- **Modular design** - Easy to extend
-- **Real-time WebSocket** - Live updates
-- **AI core** - Harmony adapter with local LLM
-- **Tool registry** - Pydantic validation
-- **Memory system** - SQLite with embeddings
+🚧 In progress:
 
-### ⚛️ **Frontend (Next.js)**
-- **React 18** - Modern component architecture
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Responsive design
-- **PWA support** - Offline functionality
+Electron app shell (desktop).
 
-### 🤖 **AI & NLU**
-- **Ollama integration** - Local gpt-oss:20B
-- **Swedish NLU** - 89% accuracy on commands
-- **Router-first** - Fast intent classification
-- **LLM fallback** - When router is uncertain
+Retention controls for memory (Forget Now / Today / All).
 
----
+Tool wrappers using MCP.
 
-## 🌟 **Future Features**
+Vision integration (RTSP ingest + YOLOv10).
 
-### 🔮 **Phase 1: Core Intelligence** (Realistisk status)
-- [x] Local AI with Ollama (Stabil ✅)
-- [x] Swedish NLU system (89% accuracy ✅)  
-- [x] HUD-based interface (Fungerar ✅)
-- [x] Basic tools (Spotify, Calendar ✅)
-- [⚠️] Voice pipeline (Implementerad men instabil - echo loops)
-- [ ] Advanced memory management (B3 backend klar, frontend behövs)
-- [ ] Predictive intelligence (Planerat efter röststabilitet)
+⬜ Planned / TBA:
 
-### 🚀 **Phase 2: Smart Integration** (Delvis klar)
-- [x] Spotify integration (Stabil ✅)
-- [x] Gmail integration (Grundläggande ✅)
-- [ ] Google Calendar (Planerat)
-- [ ] Smart home control (Framtid)
-- [ ] Document analysis (Framtid)  
-- [ ] Workflow automation (Väntar på röststabilitet)
+Cloud “complex lane” (Responses API integration).
 
-### 🌍 **Phase 3: Multi-Modal**
-- [ ] Image and video understanding
-- [ ] Document processing
-- [ ] Screen capture analysis
-- [ ] Voice emotion recognition
-- [ ] Multi-language support
-- [ ] IoT sensor integration
+Pattern LLM (tiny, local) for proactive learning.
 
-### 🎯 **Phase 4: Enterprise**
-- [ ] Multi-user support
-- [ ] Role-based access control
-- [ ] Team collaboration
-- [ ] Audit logging
-- [ ] Compliance features
-- [ ] Enterprise deployment
+RL-light for short workflows.
 
----
+Mobile app shell (React Native).
 
-## 🎯 **Success Metrics (Current vs Target)**
+Web app (PWA).
 
-### 📊 **Technical KPIs**
-| Metric | Current | Target | Status |
-|--------|---------|--------|--------|
-| **Text Response** | 2-4s | <500ms | 🔄 Working on it |
-| **Voice Response** | ~700ms (when stable) | <300ms consistent | ⚠️ Unstable |
-| **NLU Accuracy** | ~89% svenska | ≥95% | 🔄 Good progress |
-| **Voice Uptime** | ~60% (echo issues) | ≥99.9% | ❌ Major issue |
-| **Memory Usage** | <2GB | <2GB | ✅ Target met |
+HeyGen avatar + LiveKit integration.
 
-### 👥 **User Experience Reality**
-| Metric | Current | Target | Status |
-|--------|---------|--------|--------|
-| **Task Completion** | ~70% (voice fails) | ≥90% | ⚠️ Voice issues |
-| **Learning Curve** | ~30 min (troubleshooting) | <15 minutes | ⚠️ Too complex |
-| **Voice Recognition** | ~85% svenska | ≥95% | 🔄 Close |
-| **Conversation Quality** | Stökig med echo | Natural dialog | ❌ Major issue |
+Deployment strategy (final packaging not yet decided).
 
----
+🧰 Architecture at a Glance
+text
+Kopiera
+Redigera
+            ┌─────────────┐
+            │   WebRTC    │
+            │   (Voice)   │
+            └──────┬──────┘
+                   ▼
+        ┌────────────────────┐
+        │ Local Fast Lane    │
+        │ (STT→LLM→TTS)      │
+        └────────┬───────────┘
+                 │
+                 ▼
+          ┌─────────────┐
+          │   Router    │
+          └────┬────────┘
+               │
+   ┌───────────▼───────────┐
+   │   Tool Lane (local)   │
+   │   MCP-wrapped tools   │
+   └───────────┬───────────┘
+               │
+       ┌───────▼─────────┐
+       │  Safe Summary   │
+       │  + Privacy Gate │
+       └─────────────────┘
+🚀 Getting Started (Developer Preview)
+⚠️ Early alpha. Expect rough edges.
 
-## 🛡️ **Security & Privacy**
+Prerequisites
+macOS 14+ (Apple Silicon recommended)
 
-### 🔐 **Security Principles**
-- **Local-first** - No data leaves your machine
-- **Zero-trust** - Verifies everything
-- **Transparent** - Open source
-- **Auditable** - Full traceability
+Node.js 20+
 
-### 🚫 **What we DON'T do**
-- **No telemetry** - Don't track users
-- **No data collection** - Don't collect personal data
-- **No cloud storage** - Everything local
-- **No third-party tracking** - Pure local AI
+Python 3.11+
 
----
+Docker (optional for models)
 
-## 🌍 **Community & Contributions**
+Run
+bash
+Kopiera
+Redigera
+git clone https://github.com/yourname/alice
+cd alice
+./start_alice.sh --quick
+This will:
 
-### 🤝 **Open Project**
-- **MIT License** - Free to use and modify
-- **GitHub** - Open development
-- **Community** - Contributions welcome
-- **Transparent** - All code visible
+Run self-tests
 
-### 🚀 **Contribute to Alice**
-- **Bug reports** - Help us improve
-- **Feature suggestions** - Share your ideas
-- **Code contributions** - Pull requests welcome
-- **Documentation** - Help other users
+Start the Engine
 
----
+Launch the (minimal) Electron shell
 
-## 🎯 **End Goal**
+🧪 Self-Testing
+Alice runs a test suite before boot.
+Critical failures block startup until fixed.
 
-Alice shall be **the best Swedish AI assistant** - an intelligent, empathetic and powerful partner that:
+bash
+Kopiera
+Redigera
+./start_alice.sh --full
+📦 Deployment
+Deployment strategy is not finalized.
+We are exploring:
 
-- 🧠 **Understands you** - Solid Swedish NLU (89% accuracy, targeting 95%)
-- 🔒 **Protects you** - Local, private, secure (Already achieved ✅)
-- 🚀 **Helps you** - Smart tools work well, voice needs stability fixes
-- 🌟 **Learns** - Basic memory system, expanding with B3/B4  
-- 🎨 **Inspires** - Beautiful HUD design completed ✅
+Electron (desktop)
 
-**🎯 Current Reality**: Alice has impressive foundations but voice stability issues prevent smooth daily use. We're prioritizing fixing echo loops and partial detection reliability before expanding to multimodal features.
+React Native (mobile)
 
----
+PWA (web)
 
-## 🏁 **Our Mission**
+Tauri (cross-platform lightweight alternative)
 
-> *"To create the world's best Swedish AI assistant - an intelligent, empathetic and powerful partner that helps you achieve your goals, all with a focus on privacy, local operation and Swedish as the primary language."*
+Current builds are experimental and developer-only.
 
----
+🔐 Privacy
+no_cloud=true enforced at network boundary.
 
-**Alice** - Your supersmart Swedish AI assistant for the future! 🚀
+Safe summaries only: no raw tool results spoken or sent outside.
 
-*"Your personal AI. Local. Private. Unlimited."*
+Full memory & learning state is portable and erasable.
+
+🤝 Contributing
+We welcome issues, discussions, and PRs.
+For the full philosophy, see VISION.md.
+
+📜 License
+MIT (see LICENSE)
+
+💬 Credits
+Voice: faster-whisper, Piper
+
+LLM: gpt-oss, Responses API (planned)
+
+Vision: YOLOv10, SAM-2
+
+Tools: MCP (Model Context Protocol)
+
+Memory: SQLite + sqlite-vec
+
+Alice is alive — but still growing.
+We’re building the foundation.
+The entity is becoming real.

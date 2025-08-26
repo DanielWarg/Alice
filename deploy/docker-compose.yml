@@ -1,0 +1,105 @@
+version: "3.9"
+
+services:
+  # New LiveKit-class Voice Gateway
+  voice-gateway:
+    build: ./server/services/voice_gateway
+    container_name: alice-voice-gateway
+    environment:
+      - GATEWAY_HOST=0.0.0.0
+      - GATEWAY_PORT=8001
+      - VOICE_AUDIO_CODEC=opus
+      - ASR_PROVIDER=openai
+      - TTS_PROVIDER=openai
+      - ROUTER_MAX_FAST_TOKENS=120
+      - PRIVACY_MODE=normal
+      - REDIS_URL=redis://redis:6379/0
+      - PROMETHEUS_SCRAPE_PORT=9108
+      - FIRST_PARTIAL_TARGET_MS=300
+      - FIRST_AUDIO_TARGET_MS=600
+      - BARGE_IN_TARGET_MS=120
+    ports:
+      - "8001:8001"    # HTTP for /offer + health + metrics
+    depends_on:
+      - redis
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # Existing Core API
+  api:
+    build: ./server
+    container_name: alice-api
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - qdrant
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # State & Session Management
+  redis:
+    image: redis:7-alpine
+    container_name: alice-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+
+  # Vector Database (existing)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: alice-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  # Metrics Collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: alice-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    restart: unless-stopped
+
+  # Metrics Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: alice-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=alice123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  qdrant_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+    name: alice-network

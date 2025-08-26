@@ -46,7 +46,7 @@ class AliceBackupSystem:
                 "data/tts_cache/": "Text-to-speech audio cache"
             },
             "documents": {
-                "test_documents/": "User uploaded documents for RAG",
+                "documents/": "User uploaded documents for RAG",
                 "test_document.md": "Test document"
             },
             "config": {
@@ -369,9 +369,9 @@ class AliceBackupSystem:
     
     def _backup_documents(self, backup_dir: Path, manifest: Dict):
         """Backup user uploaded documents"""
-        docs_dir = self.alice_home / "test_documents"
+        docs_dir = self.alice_home / "documents"
         if docs_dir.exists():
-            dest_dir = backup_dir / "test_documents"
+            dest_dir = backup_dir / "documents"
             shutil.copytree(docs_dir, dest_dir)
             for doc_file in dest_dir.rglob("*"):
                 if doc_file.is_file():
@@ -448,9 +448,9 @@ class AliceBackupSystem:
     
     def _restore_documents(self, backup_dir: Path, restore_path: Path, results: Dict):
         """Restore documents from backup"""
-        docs_backup = backup_dir / "test_documents"
+        docs_backup = backup_dir / "documents"
         if docs_backup.exists():
-            docs_dest = restore_path / "test_documents"
+            docs_dest = restore_path / "documents"
             try:
                 if docs_dest.exists():
                     shutil.rmtree(docs_dest)

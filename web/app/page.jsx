@@ -334,7 +334,7 @@ const HUDContext = createContext(null);
 function useHUD() { const ctx = useContext(HUDContext); if (!ctx) throw new Error("useHUD must be inside provider"); return ctx; }
 function HUDProvider({ children }) {
   const [state, setState] = useState({ overlayOpen: false, currentModule: null, videoSource: undefined, voiceMode: 'basic' });
-  const dispatch = (c) => { setState((s) => { switch (c.type) { case "SHOW_MODULE": return { ...s, overlayOpen: true, currentModule: c.module }; case "HIDE_OVERLAY": return { ...s, overlayOpen: false, currentModule: null }; case "TOGGLE_MODULE": return { ...s, overlayOpen: s.currentModule === c.module ? false : true, currentModule: s.currentModule === c.module ? null : c.module }; case "OPEN_VIDEO": return { ...s, overlayOpen: true, currentModule: "video", videoSource: c.source }; case "TOGGLE_VOICE_MODE": return { ...s, voiceMode: s.voiceMode === 'basic' ? 'realtime' : s.voiceMode === 'realtime' ? 'streaming' : s.voiceMode === 'streaming' ? 'advanced' : 'basic' }; case "SET_VOICE_MODE": return { ...s, voiceMode: c.mode }; default: return s; } }); };
+  const dispatch = (c) => { setState((s) => { switch (c.type) { case "SHOW_MODULE": return { ...s, overlayOpen: true, currentModule: c.module }; case "HIDE_OVERLAY": return { ...s, overlayOpen: false, currentModule: null }; case "TOGGLE_MODULE": return { ...s, overlayOpen: s.currentModule === c.module ? false : true, currentModule: s.currentModule === c.module ? null : c.module }; case "OPEN_VIDEO": return { ...s, overlayOpen: true, currentModule: "video", videoSource: c.source }; case "TOGGLE_VOICE_MODE": return { ...s, voiceMode: s.voiceMode === 'basic' ? 'piper' : s.voiceMode === 'piper' ? 'streaming' : s.voiceMode === 'streaming' ? 'advanced' : 'basic' }; case "SET_VOICE_MODE": return { ...s, voiceMode: c.mode }; default: return s; } }); };
   useEffect(() => { if (typeof window === 'undefined') return; window.HUD = { showModule: (m, payload) => dispatch({ type: "SHOW_MODULE", module: m, payload }), hideOverlay: () => dispatch({ type: "HIDE_OVERLAY" }), openVideo: (source) => dispatch({ type: "OPEN_VIDEO", source }), toggle: (m) => dispatch({ type: "TOGGLE_MODULE", module: m }), toggleVoiceMode: () => dispatch({ type: "TOGGLE_VOICE_MODE" }), setVoiceMode: (mode) => dispatch({ type: "SET_VOICE_MODE", mode }) }; }, []);
   return <HUDContext.Provider value={{ state, dispatch }}>{children}</HUDContext.Provider>;
 }
@@ -725,15 +725,16 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
           emotion={voiceSettings.emotion}
           voiceQuality={voiceSettings.voiceQuality}
         />
-      ) : voiceMode === 'realtime' ? (
-        <div className="text-center p-8 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-          <p className="text-yellow-400">⚠️ OpenAI Realtime mode temporärt inaktiverad</p>
-          <p className="text-yellow-300/80 text-sm mt-2">Använd 🚀 Streaming mode istället för bästa prestanda</p>
+      ) : voiceMode === 'piper' ? (
+        <div className="text-center p-8 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+          <p className="text-cyan-400">🎯 Piper Streaming Mode (Under Development)</p>
+          <p className="text-cyan-300/80 text-sm mt-2">Sub-500ms voice responses med mikro-ack för omedelbar feedback</p>
+          <p className="text-cyan-300/60 text-xs mt-1">Lokal Piper TTS + 20ms streaming + WebRTC duplex audio</p>
           <button 
             onClick={() => dispatch({ type: "SET_VOICE_MODE", mode: "streaming" })}
-            className="mt-3 px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded hover:bg-cyan-500/30 transition-colors"
+            className="mt-3 px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded hover:bg-green-500/30 transition-colors"
           >
-            Växla till Streaming Mode
+            Använd Streaming tills vidare
           </button>
         </div>
       ) : (
@@ -753,7 +754,7 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
           <span>Voice Mode:</span>
           <span className="px-2 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded text-cyan-200">
             {voiceMode === 'basic' ? '🎙️ Basic (Web Speech)' : 
-             voiceMode === 'realtime' ? '⚡ Realtime (<1s)' : 
+             voiceMode === 'piper' ? '🎯 Piper Streaming (<500ms)' : 
              voiceMode === 'streaming' ? '🚀 Streaming (gpt-oss + TTS)' :
              '🌐 Advanced (VoiceClient)'}
           </span>
@@ -769,7 +770,7 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
       {/* Voice Input Display */}
       {voiceInput && (
         <div className="mt-4 p-3 bg-cyan-900/20 border border-cyan-400/20 rounded-lg">
-          <div className="text-sm text-cyan-300/80">Senaste röst-input ({voiceMode === 'basic' ? 'VoiceBox' : voiceMode === 'realtime' ? 'OpenAI Realtime' : voiceMode === 'streaming' ? 'Streaming Pipeline' : 'VoiceClient'}):</div>
+          <div className="text-sm text-cyan-300/80">Senaste röst-input ({voiceMode === 'basic' ? 'VoiceBox' : voiceMode === 'piper' ? 'Piper Streaming' : voiceMode === 'streaming' ? 'Streaming Pipeline' : 'VoiceClient'}):</div>
           <div className="text-cyan-100">"{voiceInput}"</div>
           <div className="text-xs text-cyan-400/70 mt-1">Skickat till Alice för bearbetning...</div>
         </div>

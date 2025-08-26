@@ -53,7 +53,7 @@ Alice includes a comprehensive backup and restore system to protect your local d
 - Can be skipped with `--no-cache` to reduce backup size
 
 ### Documents
-- `test_documents/` - User uploaded documents for RAG
+- `documents/` - User uploaded documents for RAG
 - `test_document.md` - Individual test documents
 
 ### Configuration (Encrypted)
@@ -207,7 +207,7 @@ alice_backup.tar.gz
 │   ├── cache/               # TTS cache (optional)
 │   │   └── tts_cache/
 │   ├── documents/           # User documents
-│   │   ├── test_documents/
+│   │   ├── documents/
 │   │   └── test_document.md
 │   ├── config/              # Configuration
 │   │   ├── .env.encrypted   # Encrypted environment

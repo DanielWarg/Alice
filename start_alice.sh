@@ -26,6 +26,17 @@ pkill -f "python.*run.py" 2>/dev/null || true
 pkill -f "npm run dev" 2>/dev/null || true
 sleep 2
 
+# Smart cleanup för optimal prestanda
+echo "🧹 Running smart cleanup..."
+if [ -f "smart_cleanup.py" ]; then
+    python3 smart_cleanup.py --execute --quick 2>/dev/null || {
+        echo "⚠️ Smart cleanup failed, continuing anyway..."
+    }
+    echo "✅ Quick cleanup completed"
+else
+    echo "⚠️ smart_cleanup.py not found, skipping cleanup"
+fi
+
 # Fix virtual environment (skapa om om trasig)
 echo "🔧 Setting up virtual environment..."
 if [ -d ".venv" ]; then

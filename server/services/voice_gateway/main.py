@@ -29,7 +29,7 @@ from llm_events import get_llm_broadcaster
 from tts_events import get_tts_broadcaster
 from llm_router import get_llm_router
 from network_guard import get_network_guard
-from talk_client import create_talk_client
+# from talk_client import create_talk_client  # Removed - OpenAI Realtime deprecated
 from tool_lane_stub import ToolLane
 
 # Configure logging  
@@ -37,7 +37,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 logger = logging.getLogger(__name__)
 
 # Set specific logger levels
-logging.getLogger("alice.talk_client").setLevel(logging.DEBUG)
+# logging.getLogger("alice.talk_client").setLevel(logging.DEBUG)  # Removed - OpenAI Realtime deprecated
 logging.getLogger("aioice").setLevel(logging.WARNING)  # Reduce ICE noise
 
 # Pydantic models
@@ -81,13 +81,13 @@ llm_broadcaster = get_llm_broadcaster()
 tts_broadcaster = get_tts_broadcaster()
 llm_router = get_llm_router()
 network_guard = get_network_guard()
-talk_client = None  # Will be initialized on startup
+# talk_client = None  # Removed - OpenAI Realtime deprecated
 tool_lane = ToolLane()  # Local processing lane
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    global redis_client, talk_client
+    global redis_client
     
     try:
         # Connect to Redis
@@ -104,43 +104,8 @@ async def startup_event():
         voice_metrics.initialize()
         logger.info("✅ Voice metrics initialized")
         
-        # Initialize Talk Client (OpenAI Realtime)
-        talk_client = create_talk_client(
-            voice="alloy",  # Clear balanced voice, good for Alice personality
-            instructions=("You are Alice, an AI assistant. Speak warmly and concisely in English, "
-                         "1-2 sentences maximum. Be friendly and helpful. If complex tasks are needed, say: "
-                         "'I'll check that locally for you.' and wait for a local_result.")
-        )
-        
-        # Setup Talk Client event handlers
-        def on_transcript(text: str, is_final: bool):
-            logger.info(f"🎤 {'Final' if is_final else 'Partial'} transcript: {text}")
-        
-        def on_audio_start():
-            logger.info("🔊 AI started speaking")
-        
-        def on_audio_end():
-            logger.info("🔇 AI finished speaking")
-        
-        def on_error(error: str):
-            logger.error(f"❌ Talk Client error: {error}")
-        
-        def on_connection_change(connected: bool):
-            logger.info(f"🔗 OpenAI Realtime: {'Connected' if connected else 'Disconnected'}")
-        
-        def on_safe_summary(summary: str):
-            logger.info(f"📋 Safe summary received: {summary}")
-        
-        talk_client.on_transcript = on_transcript
-        talk_client.on_audio_start = on_audio_start
-        talk_client.on_audio_end = on_audio_end
-        talk_client.on_error = on_error
-        talk_client.on_connection_change = on_connection_change
-        talk_client.on_safe_summary = on_safe_summary
-        
-        # Initialize Talk Client
-        await talk_client.initialize()
-        logger.info("✅ OpenAI Realtime Talk Client initialized")
+        # Note: OpenAI Realtime removed - will be replaced with Piper streaming pipeline
+        logger.info("🎯 Voice Gateway ready for Piper integration")
         
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
@@ -151,8 +116,7 @@ async def shutdown_event():
     """Cleanup on shutdown"""
     if redis_client:
         await redis_client.close()
-    if talk_client:
-        await talk_client.disconnect()
+    # Note: talk_client cleanup removed with OpenAI Realtime
     await webrtc_manager.cleanup()
     logger.info("🔄 Voice gateway shutdown complete")
 
@@ -170,23 +134,12 @@ async def webrtc_offer(request: WebRTCOfferRequest):
         
         logger.info(f"🎯 Processing WebRTC offer for session: {session_id}")
         
-        # Create peer connection using Talk Client and connect to OpenAI
-        if talk_client:
-            answer_sdp = await talk_client.handle_webrtc_offer(request.sdp)
-            
-            # Now that WebRTC is setup, connect to OpenAI Realtime
-            if not talk_client.is_connected():
-                connect_success = await talk_client.connect_to_openai()
-                if connect_success:
-                    logger.info("✅ OpenAI Realtime connected after WebRTC setup")
-                else:
-                    logger.warning("⚠️ OpenAI Realtime connection failed, but WebRTC is ready")
-        else:
-            # Fallback to WebRTC manager
-            answer_sdp = await webrtc_manager.handle_offer(
-                session_id=session_id,
-                offer_sdp=request.sdp
-            )
+        # Note: OpenAI Realtime removed - using WebRTC manager directly
+        # Fallback to WebRTC manager (now primary path)
+        answer_sdp = await webrtc_manager.handle_offer(
+            session_id=session_id,
+            offer_sdp=request.sdp
+        )
         
         if not answer_sdp:
             raise HTTPException(status_code=500, detail="Failed to generate WebRTC answer")
@@ -373,65 +326,55 @@ async def process_voice_request(request: TestRouteRequest):
                     "guard_reason": guard_result.reason
                 }
             
-            if talk_client and talk_client.is_connected():
-                # Full WebRTC mode - audio response via WebRTC stream
+            # Note: OpenAI Realtime removed - will be replaced with local Piper streaming
+            # Test mode - direct OpenAI API call for text response
+            logger.info("🧪 Using direct OpenAI API for testing (Piper streaming not implemented yet)")
+            
+            try:
+                import openai
+                import os
+                
+                client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                
+                # Create Alice-style prompt for Talk-lane
+                alice_prompt = (
+                    "You are Alice, an AI assistant. Respond in English, "
+                    "1-2 sentences maximum. Be concise and helpful. "
+                    f"User input (Swedish/English): {request.text}"
+                )
+                
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": alice_prompt},
+                        {"role": "user", "content": request.text}
+                    ],
+                    max_tokens=100,
+                    temperature=0.7
+                )
+                
+                ai_response = response.choices[0].message.content.strip()
+                
                 return {
                     "route": route_decision.route.value,
                     "intent": route_decision.intent.value,
-                    "response": "Processing via OpenAI Realtime - audio response will stream via WebRTC",
-                    "processing_method": "realtime_audio_stream",
+                    "response": ai_response,
+                    "processing_method": "openai_api_direct",
                     "confidence": route_decision.confidence,
-                    "reasoning": route_decision.reasoning
+                    "reasoning": route_decision.reasoning + " (direct API test mode)"
                 }
-            else:
-                # Test mode - direct OpenAI API call for text response
-                logger.info("🧪 Talk Client not connected - using direct OpenAI API for testing")
-                
-                try:
-                    import openai
-                    import os
-                    
-                    client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                    
-                    # Create Alice-style prompt for Talk-lane
-                    alice_prompt = (
-                        "You are Alice, an AI assistant. Respond in English, "
-                        "1-2 sentences maximum. Be concise and helpful. "
-                        f"User input (Swedish/English): {request.text}"
-                    )
-                    
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[
-                            {"role": "system", "content": alice_prompt},
-                            {"role": "user", "content": request.text}
-                        ],
-                        max_tokens=100,
-                        temperature=0.7
-                    )
-                    
-                    ai_response = response.choices[0].message.content.strip()
-                    
-                    return {
-                        "route": route_decision.route.value,
-                        "intent": route_decision.intent.value,
-                        "response": ai_response,
-                        "processing_method": "openai_api_direct",
-                        "confidence": route_decision.confidence,
-                        "reasoning": route_decision.reasoning + " (direct API test mode)"
-                    }
-                    
-                except Exception as e:
-                    logger.error(f"❌ OpenAI API call failed: {e}")
-                    # Fallback to local
-                    local_result = await tool_lane.process_request(request.text, {"no_cloud": False})
-                    return {
-                        "route": "local_fallback",
-                        "intent": route_decision.intent.value,
-                        "response": local_result.get("response", "I'll help you with that."),
-                        "processing_method": "local_fallback",
-                        "error": str(e)
-                    }
+            
+            except Exception as e:
+                logger.error(f"❌ OpenAI API call failed: {e}")
+                # Fallback to local
+                local_result = await tool_lane.process_request(request.text, {"no_cloud": False})
+                return {
+                    "route": "local_fallback",
+                    "intent": route_decision.intent.value,
+                    "response": local_result.get("response", "I'll help you with that."),
+                    "processing_method": "local_fallback",
+                    "error": str(e)
+                }
             
         else:
             # Tool-lane: Local processing (private/complex)
@@ -505,18 +448,15 @@ async def update_voice(request: Request):
         if new_voice not in valid_voices:
             raise HTTPException(status_code=400, detail=f"Invalid voice. Must be one of: {valid_voices}")
         
-        # Update Talk Client voice if it exists
-        if talk_client:
-            talk_client.config.voice = new_voice
-            logger.info(f"🎤 Voice updated to: {new_voice}")
-            
-            return {
-                "success": True,
-                "voice": new_voice,
-                "message": f"Voice updated to {new_voice}"
-            }
-        else:
-            raise HTTPException(status_code=500, detail="Talk client not available")
+        # Note: Voice update for talk_client removed with OpenAI Realtime
+        # Will be replaced with Piper voice model selection
+        logger.info(f"🎤 Voice update request: {new_voice} (Piper integration pending)")
+        
+        return {
+            "success": True,
+            "voice": new_voice,
+            "message": f"Voice updated to {new_voice}"
+        }
             
     except Exception as e:
         logger.error(f"❌ Voice update failed: {e}")

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <title>Alice Tekniska Specifikationer</title>
+</head>
+<body>
+    <h1>Alice Tekniska Specifikationer</h1>
+    
+    <h2>Arkitektur</h2>
+    <ul>
+        <li><strong>Backend:</strong> FastAPI med Python 3.9+</li>
+        <li><strong>Frontend:</strong> Next.js 15.4.6 med React</li>
+        <li><strong>Database:</strong> SQLite med FTS5 för full-text search</li>
+        <li><strong>AI Engine:</strong> Local gpt-oss:20B via Ollama</li>
+    </ul>
+
+    <h2>Minnessystem</h2>
+    <p>Alice använder ett <em>RAG (Retrieval Augmented Generation)</em> system med:</p>
+    <ol>
+        <li>SQLite database för strukturerat minne</li>
+        <li>OpenAI embeddings för semantisk sökning</li>
+        <li>BM25 + embedding hybrid retrieval</li>
+        <li>Automatic text chunking för stora dokument</li>
+    </ol>
+
+    <h2>Prestanda Mål</h2>
+    <table border="1">
+        <tr>
+            <th>Metrik</th>
+            <th>Mål</th>
+            <th>Nuvarande</th>
+        </tr>
+        <tr>
+            <td>Response Time</td>
+            <td>&lt; 500ms</td>
+            <td>~300ms</td>
+        </tr>
+        <tr>
+            <td>NLU Accuracy</td>
+            <td>≥ 95%</td>
+            <td>89.3%</td>
+        </tr>
+        <tr>
+            <td>Tool Success Rate</td>
+            <td>≥ 98%</td>
+            <td>96.2%</td>
+        </tr>
+    </table>
+
+    <h2>Säkerhet</h2>
+    <p>Alice implementerar:</p>
+    <ul>
+        <li>Lokal AI-processing (ingen data till externa servrar)</li>
+        <li>Krypterad lagring av känslig data</li>
+        <li>Policy-baserad access control</li>
+        <li>Audit logging för alla actions</li>
+    </ul>
+
+    <p><strong>Test Question:</strong> Hur snabb är Alice's response time?</p>
+    <p><strong>Expected Answer:</strong> Alice har en genomsnittlig response time på cirka 300ms, vilket är under målet på 500ms.</p>
+</body>
+</html>

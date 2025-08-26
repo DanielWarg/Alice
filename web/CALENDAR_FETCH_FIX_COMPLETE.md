@@ -9,14 +9,14 @@
 ## 🎯 **Problem Analysis & Solution**
 
 ### **Root Cause:**
-- `TypeError: Failed to fetch` från CORS policy när frontend (`localhost:3000`) anropar backend (`127.0.0.1:8000`)
-- Ingen graceful error handling - UI kraschade på nätverksfel
-- Hårdkodade API URLs utan fallback-strategi
+- `TypeError: Failed to fetch` from CORS policy when frontend (`localhost:3000`) calls backend (`127.0.0.1:8000`)
+- No graceful error handling - UI crashed on network errors
+- Hardcoded API URLs without fallback strategy
 
 ### **Robust Solution Implemented:**
-1. **Next.js Proxy Route** - Eliminerar CORS genom same-origin requests
-2. **Robust HTTP Client** - Timeout, fallback och error recovery
-3. **Graceful Error Handling** - UI visar vänligt felmeddelande istället för crash
+1. **Next.js Proxy Route** - Eliminates CORS through same-origin requests
+2. **Robust HTTP Client** - Timeout, fallback and error recovery
+3. **Graceful Error Handling** - UI shows friendly error message instead of crash
 
 ---
 
@@ -40,13 +40,13 @@ Backend (127.0.0.1:8000)
 ## 📦 **Files Created/Updated**
 
 ### **Frontend Components:**
-✅ `app/api/calendar/today/route.ts` - Next.js proxy eliminerar CORS  
-✅ `components/lib/http.ts` - Robust HTTP client med timeout + fallback  
+✅ `app/api/calendar/today/route.ts` - Next.js proxy eliminates CORS  
+✅ `components/lib/http.ts` - Robust HTTP client with timeout + fallback  
 ✅ `components/CalendarWidget.tsx` - Graceful error handling + loading states  
 
 ### **Backend Integration:**
 ✅ `server/app.py` - Added `/api/calendar/today` demo endpoint  
-✅ Returns structured JSON med events array  
+✅ Returns structured JSON with events array  
 
 ---
 
@@ -65,25 +65,25 @@ curl http://localhost:3000/api/calendar/today
 ```
 
 ### **Frontend UI:**
-- ✅ Loading state: "Laddar kalender..."
+- ✅ Loading state: "Loading calendar..."
 - ✅ Success state: Shows demo events with timestamps
 - ✅ Error state: Graceful error message with debugging tips
-- ✅ Empty state: "Inga events idag"
+- ✅ Empty state: "No events today"
 
 ---
 
 ## 🛡️ **Error Handling Features**
 
 ### **Robust HTTP Client (`lib/http.ts`):**
-- **Timeout Protection** - 6s timeout med AbortController
-- **Fallback Strategy** - Försöker Next proxy först, sedan direct backend
-- **Error Aggregation** - Samlar alla fel för debugging
+- **Timeout Protection** - 6s timeout with AbortController
+- **Fallback Strategy** - Tries Next proxy first, then direct backend
+- **Error Aggregation** - Collects all errors for debugging
 
 ### **UI Error Recovery:**
-- **Non-blocking** - Visar fel utan att krascha resten av UI
-- **User-friendly** - Svenska felmeddelanden
-- **Debug Information** - Teknisk info för utvecklare
-- **Graceful Degradation** - Tom lista vid fel
+- **Non-blocking** - Shows errors without crashing the rest of the UI
+- **User-friendly** - Swedish error messages
+- **Debug Information** - Technical info for developers
+- **Graceful Degradation** - Empty list on error
 
 ---
 
@@ -128,7 +128,7 @@ NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
 - ✅ Swedish localization
 - ✅ Debug-friendly error messages
 
-**Test immediately:** Öppna `http://localhost:3000` - CalendarWidget ska visa demo events utan errors! 🗓️
+**Test immediately:** Open `http://localhost:3000` - CalendarWidget should show demo events without errors! 🗓️
 
 ---
 

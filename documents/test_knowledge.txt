@@ -1,0 +1,28 @@
+Alice Kunskapsbas Test - TXT Format
+
+VIKTIGA FAKTA:
+- Alice är en AI-assistent byggd med svenska som primärspråk
+- Hon använder lokal gpt-oss:20B via Ollama för AI-kraft  
+- Alice har 89% NLU-accuracy för svenska kommandon
+- Hon kan hantera Google Calendar, Gmail och Spotify integration
+
+TEKNISKA DETALJER:
+- FastAPI backend på port 8000
+- Next.js frontend på port 3001
+- SQLite database för minne och RAG
+- OpenAI embeddings för semantisk sökning
+
+FÄRDIGHETER:
+Alice kan:
+1. Spela musik via Spotify ("spela lugn musik")
+2. Hantera kalendern ("boka möte imorgon 14:00") 
+3. Läsa e-post ("kolla min senaste mail")
+4. Röststyrning med Enhanced TTS system
+5. Autonoma workflows via Agent Core v1
+
+TESTFRÅGOR att ställa till Alice:
+- "Vad kan du göra?"
+- "Hur fungerar din röst?"
+- "Kan du hjälpa med kalendern?"
+
+Denna fil innehåller testdata för att verifiera Alice's dokumentuppladdning och RAG-system.

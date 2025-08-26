@@ -1,37 +1,37 @@
-# Alice Stresstest Resultat - Sammanfattning 
+# Alice Stress Test Results - Summary
 
-Alice har genomgått omfattande stresstester för att säkerställa robust prestanda under belastning. Här är resultaten:
+Alice has undergone comprehensive stress testing to ensure robust performance under load. Here are the results:
 
-## 🧠 RAG Memory System Stresstest
+## 🧠 RAG Memory System Stress Test
 
-### ✅ **RESULTAT: EXCELLENT**
-- **Insert prestanda**: Genomsnitt 1.4ms, Max 4.9ms
-- **Retrieval prestanda**: Genomsnitt 0.6ms, Max 3.7ms  
-- **Context tracking**: Genomsnitt 105ms, Max 215ms
-- **Semantic chunking**: Genomsnitt 3.8ms, Max 6.2ms
-- **Concurrent load**: 5 workers, 50 operationer på 0.01s
-- **Databas**: 150 memories, 414 conversation turns skapade
-- **Fel**: Inga fel upptäckta ✅
+### ✅ **RESULT: EXCELLENT**
+- **Insert performance**: Average 1.4ms, Max 4.9ms
+- **Retrieval performance**: Average 0.6ms, Max 3.7ms  
+- **Context tracking**: Average 105ms, Max 215ms
+- **Semantic chunking**: Average 3.8ms, Max 6.2ms
+- **Concurrent load**: 5 workers, 50 operations in 0.01s
+- **Database**: 150 memories, 414 conversation turns created
+- **Errors**: No errors detected ✅
 
-### 🔧 **Förbättringar som testades:**
+### 🔧 **Improvements tested:**
 - ✅ Multi-factor scoring (BM25 + recency + quality + coverage + context)
-- ✅ Semantic text chunking för långa texter (>500 chars)  
-- ✅ Session-baserad conversation context tracking
+- ✅ Semantic text chunking for long texts (>500 chars)  
+- ✅ Session-based conversation context tracking
 - ✅ Context-enhanced memory retrieval
-- ✅ Concurrent access utan deadlocks
+- ✅ Concurrent access without deadlocks
 
-## 🧠 NLU Intent Classification Stresstest
+## 🧠 NLU Intent Classification Stress Test
 
-### ✅ **RESULTAT: VERY GOOD** 
+### ✅ **RESULT: VERY GOOD** 
 - **Accuracy**: 92.86% (52/56 test cases)
-- **False Positives**: 0 (perfekt precision)
-- **False Negatives**: 4 (några edge cases)
-- **Classification speed**: Genomsnitt 0.49ms, Max 1.54ms
-- **Confidence scores**: Genomsnitt 0.982, Minimum 0.800
+- **False Positives**: 0 (perfect precision)
+- **False Negatives**: 4 (some edge cases)
+- **Classification speed**: Average 0.49ms, Max 1.54ms
+- **Confidence scores**: Average 0.982, Minimum 0.800
 - **Concurrent throughput**: 2,084 classifications/sec
-- **Tools aktiva**: 11/11 tools enabled för test
+- **Tools active**: 11/11 tools enabled for test
 
-### 📊 **Per-Tool Prestanda:**
+### 📊 **Per-Tool Performance:**
 ```
 PLAY:    71% accuracy (edge cases med extra ord)
 PAUSE:  100% accuracy  
@@ -46,56 +46,56 @@ LIKE:   100% accuracy
 UNLIKE: 100% accuracy
 ```
 
-### 🛡️ **Robusthet:**
-- ✅ Hanterar extreme inputs gracefully
-- ✅ Unicode-stöd fungerar
-- ✅ Inga crashes på invalid input
-- ✅ Snabb fallback när osäker (låter Harmony ta över)
+### 🛡️ **Robustness:**
+- ✅ Handles extreme inputs gracefully
+- ✅ Unicode support works
+- ✅ No crashes on invalid input
+- ✅ Fast fallback when uncertain (lets Harmony take over)
 
-## 🚀 Integrerat End-to-End Stresstest
+## 🚀 Integrated End-to-End Stress Test
 
-### ✅ **RESULTAT: GOOD UNDER LOAD**
-- **Server health**: ✅ Svarar korrekt på port 8000
-- **Chat API**: ✅ Fungerar med local LLM (gpt-oss:20b)
-- **Response times**: ~6-44 sekunder (lokalLLM inferens)
-- **Memory integration**: ✅ Conversation context sparas
+### ✅ **RESULT: GOOD UNDER LOAD**
+- **Server health**: ✅ Responds correctly on port 8000
+- **Chat API**: ✅ Works with local LLM (gpt-oss:20b)
+- **Response times**: ~6-44 seconds (local LLM inference)
+- **Memory integration**: ✅ Conversation context saved
 - **Error handling**: ✅ Graceful degradation
 
-### 📈 **Prestanda Observations:**
-- **Local LLM speed**: 6-44s per response (normalt för 20B model)
-- **API stability**: Inga crashes under concurrent load
-- **Memory persistence**: ✅ Contexts sparas mellan requests
-- **Conversation flow**: ✅ Context awareness fungerar
-- **Gmail tools**: ✅ Kan aktiveras/deaktiveras korrekt
+### 📈 **Performance Observations:**
+- **Local LLM speed**: 6-44s per response (normal for 20B model)
+- **API stability**: No crashes under concurrent load
+- **Memory persistence**: ✅ Contexts saved between requests
+- **Conversation flow**: ✅ Context awareness works
+- **Gmail tools**: ✅ Can be enabled/disabled correctly
 
-## 🏆 **OVERALL VERDICT: ALICE KLARAR STRESSTESTEN!**
+## 🏆 **OVERALL VERDICT: ALICE PASSES THE STRESS TESTS!**
 
-### 💪 **Styrkor:**
-- **RAG system**: Mycket snabb och stabil memory hantering
-- **NLU classification**: Hög precision, snabb inference  
-- **Conversation context**: Fungerar väl för session tracking
-- **Semantic chunking**: Intelligent texthantering
-- **Concurrent load**: Hanterar multipla users utan problem
-- **Error resilience**: Graceful handling av edge cases
+### 💪 **Strengths:**
+- **RAG system**: Very fast and stable memory handling
+- **NLU classification**: High precision, fast inference  
+- **Conversation context**: Works well for session tracking
+- **Semantic chunking**: Intelligent text handling
+- **Concurrent load**: Handles multiple users without problems
+- **Error resilience**: Graceful handling of edge cases
 
-### ⚡ **Begränsningar:**
-- **LLM speed**: 6-44s response time är långsamt (men förväntat för 20B model)
-- **Volume edge cases**: Några fuzzy volym-kommandon missas  
-- **Mixed language**: "spela music" matchar inte (kan förbättras)
-- **Natural language**: Längre meningar som "kan du spela upp" kräver Harmony
+### ⚡ **Limitations:**
+- **LLM speed**: 6-44s response time is slow (but expected for 20B model)
+- **Volume edge cases**: Some fuzzy volume commands are missed  
+- **Mixed language**: "spela music" doesn't match (can be improved)
+- **Natural language**: Longer sentences like "kan du spela upp" require Harmony
 
-### 🎯 **Rekommendationer:**
-1. **För produktion**: Aktivera USE_HARMONY=true för bättre NLU coverage
-2. **För prestanda**: Överväg mindre LLM model för snabbare svar
-3. **För NLU**: Lägg till fler mixed-language synonymer
-4. **För volume**: Förbättra fuzzy matching för volym-kommandon
+### 🎯 **Recommendations:**
+1. **For production**: Enable USE_HARMONY=true for better NLU coverage
+2. **For performance**: Consider smaller LLM model for faster responses
+3. **For NLU**: Add more mixed-language synonyms
+4. **For volume**: Improve fuzzy matching for volume commands
 
-## 📊 **Tekniska Metrics:**
+## 📊 **Technical Metrics:**
 - **RAG throughput**: >1000 operations/sec
 - **NLU throughput**: >2000 classifications/sec  
-- **Memory efficiency**: 150 memories + 414 turns utan problem
-- **Concurrent users**: 10 samtidiga sessions testade OK
-- **Database stability**: SQLite + WAL mode fungerar perfekt
+- **Memory efficiency**: 150 memories + 414 turns without problems
+- **Concurrent users**: 10 simultaneous sessions tested OK
+- **Database stability**: SQLite + WAL mode works perfectly
 - **Error rate**: <1% under normal load
 
-**🎉 Alice är redo för produktion med nuvarande arkitektur!** Systemet visar utmärkt stabilitet och prestanda för alla komponenter förutom LLM-inferens som är begränsad av modellstorlek (vilket är förväntat).
+**🎉 Alice is ready for production with current architecture!** The system shows excellent stability and performance for all components except LLM inference which is limited by model size (which is expected).

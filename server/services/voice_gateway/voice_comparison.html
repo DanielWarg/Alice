@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎤 Alice Voice Comparison - OpenAI Voices</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .test-text {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 1.2em;
+            font-style: italic;
+        }
+
+        .voice-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .voice-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .voice-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .voice-button:active {
+            transform: translateY(0);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .voice-button.playing {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: #4caf50;
+        }
+
+        .voice-name {
+            font-weight: bold;
+            font-size: 1.3em;
+            margin-bottom: 8px;
+        }
+
+        .voice-description {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .current-voice {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .control-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .notes {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 Alice Voice Comparison</h1>
+            <p>Testa alla OpenAI-röster med samma text för att hitta den perfekta rösten för Alice</p>
+        </div>
+
+        <div class="current-voice">
+            <strong>🎯 Nuvarande röst i systemet:</strong> <span id="currentVoice">alloy</span>
+        </div>
+
+        <div class="test-text">
+            <strong>Test Text:</strong><br>
+            "Hi! I'm Alice, your AI assistant. I'm here to help you with both simple questions and complex tasks. How can I assist you today?"
+        </div>
+
+        <div class="voice-grid">
+            <div class="voice-button" onclick="speakWithVoice('alloy')">
+                <div class="voice-name">🌟 Alloy</div>
+                <div class="voice-description">Neutral, balanced och varm<br><em>(Nuvarande val)</em></div>
+            </div>
+
+            <div class="voice-button" onclick="speakWithVoice('echo')">
+                <div class="voice-name">🔊 Echo</div>
+                <div class="voice-description">Manligare och djupare ton</div>
+            </div>
+
+            <div class="voice-button" onclick="speakWithVoice('fable')">
+                <div class="voice-name">🎭 Fable</div>
+                <div class="voice-description">British accent, högtidligare</div>
+            </div>
+
+            <div class="voice-button" onclick="speakWithVoice('nova')">
+                <div class="voice-name">⚡ Nova</div>
+                <div class="voice-description">Ljusare och energisk<br><em>(Tidigare val)</em></div>
+            </div>
+
+            <div class="voice-button" onclick="speakWithVoice('onyx')">
+                <div class="voice-name">💎 Onyx</div>
+                <div class="voice-description">Djupare och rikare</div>
+            </div>
+
+            <div class="voice-button" onclick="speakWithVoice('shimmer')">
+                <div class="voice-name">✨ Shimmer</div>
+                <div class="voice-description">Soft och gentle</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-button" onclick="stopSpeech()">⏹️ Stoppa</button>
+            <button class="control-button" onclick="testRandomPhrase()">🎲 Testa Random Fras</button>
+            <button class="control-button" onclick="updateSystemVoice()">💾 Uppdatera Systemröst</button>
+        </div>
+
+        <div class="notes">
+            <h3>📝 Noter:</h3>
+            <ul>
+                <li><strong>Web Speech API:</strong> Detta använder webbläsarens TTS för demonstration</li>
+                <li><strong>Riktig kvalitet:</strong> OpenAI Realtime API har högre kvalitet än Web Speech</li>
+                <li><strong>Alice-persona:</strong> Tänk på vilken röst som passar Alice bäst</li>
+                <li><strong>Svenska användare:</strong> Engelsk röst men ska vara välkomnande för svenska användare</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const testText = "Hi! I'm Alice, your AI assistant. I'm here to help you with both simple questions and complex tasks. How can I assist you today?";
+        
+        const randomPhrases = [
+            "I'll check that locally for you and get back with a secure answer.",
+            "That information is being processed privately on your device for maximum security.",
+            "I found some interesting results. Would you like me to summarize them?",
+            "Let me help you with that. I'll make sure your data stays private.",
+            "Great question! I can handle both simple queries and complex tasks."
+        ];
+
+        let currentUtterance = null;
+
+        function speakWithVoice(voiceName) {
+            // Stop any current speech
+            stopSpeech();
+
+            // Highlight the playing button
+            document.querySelectorAll('.voice-button').forEach(btn => btn.classList.remove('playing'));
+            event.currentTarget.classList.add('playing');
+
+            // Create new utterance
+            const utterance = new SpeechSynthesisUtterance(testText);
+            
+            // Try to find the specific voice (Web Speech API mapping)
+            const voices = speechSynthesis.getVoices();
+            let selectedVoice = null;
+
+            // Voice mapping for Web Speech API approximations
+            const voiceMapping = {
+                'alloy': ['Google US English', 'Microsoft Zira', 'Alex', 'Samantha'],
+                'echo': ['Google US English Male', 'Microsoft David', 'Daniel', 'Tom'],
+                'fable': ['Google UK English', 'Microsoft Hazel', 'Kate', 'Serena'],
+                'nova': ['Google US English Female', 'Microsoft Zira', 'Victoria', 'Allison'],
+                'onyx': ['Microsoft David', 'Daniel', 'Alex'],
+                'shimmer': ['Microsoft Zira', 'Samantha', 'Victoria']
+            };
+
+            // Try to find a good approximation
+            if (voiceMapping[voiceName]) {
+                for (const voiceOption of voiceMapping[voiceName]) {
+                    selectedVoice = voices.find(voice => 
+                        voice.name.includes(voiceOption) || 
+                        voice.name.toLowerCase().includes(voiceOption.toLowerCase())
+                    );
+                    if (selectedVoice) break;
+                }
+            }
+
+            // Fallback to first English voice
+            if (!selectedVoice) {
+                selectedVoice = voices.find(voice => voice.lang.startsWith('en'));
+            }
+
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+            }
+
+            // Configure voice settings
+            utterance.rate = 0.9;
+            utterance.pitch = voiceName === 'echo' || voiceName === 'onyx' ? 0.8 : 1.0;
+            utterance.volume = 1.0;
+
+            // Event handlers
+            utterance.onend = () => {
+                document.querySelectorAll('.voice-button').forEach(btn => btn.classList.remove('playing'));
+            };
+
+            utterance.onerror = () => {
+                console.error('Speech synthesis error');
+                document.querySelectorAll('.voice-button').forEach(btn => btn.classList.remove('playing'));
+            };
+
+            currentUtterance = utterance;
+            speechSynthesis.speak(utterance);
+        }
+
+        function stopSpeech() {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+            document.querySelectorAll('.voice-button').forEach(btn => btn.classList.remove('playing'));
+        }
+
+        function testRandomPhrase() {
+            const randomPhrase = randomPhrases[Math.floor(Math.random() * randomPhrases.length)];
+            const utterance = new SpeechSynthesisUtterance(randomPhrase);
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            speechSynthesis.speak(utterance);
+        }
+
+        async function updateSystemVoice() {
+            const selectedVoice = prompt("Vilken röst vill du använda för Alice? (alloy, echo, fable, nova, onyx, shimmer)", "alloy");
+            
+            if (selectedVoice && ['alloy', 'echo', 'fable', 'nova', 'onyx', 'shimmer'].includes(selectedVoice)) {
+                try {
+                    const response = await fetch('/api/voice/update-voice', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ voice: selectedVoice })
+                    });
+                    
+                    if (response.ok) {
+                        document.getElementById('currentVoice').textContent = selectedVoice;
+                        alert(`✅ Systemröst uppdaterad till: ${selectedVoice}`);
+                    } else {
+                        alert('❌ Kunde inte uppdatera systemröst');
+                    }
+                } catch (error) {
+                    alert('❌ Fel vid uppdatering av systemröst');
+                }
+            }
+        }
+
+        // Load voices when available
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = () => {
+                // Voices loaded
+            };
+        }
+
+        // Auto-play demo on load
+        setTimeout(() => {
+            document.querySelector('.voice-button').click();
+        }, 1000);
+    </script>
+</body>
+</html>

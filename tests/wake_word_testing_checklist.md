@@ -1,27 +1,27 @@
 # Swedish Wake-Word Testing Checklist - Alice AI
 
 ## Overview
-Manuell testlista för att säkerställa att Alice's svenska wake-word funktionalitet fungerar stabilt under olika förhållanden och miljöer.
+Manual test checklist to ensure that Alice's Swedish wake-word functionality works stably under different conditions and environments.
 
 ## Test Environment Setup
 
 ### Prerequisities
 - [x] **Audio Hardware**
-  - [x] Funktionell mikrofon ansluten och testad
-  - [x] Högtalare/hörlurar för TTS-feedback
-  - [x] Ljudnivåer kalibrerade (mikrofon gain, speaker volume)
-  - [x] Bakgrundsbrus under 40dB
+  - [x] Functional microphone connected and tested
+  - [x] Speakers/headphones for TTS feedback
+  - [x] Audio levels calibrated (microphone gain, speaker volume)
+  - [x] Background noise under 40dB
 
 - [x] **Software Setup**  
-  - [x] Alice backend server körs
-  - [x] Web frontend tillgänglig på localhost:3000
-  - [x] Wake-word model laddad (sv-SE specificerad)
-  - [x] TTS svenska röster tillgängliga (Piper sv-SE-nst)
+  - [x] Alice backend server running
+  - [x] Web frontend available at localhost:3000
+  - [x] Wake-word model loaded (sv-SE specified)
+  - [x] TTS Swedish voices available (Piper sv-SE-nst)
 
 - [x] **Network & Permissions**
-  - [x] Mikrofonbehörigheter beviljade i webbläsare
-  - [x] HTTPS eller localhost för säker mic-access
-  - [x] WebSocket-anslutning etablerad
+  - [x] Microphone permissions granted in browser
+  - [x] HTTPS or localhost for secure mic access
+  - [x] WebSocket connection established
 
 ## Core Wake-Word Tests
 

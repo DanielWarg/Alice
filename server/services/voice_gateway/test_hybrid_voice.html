@@ -318,39 +318,62 @@
 
         async function testRouting(text, startTime) {
             try {
-                // Call our router API
-                const routeResponse = await fetch('http://localhost:8001/api/test/route', {
+                // Call our new voice processing API with real responses
+                const processResponse = await fetch('http://localhost:8001/api/voice/process', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: text })
                 });
                 
-                const routeResult = await routeResponse.json();
+                const processResult = await processResponse.json();
                 const latency = Date.now() - startTime;
                 
-                log(`🔀 Route Decision: ${routeResult.route} (${routeResult.intent})`, 
-                    routeResult.route === 'realtime' ? 'talk-lane' : 'tool-lane');
+                log(`🔀 Route Decision: ${processResult.route} (${processResult.intent})`, 
+                    processResult.route === 'realtime' ? 'talk-lane' : 'tool-lane');
                 
-                if (routeResult.no_cloud) {
+                if (processResult.no_cloud || processResult.privacy_override) {
                     log('🛡️ Privacy Protection: Content kept local', 'privacy');
                     metrics.privacyBlocks++;
+                    
+                    if (processResult.guard_reason) {
+                        log(`🚫 Guard reason: ${processResult.guard_reason}`, 'privacy');
+                    }
                 }
                 
-                if (routeResult.route === 'realtime') {
+                if (processResult.route === 'realtime') {
                     metrics.talkLane++;
-                    log(`⚡ Talk-lane: Fast response in ${latency}ms`, 'talk-lane');
-                    simulateRealtimeResponse(text);
+                    
+                    if (processResult.processing_method === 'realtime_audio_stream') {
+                        log(`⚡ Talk-lane: OpenAI Realtime API - audio will stream via WebRTC`, 'talk-lane');
+                        log(`🔊 Note: Audio response handled by WebRTC connection`, 'talk-lane');
+                        
+                        // For now, simulate the response since WebRTC isn't fully connected
+                        setTimeout(() => {
+                            simulateRealtimeResponse(text);
+                        }, 300);
+                        
+                    } else {
+                        log(`⚡ Talk-lane response: "${processResult.response}"`, 'talk-lane');
+                        speakText(processResult.response);
+                    }
+                    
                 } else {
                     metrics.toolLane++;
-                    log(`🛠️ Tool-lane: Local processing...`, 'tool-lane');
-                    simulateToolResponse(text);
+                    log(`🛠️ Tool-lane processing: ${processResult.processing_method}`, 'tool-lane');
+                    log(`🤖 Local response: "${processResult.response}"`, 'tool-lane');
+                    speakText(processResult.response);
+                }
+                
+                // Log reasoning
+                if (processResult.reasoning) {
+                    log(`💭 Reasoning: ${processResult.reasoning}`, 'tool-lane');
                 }
                 
                 metrics.latencies.push(latency);
                 updateMetrics();
                 
             } catch (error) {
-                log(`❌ Routing error: ${error.message}`, 'privacy');
+                log(`❌ Processing error: ${error.message}`, 'privacy');
             }
         }
 

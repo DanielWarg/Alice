@@ -9,7 +9,7 @@ Complete API documentation for the Alice AI Assistant Platform. Alice provides R
 Alice API consists of several main components:
 
 - **REST API**: Main HTTP endpoints for chat, TTS, tool execution
-- **Voice System**: Currently Browser SpeechRecognition, planned OpenAI Realtime API integration
+- **Voice System**: Currently Browser SpeechRecognition, planned Piper TTS streaming integration
 - **WebSocket**: Real-time communication for HUD updates (voice streaming in development)
 - **NLU Processing**: Intent classification and Swedish language understanding
 - **Agent Bridge**: Server-Sent Events (SSE) for streaming agent responses
@@ -379,33 +379,30 @@ Alice's advanced voice pipeline provides two complementary approaches for voice 
 - Swedish speech post-processing
 - Alice backend TTS integration
 
-### VoiceClient (Advanced OpenAI Realtime)
-- OpenAI Realtime API with WebRTC streaming
-- Low-latency voice interaction
-- Agent bridge for streaming responses
+### VoiceClient (Advanced Piper Streaming)
+- Local Piper TTS with WebRTC streaming
+- Sub-500ms voice interaction target
+- Mikro-ack for immediate feedback
 - Professional-grade audio processing
 
-### OpenAI Realtime Integration
+### Piper Streaming Integration
 
-#### GET /api/realtime/ephemeral
-Create ephemeral session for OpenAI Realtime API.
+#### GET /api/voice/stream-session
+Create streaming session for local Piper TTS pipeline.
 
 **Response:**
 ```json
 {
-  "client_secret": {
-    "value": "your-openai-api-key"
-  },
-  "ephemeral_key_id": "ephemeral_1234567890",
-  "model": "gpt-4o-realtime-preview",
-  "voice": "alloy",
+  "session_id": "voice_session_1234567890",
+  "voice_model": "sv_SE-nst-medium",
+  "sample_rate": 24000,
   "expires_at": "2025-01-21T10:30:00Z"
 }
 ```
 
 **Usage in VoiceClient:**
 ```javascript
-const session = await fetch('/api/realtime/ephemeral').then(r => r.json());
+const session = await fetch('/api/voice/stream-session').then(r => r.json());
 // Session used to initialize WebRTC connection
 ```
 

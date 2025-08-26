@@ -153,7 +153,7 @@ class DeepgramASRStream(ASRStreamBase):
             
             headers = {"Authorization": f"Token {self.api_key}"}
             
-            self.websocket = await websockets.connect(url, extra_headers=headers)
+            self.websocket = await websockets.connect(url, additional_headers=headers)
             self.is_connected = True
             
             # Start listening for responses
@@ -261,7 +261,7 @@ class OpenAIRealtimeASRStream(ASRStreamBase):
                 "OpenAI-Beta": "realtime=v1"
             }
             
-            self.websocket = await websockets.connect(url, extra_headers=headers)
+            self.websocket = await websockets.connect(url, additional_headers=headers)
             self.is_connected = True
             
             # Send session configuration

@@ -749,13 +749,14 @@ app.include_router(metrics_router)
 
 # Include LiveKit-style Real-time Voice Engine
 try:
-    from realtime_voice_router import router as realtime_voice_router
-    from realtime_voice_router import realtime_voice_websocket
-    app.include_router(realtime_voice_router)
+    # from realtime_voice_router import router as realtime_voice_router  # OpenAI Realtime deprecated
+    # from realtime_voice_router import realtime_voice_websocket  # OpenAI Realtime deprecated  
+    # app.include_router(realtime_voice_router)
     
     # Register WebSocket separately (FastAPI requirement)
-    app.websocket("/api/realtime-voice/ws")(realtime_voice_websocket)
-    logger.info("🎙️ LiveKit-style Real-time Voice Engine enabled with WebSocket")
+    # app.websocket("/api/realtime-voice/ws")(realtime_voice_websocket)
+    # logger.info("🎙️ LiveKit-style Real-time Voice Engine enabled with WebSocket")
+    raise ImportError("OpenAI Realtime temporarily disabled")
 except ImportError as e:
     logger.warning(f"Real-time voice engine not available: {e}")
 
