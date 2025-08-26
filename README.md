@@ -52,11 +52,11 @@ Alice is the **world's first production-ready AI assistant** designed specifical
 - All sensitive data and complex reasoning stays local - only basic voice transcripts would use cloud APIs
 - GDPR-compliant by design with user control over data sharing
 
-**⚡ Performance (Honest Current State + Vision)**
-- **Current**: 10-30s response time with local Ollama gpt-oss:20B model
-- **Vision**: <300ms voice response latency via OpenAI Realtime API for simple queries
-- **Vision**: Intelligent routing between fast cloud responses + deep local thinking
-- **Current**: Working Swedish voice recognition with Browser SpeechRecognition API
+**⚡ Performance (Current Reality + Known Issues)**
+- **Text Chat**: 2-4s response time with local Ollama gpt-oss:20B model ✅
+- **Voice Response**: ~700ms Time-To-First-Audio achieved but inconsistent ⚠️
+- **Voice Stability**: Echo loops and partial detection issues make voice "stökigt" ❌
+- **Vision**: Sub-300ms consistent response with perfect echo control 🎯
 
 **🤖 Autonomous Intelligence**
 - Agent Core v1 for complex multi-step task orchestration
@@ -113,28 +113,34 @@ cd ../web && npm install && npm run dev
 
 ---
 
-## 🚧 Development Status & Roadmap
+## 🛣️ **Realistic Development Roadmap**
 
-**Current Status (v2.0 - Functioning Foundation):**
-- ✅ **Voice Input**: Working Swedish voice recognition via Browser SpeechRecognition API
-- ✅ **Local AI**: Full conversation capabilities with Ollama gpt-oss:20b 
-- ✅ **Core Features**: Calendar, weather, memory, agent workflows
-- ✅ **Security**: CORS, authentication, rate limiting
-- ✅ **Tests**: 100+ automated tests with CI/CD pipeline
+### **🔥 Priority 0: Voice Stability (Current Focus)**
+- 🔧 **Fix Echo Loops**: Prevent Alice from processing her own TTS output
+- 🔧 **Stable Partial Detection**: Improve reliability of 250ms threshold triggers  
+- 🔧 **Test Interface Buttons**: Debug non-functioning test page controls
+- 🔧 **Error Handling**: Graceful degradation when voice pipeline fails
 
-**Next Phase (v2.1 - Advanced Voice Pipeline):**
-- 🔄 **Hybrid Voice Architecture**: OpenAI Realtime API + local reasoning
-- 🔄 **WebRTC Integration**: Sub-second voice response times
-- 🔄 **Intelligent Routing**: Fast cloud voice + complex local processing
-- 🔄 **Wake Word Detection**: "Hej Alice" activation
+### **📋 Phase 1: Hardening (Next 2-4 weeks)**
+- 🔄 **B3 Frontend Polish**: Complete Always-On voice UI integration
+- 🔄 **Voice Test Coverage**: Automated tests for streaming pipeline
+- 🔄 **Performance Consistency**: Reliable 700ms TTFA without hiccups
+- 🔄 **Documentation Sync**: Align docs with actual functionality
 
-**Vision (v3.0 - Enterprise Ready):**
-- 🎯 **Multi-user Support**: Teams and organizations
-- 🎯 **Advanced Agents**: Autonomous multi-step workflows
-- 🎯 **Integrations**: Microsoft 365, Google Workspace, Slack
-- 🎯 **Mobile App**: Native iOS/Android applications
+### **🎯 Phase 2: Advanced Features (Future)**
+- 🎯 **B4 Proactive AI**: Pattern recognition from ambient memory
+- 🎯 **Multimodal Input**: Vision + voice integration  
+- 🎯 **Enterprise Polish**: Docker, auth, multi-user support
+- 🎯 **Mobile Integration**: React Native or PWA enhancement
 
-> **For New Contributors**: Alice currently has a working voice system using simple browser APIs. The documentation describes our ambitious vision for advanced hybrid voice, which we're actively working towards. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to help build the future!
+### **⚠️ Important Note for New Contributors**
+Alice has impressive technical foundations but **voice stability issues prevent production use**. We're focused on fixing core problems before adding new features. 
+
+**Want to help?** Start with:
+1. Test the voice pipeline with `test_streaming_voice.html`
+2. Report specific echo/stability issues you encounter
+3. Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for known problems
+4. **Avoid B4/multimodal work until voice is stable**
 
 ---
 
@@ -150,12 +156,12 @@ cd ../web && npm install && npm run dev
 
 </div>
 
-### 🎤 **Advanced Voice Pipeline**
-- **🌐 OpenAI Realtime API** - WebRTC streaming for ultra-low latency
-- **🎭 Dual Voice System** - VoiceBox (basic) + VoiceClient (enterprise)
-- **🇸🇪 Swedish TTS Engine** - 3 personalities with emotional modulation
-- **👂 Wake-word Detection** - "Hej Alice" for hands-free activation
-- **⚡ Smart Caching** - MD5-based response caching for 3-10x speed boost
+### 🎤 **Voice Pipeline (Current + Issues)**
+- **🎙️ Browser SpeechRecognition** - Working Swedish recognition ✅
+- **🎭 Streaming Voice System** - LiveKit-style implementation with echo problems ⚠️
+- **🇸🇪 Swedish TTS Engine** - Multiple voices with emotional modulation ✅
+- **❌ Known Issues** - Echo loops, unreliable partial detection, test buttons broken
+- **🔧 Active Development** - Fixing stability before adding wake-word detection
 
 ### 🧠 **Hybrid AI & Privacy**
 - **🏠 gpt-oss:20B Local** - Complex reasoning, tools, and sensitive data processing entirely local
@@ -285,6 +291,31 @@ graph TB
 
 ---
 
+## 🚧 **Current Development Status (HONEST)**
+
+**As of August 2025 - Realistic Assessment:**
+
+🟢 **Working Solid:**
+- ✅ Local AI (Ollama gpt-oss:20B) with Swedish responses  
+- ✅ Basic voice input (Browser SpeechRecognition sv-SE)
+- ✅ Text-to-Speech with Swedish voices
+- ✅ Core integrations (Spotify, Calendar, Weather)
+
+🟡 **Implemented but Unstable:**
+- ⚠️ **Voice Pipeline**: LiveKit-style streaming works but has echo loops
+- ⚠️ **Sub-second response**: Achieved ~700ms but inconsistent
+- ⚠️ **B3 Always-On**: Backend complete, frontend needs hardening
+
+🔴 **Known Issues:**
+- ❌ Echo control not perfect (processes own TTS output)
+- ❌ Stable partial detection can be unreliable
+- ❌ Test interfaces have non-functioning buttons
+- ❌ "Stökigt" (messy) behavior reported in voice interactions
+
+**🎯 Current Focus:** Fix voice stability before advancing to multimodal features.
+
+---
+
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
@@ -292,6 +323,7 @@ graph TB
 - **Node.js 18+** with npm
 - **Ollama** with `gpt-oss:20B` model
 - **HTTPS environment** (for WebRTC in production)
+- **Realistic expectations** (this is beta software with known issues)
 
 ### 🐳 **Docker Setup (Recommended)**
 ```bash

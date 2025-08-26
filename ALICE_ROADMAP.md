@@ -7,8 +7,8 @@
 ✅ Circuit breaker & health monitoring
 ✅ FAST/DEEP routing (intent-based)
 ✅ Tool execution med interleaved feedback
-✅ Ambient Memory (B1) – production ready
-✅ Barge-in & Echo-skydd (B2) – production ready
+⚠️ Ambient Memory (B1) – backend complete, frontend integration needed
+❌ Barge-in & Echo-skydd (B2) – implemented but has echo loop issues
 ✅ Kodbas-organisering & dokumentation cleanup
 ⬜ Acceptance tests ≥95%
 ⬜ ARCHITECTURE.md + Runbook för nya verktyg
@@ -103,9 +103,11 @@
 
 ---
 
-👉 **Roadmap framåt**:
+👉 **Realistisk Roadmap framåt**:
 
-* **Nu**: Slutför production polish (spår B) och bygg B3 Always-On Voice.
-* **Kortsiktigt**: Calendar/Email integration (spår A).
-* **Mellan**: Predictive Engine + YOLO-satellit.
-* **Långsiktigt**: Full multimodal + proaktiv agent.
+* **🔥 Akut Nu**: Fixa echo loops och röststabilitet (B2 hardening)
+* **📋 Kort sikt**: Slutför B3 frontend integration när B2 är stabil  
+* **🎯 Mellan**: Calendar integration och production polish
+* **🚀 Lång sikt**: B4 Predictive + multimodal (endast när röst fungerar stabilt)
+
+**⚠️ VIKTIGT**: Inget nytt utvecklas förrän röstpipelinen är stabil - det är blockerande för användarupplevelsen.

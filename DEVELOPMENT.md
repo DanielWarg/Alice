@@ -107,17 +107,22 @@ cd web && npm run test:e2e
 
 ## 🚀 **Current Status (Aug 2025)**
 
-### ✅ **Production Ready**
-- **B1**: Ambient Memory System (voice → memory → summaries)
-- **B2**: Barge-in & Echo-skydd (ultra-low latency)  
-- **Hybrid LLM**: Ollama primary + OpenAI fallback
-- **Agent Core**: Autonomous workflow execution
-- **Swedish NLU**: 89% accuracy med svenska idiom
+### ✅ **Stabil & Fungerande**
+- **Hybrid LLM**: Ollama primary + OpenAI fallback ✅
+- **Agent Core**: Autonomous workflow execution ✅  
+- **Swedish NLU**: 89% accuracy med svenska idiom ✅
+- **Text Chat**: 2-4s responstid, pålitlig ✅
 
-### 🔄 **In Development**
-- **B3**: Always-On Voice + Ambient Summaries
-- **Production Polish**: Docker, SBOM, performance budgets
-- **Vision Pipeline**: YOLO på Pi-satelliter
+### ⚠️ **Implementerad men Instabil**
+- **B1**: Ambient Memory backend klar, frontend integration saknas
+- **B2**: Barge-in & Echo-skydd har echo loop-problem  
+- **Voice Pipeline**: ~700ms TTFA men "stökigt" beteende
+
+### 🔄 **Prioriterat Arbete (Focus Order)**
+1. **🔥 P0**: Fixa B2 echo loops - röststabilitet blockerande
+2. **📋 P1**: Slutför B3 frontend integration  
+3. **🔧 P2**: Production Polish (Docker, SBOM, performance budgets)
+4. **🎯 P3**: Vision Pipeline (endast efter stabil röst)
 
 ---
 

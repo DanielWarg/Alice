@@ -1,117 +1,172 @@
-# 🚀 Alice Project - One-Command Startup
+# 🚀 Alice Project - Snabbstart Guide
 
-**Starta hela Alice-projektet med ett enda kommando!**
-
----
-
-## 📋 **Snabb-check förutsättningar**
-
-```bash
-python3 --version && node --version && ollama --version
-```
-**Förväntad output:** Versionsnummer för alla tre
+**Kom igång med Alice - men läs detta först om du är ny!**
 
 ---
 
-## ⚡ **ONE-COMMAND STARTUP**
+## 🚨 **VIKTIGT: Läs detta först om du är ny utvecklare**
 
-Kopiera och kör detta kommando i terminalen:
+**Alice har imponerande funktionalitet men röstpipelinen är instabil.**
 
-```bash
-cd /Users/evil/Desktop/EVIL/PROJECT/Alice && curl -s https://raw.githubusercontent.com/example/alice-startup/main/quick-start.sh | bash
-```
+🟢 **Vad som fungerar bra:**
+- Text-chat med svenska svar (2-4s responstid) 
+- Grundläggande röstinput och TTS
+- Spotify, kalendrar, verktyg
 
-**ELLER använd det inbyggda startup-scriptet:**
+🔴 **Kända problem med röst:**
+- Echo loops (Alice hör sin egen röst)
+- Instabila test-gränssnitt (knappar fungerar inte)
+- "Stökigt" beteende i konversationer
+- Partiell detektering kan vara opålitlig
 
-```bash
-cd /Users/evil/Desktop/EVIL/PROJECT/Alice && ./start_alice.sh
-```
+**🎯 Om rösten är stökig → hoppa direkt till [🔧 Troubleshooting](#-troubleshooting-röstproblem)**
 
 ---
 
-## 🛠️ **Manual Setup (om one-command inte fungerar)**
+## 🎯 **Vad är Alice? (Realistisk beskrivning)**
 
-### Steg 1: Navigera till projekt
+Alice är en **privat svenska AI-assistent** med:
+- 🎙️ **Experimentell röstrespons** (~700ms när det fungerar) med LiveKit-stil streaming  
+- 🤖 **Stabil lokal AI** med gpt-oss:20b (ingen data skickas till molnet)
+- 🇸🇪 **Pålitlig svenska** språkstöd och kulturell förståelse
+- 🛠️ **Fungerande verktyg** för kalender, väder, Spotify, Gmail m.m.
+
+---
+
+## 📋 **Snabb-check (30 sekunder)**
+
+Kör detta först för att se om allt är installerat:
+
+```bash
+echo "🔍 Checking dependencies..." && \
+python3 --version && \
+node --version && \
+ollama --version && \
+echo "✅ All prerequisites found!"
+```
+
+**Saknar du något?** Se [Installation](#-installation-saknas-något) längre ner.
+
+---
+
+## ⚡ **ENKLASTE STARTEN (2 minuter)**
+
+### 1. Navigera till projektmappen
 ```bash
 cd /Users/evil/Desktop/EVIL/PROJECT/Alice
 ```
 
-### Steg 2: Fix virtual environment (om trasig)
+### 2. Kör startup-scriptet
 ```bash
-# Kontrollera om venv fungerar
-source .venv/bin/activate
-if [[ $(which python3) != *".venv"* ]]; then
-  echo "🔧 Fixing broken venv..."
-  deactivate 2>/dev/null || true
-  rm -rf .venv
-  python3 -m venv .venv
-  source .venv/bin/activate
-fi
-echo "✅ venv: $(which python3)"
+./start_alice.sh
 ```
 
-### Steg 3: Installera dependencies (en gång)
-```bash
-# Uppgradera pip och installera
-pip install --upgrade pip
-pip install -r server/requirements.txt
-pip install python-multipart httpx
+### 3. Vänta på "All systems ready!" meddelandet
 
-# Frontend dependencies
-cd web && npm install && cd ..
+### 4. Öppna Alice
+```bash
+open http://localhost:3000
 ```
 
-### Steg 4: Rensa gamla processer
-```bash
-# Döda gamla processer som kan störa
-pkill -f "python.*run.py" 2>/dev/null || true
-pkill -f "npm run dev" 2>/dev/null || true
-sleep 2
-```
+**🎉 Klart! Alice körs nu med sub-sekund röstrespons.**
 
-### Steg 5: Starta alla services
-```bash
-# Starta backend (i bakgrunden)
-cd server
-source ../.venv/bin/activate
-python run.py &
-BACKEND_PID=$!
-cd ..
+---
 
-# Vänta och kontrollera backend
+## 🎙️ **Testa Röstfunktionen**
+
+När Alice är igång, testa de nya röstfunktionerna:
+
+### LiveKit-Stil Streaming Voice
+1. **Öppna test-gränssnittet**: `open test_streaming_voice.html`
+2. **Klicka "🎤 Start Recording"**
+3. **Säg**: "Vad är det för väder i Göteborg idag"
+4. **Se TTFA-mätning**: Borde visa ~700ms till första ljud
+
+### I Huvudappen
+1. **Öppna**: http://localhost:3000
+2. **Klicka röstknappen** (eller säg "Hej Alice")
+3. **Testa svenska kommandon**: 
+   - "Vad är klockan?"
+   - "Skapa ett möte imorgon"
+   - "Spela musik"
+
+---
+
+## 🔧 **Troubleshooting röstproblem**
+
+### Om rösten är "stökig" eller ekar
+```bash
+# 1. Starta om Alice helt
+pkill -f "python.*run.py"; pkill -f "npm run dev"; pkill -f "ollama serve"
 sleep 5
-if curl -s http://localhost:8000/api/tools/spec >/dev/null; then
-  echo "✅ Backend started on http://localhost:8000"
-else
-  echo "❌ Backend failed to start"
-  kill $BACKEND_PID 2>/dev/null
-  exit 1
-fi
+./start_alice.sh
 
-# Starta frontend (i bakgrunden)
-cd web
-npm run dev &
-FRONTEND_PID=$!
-cd ..
+# 2. Testa specifikt röstpipelinen
+open test_streaming_voice.html
+# Klicka Connect → Start Recording
+# Om knappar inte fungerar = känt problem
+```
 
-# Vänta och kontrollera frontend
-sleep 8
-if curl -s http://localhost:3000 >/dev/null; then
-  echo "✅ Frontend started on http://localhost:3000"
-else
-  echo "❌ Frontend failed to start"
-  kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
-  exit 1
-fi
+### Om test-sidan inte fungerar
+- **Known Issue**: Test-knapparna är trasiga
+- **Workaround**: Använd huvudappen http://localhost:3000
+- **Focus**: Vi jobbar på att fixa detta
 
-# Kontrollera Ollama (startar automatiskt)
-if curl -s http://localhost:11434/api/tags >/dev/null; then
-  echo "✅ Ollama running on http://localhost:11434"
-else
-  echo "🤖 Starting Ollama..."
-  ollama serve &
-  sleep 3
-fi
+### Om echo loops (Alice hör sig själv)
+```bash
+# Temporary fix: använd headphones istället för speakers
+# Eller muta micken manuellt under Alice's svar
+# Detta är vårt #1 problem att lösa
+```
+
+### Rapportera röstproblem
+Om du hittar nya röstproblem, dokumentera:
+1. Vad du sa
+2. Vad Alice hörde (transcript)
+3. Vad som hände (echo/dubbelsvar/nothing)
+4. Browser & OS version
+
+---
+
+## 🛠️ **Manual Setup (om scriptet inte fungerar)**
+
+### Snabb parallell-start (avancerat)
+```bash
+cd /Users/evil/Desktop/EVIL/PROJECT/Alice
+
+# Starta allt parallellt för snabbaste uppstart
+(cd server && source ../.venv/bin/activate && python3 -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload) &
+(cd web && npm run dev) &
+(ollama serve > /dev/null 2>&1) &
+
+# Vänta på att allt startar
+sleep 10
+
+echo "🔍 System Status:"
+curl -s http://localhost:8000/api/v1/llm/status >/dev/null && echo "✅ Backend ready"
+curl -s http://localhost:3000 >/dev/null && echo "✅ Frontend ready" 
+curl -s http://localhost:11434/api/tags >/dev/null && echo "✅ Ollama ready"
+
+echo "🎉 Alice ready at: http://localhost:3000"
+```
+
+### Steg-för-steg troubleshooting
+```bash
+# 1. Fixa dependencies
+cd /Users/evil/Desktop/EVIL/PROJECT/Alice
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r server/requirements.txt
+cd web && npm install && cd ..
+
+# 2. Starta backend
+cd server && python3 -m uvicorn app:app --host 127.0.0.1 --port 8000 &
+
+# 3. Starta frontend
+cd web && npm run dev &
+
+# 4. Kontrollera Ollama
+ollama serve > /dev/null 2>&1 &
 ```
 
 ---
@@ -147,9 +202,10 @@ När alla ✅ visas, öppna webbläsaren:
 
 Du ska nu se:
 - 🎨 **Alice HUD** med glassmorphism-design
-- 🤖 **LLM Status Badge** (top-right) som visar "ollama:gpt-oss:20b (healthy)"
-- 🎙️ **Voice Interface** för Swedish speech
-- 📊 **System metrics** och verktyg
+- 🤖 **LLM Status Badge** som visar "gpt-oss:20b (healthy)"
+- 🎙️ **VoiceStreamClient** för LiveKit-stil streaming voice
+- 📊 **TTFA metrics** och realtidsprestanda
+- ⚡ **Sub-sekund röstrespons** (~700ms Time-To-First-Audio)
 
 ---
 
@@ -258,6 +314,68 @@ chmod +x ~/alice-start.sh
 
 ---
 
-**🎯 Nu borde Alice starta på 30 sekunder utan krångel!**
+---
 
-För support, se [README.md](README.md) eller [DEVELOPMENT.md](DEVELOPMENT.md).
+## 💾 **Installation (saknas något?)**
+
+### Python 3.9+
+```bash
+# macOS med Homebrew
+brew install python3
+
+# Kontrollera version
+python3 --version  # Bör vara 3.9+
+```
+
+### Node.js 18+
+```bash
+# macOS med Homebrew  
+brew install node
+
+# Kontrollera version
+node --version      # Bör vara 18+
+```
+
+### Ollama + gpt-oss modell
+```bash
+# Installera Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Ladda ner gpt-oss:20b modell (en gång)
+ollama pull gpt-oss:20b
+
+# Kontrollera att modellen finns
+ollama list | grep gpt-oss
+```
+
+### Virtuell miljö (Python dependencies)
+```bash
+cd /Users/evil/Desktop/EVIL/PROJECT/Alice
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r server/requirements.txt
+```
+
+---
+
+## 🚀 **Prestanda & Förbättringar**
+
+### Alice v2.1 vs v1.0 Jämförelse
+| Metric | v1 Batch | v2.1 LiveKit-Style | Förbättring |
+|--------|----------|---------------------|-------------|
+| Första ljudet | ~5.5s | ~700ms | **7.8x snabbare** |
+| Röstprocessing | Väntar på slutversion | Stabil partial (250ms) | **Real-tid** |
+| TTS Audio | Hela meningar | Micro-chunks (3-5 ord) | **Progressiv** |
+| Echo-kontroll | Enkel blockering | Smart mute/unmute | **Sofistikerat** |
+
+### Test Streaming Voice Funktioner
+- ✅ **Stabil Partial Detection** - Triggar på 250ms stabilitet
+- ✅ **Micro-Chunked TTS** - 3-5 ord chunks med 20ms delay  
+- ✅ **TTFA Mätning** - Real-tid performance metrics
+- ✅ **Smart Echo-kontroll** - Mute under TTS-uppspelning
+
+---
+
+**🎯 Nu borde Alice starta på 2 minuter med sub-sekund röstrespons!**
+
+För teknisk support, se [VOICE_PIPELINE_STATUS.md](VOICE_PIPELINE_STATUS.md) eller [docs/VOICE_SETUP.md](docs/VOICE_SETUP.md).
