@@ -5,9 +5,11 @@
 // - Inga externa bibliotek
 // - Partikelbakgrund och röst/video kan stängas av centralt
 
-import React, { useEffect, useMemo, useRef, useState, useContext, createContext, useId } from "react";
+import React, { useEffect, useMemo, useRef, useState, useContext, createContext, useId, useCallback } from "react";
 import VoiceBox from '../components/VoiceBox';
 import VoiceClient from './components/VoiceClient';
+import VoiceRealtimeClient from '../components/VoiceRealtimeClient';
+import VoiceStreamClient from '../components/VoiceStreamClient';
 import VoiceGatewayClient from '../components/VoiceGatewayClient';
 import CalendarWidget from '../components/CalendarWidget';
 import DocumentUpload from '../components/DocumentUpload';
@@ -332,7 +334,7 @@ const HUDContext = createContext(null);
 function useHUD() { const ctx = useContext(HUDContext); if (!ctx) throw new Error("useHUD must be inside provider"); return ctx; }
 function HUDProvider({ children }) {
   const [state, setState] = useState({ overlayOpen: false, currentModule: null, videoSource: undefined, voiceMode: 'basic' });
-  const dispatch = (c) => { setState((s) => { switch (c.type) { case "SHOW_MODULE": return { ...s, overlayOpen: true, currentModule: c.module }; case "HIDE_OVERLAY": return { ...s, overlayOpen: false, currentModule: null }; case "TOGGLE_MODULE": return { ...s, overlayOpen: s.currentModule === c.module ? false : true, currentModule: s.currentModule === c.module ? null : c.module }; case "OPEN_VIDEO": return { ...s, overlayOpen: true, currentModule: "video", videoSource: c.source }; case "TOGGLE_VOICE_MODE": return { ...s, voiceMode: s.voiceMode === 'basic' ? 'advanced' : 'basic' }; case "SET_VOICE_MODE": return { ...s, voiceMode: c.mode }; default: return s; } }); };
+  const dispatch = (c) => { setState((s) => { switch (c.type) { case "SHOW_MODULE": return { ...s, overlayOpen: true, currentModule: c.module }; case "HIDE_OVERLAY": return { ...s, overlayOpen: false, currentModule: null }; case "TOGGLE_MODULE": return { ...s, overlayOpen: s.currentModule === c.module ? false : true, currentModule: s.currentModule === c.module ? null : c.module }; case "OPEN_VIDEO": return { ...s, overlayOpen: true, currentModule: "video", videoSource: c.source }; case "TOGGLE_VOICE_MODE": return { ...s, voiceMode: s.voiceMode === 'basic' ? 'realtime' : s.voiceMode === 'realtime' ? 'streaming' : s.voiceMode === 'streaming' ? 'advanced' : 'basic' }; case "SET_VOICE_MODE": return { ...s, voiceMode: c.mode }; default: return s; } }); };
   useEffect(() => { if (typeof window === 'undefined') return; window.HUD = { showModule: (m, payload) => dispatch({ type: "SHOW_MODULE", module: m, payload }), hideOverlay: () => dispatch({ type: "HIDE_OVERLAY" }), openVideo: (source) => dispatch({ type: "OPEN_VIDEO", source }), toggle: (m) => dispatch({ type: "TOGGLE_MODULE", module: m }), toggleVoiceMode: () => dispatch({ type: "TOGGLE_VOICE_MODE" }), setVoiceMode: (mode) => dispatch({ type: "SET_VOICE_MODE", mode }) }; }, []);
   return <HUDContext.Provider value={{ state, dispatch }}>{children}</HUDContext.Provider>;
 }
@@ -663,11 +665,54 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
     setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Voice: ${status}`}, ...J].slice(0,100));
   };
 
+  // Streaming audio playback for OpenAI Realtime
+  const audioContextRef = useRef(null);
+  const playStreamingAudio = useCallback(async (audioData) => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      
+      const audioContext = audioContextRef.current;
+      
+      // Decode the PCM16 audio data
+      const audioBuffer = await audioContext.decodeAudioData(audioData);
+      
+      // Create and play audio source
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+      source.start(0);
+      
+      console.log('🔊 Playing streaming audio chunk');
+      
+    } catch (error) {
+      console.error('❌ Streaming audio playback failed:', error);
+    }
+  }, []);
+
   return (
     <div className="relative w-full max-w-4xl mx-auto">
 
-      {/* Voice Components */}
-      {voiceMode === 'basic' ? (
+      {/* Voice Components - Only ONE active at a time */}
+      {voiceMode === 'streaming' ? (
+        <VoiceStreamClient
+          enableContinuous={true}
+          onTranscript={(text, isFinal) => {
+            if (isFinal) {
+              // Add to journal and process
+              setJournal((J)=>[{ id: safeUUID(), ts: new Date().toISOString(), text: `You: ${text}` }, ...J].slice(0,100));
+              handleVoiceInput(text);
+            }
+          }}
+          onResponse={(response) => {
+            // Add AI response to journal
+            setJournal((J)=>[{ id: safeUUID(), ts: new Date().toISOString(), text: `Alice: ${response}` }, ...J].slice(0,100));
+          }}
+          onError={handleVoiceClientError}
+          onConnectionChange={handleVoiceClientConnection}
+        />
+      ) : voiceMode === 'basic' ? (
         <VoiceBox 
           ref={voiceBoxRef}
           bars={7}
@@ -680,6 +725,17 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
           emotion={voiceSettings.emotion}
           voiceQuality={voiceSettings.voiceQuality}
         />
+      ) : voiceMode === 'realtime' ? (
+        <div className="text-center p-8 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+          <p className="text-yellow-400">⚠️ OpenAI Realtime mode temporärt inaktiverad</p>
+          <p className="text-yellow-300/80 text-sm mt-2">Använd 🚀 Streaming mode istället för bästa prestanda</p>
+          <button 
+            onClick={() => dispatch({ type: "SET_VOICE_MODE", mode: "streaming" })}
+            className="mt-3 px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded hover:bg-cyan-500/30 transition-colors"
+          >
+            Växla till Streaming Mode
+          </button>
+        </div>
       ) : (
         <VoiceClient
           personality={voiceSettings.personality}
@@ -691,10 +747,29 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
         />
       )}
       
+      {/* Voice Mode Indicator */}
+      <div className="mt-4 flex justify-center">
+        <div className="flex items-center gap-2 text-xs text-cyan-300/60">
+          <span>Voice Mode:</span>
+          <span className="px-2 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded text-cyan-200">
+            {voiceMode === 'basic' ? '🎙️ Basic (Web Speech)' : 
+             voiceMode === 'realtime' ? '⚡ Realtime (<1s)' : 
+             voiceMode === 'streaming' ? '🚀 Streaming (gpt-oss + TTS)' :
+             '🌐 Advanced (VoiceClient)'}
+          </span>
+          <button 
+            onClick={() => dispatch({ type: "TOGGLE_VOICE_MODE" })}
+            className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded hover:bg-blue-500/30 transition-colors"
+          >
+            Toggle
+          </button>
+        </div>
+      </div>
+      
       {/* Voice Input Display */}
       {voiceInput && (
         <div className="mt-4 p-3 bg-cyan-900/20 border border-cyan-400/20 rounded-lg">
-          <div className="text-sm text-cyan-300/80">Senaste röst-input ({voiceMode === 'basic' ? 'VoiceBox' : 'VoiceClient'}):</div>
+          <div className="text-sm text-cyan-300/80">Senaste röst-input ({voiceMode === 'basic' ? 'VoiceBox' : voiceMode === 'realtime' ? 'OpenAI Realtime' : voiceMode === 'streaming' ? 'Streaming Pipeline' : 'VoiceClient'}):</div>
           <div className="text-cyan-100">"{voiceInput}"</div>
           <div className="text-xs text-cyan-400/70 mt-1">Skickat till Alice för bearbetning...</div>
         </div>
@@ -1105,8 +1180,8 @@ function HUDInner() {
                           // Stop browser speech recognition globally
                           const speechRecognitionInstances = document.querySelectorAll('[data-speech-recognition]');
                           speechRecognitionInstances.forEach(el => {
-                            if ((el as any)._speechRecognition) {
-                              (el as any)._speechRecognition.stop();
+                            if (el._speechRecognition) {
+                              el._speechRecognition.stop();
                             }
                           });
                           

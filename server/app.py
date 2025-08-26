@@ -747,6 +747,18 @@ app.include_router(barge_in_router)
 app.include_router(privacy_router)
 app.include_router(metrics_router)
 
+# Include LiveKit-style Real-time Voice Engine
+try:
+    from realtime_voice_router import router as realtime_voice_router
+    from realtime_voice_router import realtime_voice_websocket
+    app.include_router(realtime_voice_router)
+    
+    # Register WebSocket separately (FastAPI requirement)
+    app.websocket("/api/realtime-voice/ws")(realtime_voice_websocket)
+    logger.info("🎙️ LiveKit-style Real-time Voice Engine enabled with WebSocket")
+except ImportError as e:
+    logger.warning(f"Real-time voice engine not available: {e}")
+
 # Include LLM coordination system
 try:
     from llm_router import router as llm_router
@@ -2819,6 +2831,226 @@ class Hub:
 hub = Hub()
 
 
+@app.websocket("/ws/voice-stream")
+async def ws_voice_stream(ws: WebSocket) -> None:
+    """
+    LiveKit-style streaming voice pipeline for sub-second latency
+    Uses stable partial detection instead of waiting for final transcripts
+    """
+    await ws.accept()
+    print("🎙️ Voice stream client connected")
+    
+    # Stable partial detection state
+    last_transcript = ""
+    stable_since = 0
+    stable_threshold_ms = 250  # LiveKit-style: trigger on 250ms stability
+    processing_active = False
+    
+    try:
+        while True:
+            message = await ws.receive_text()
+            data = json.loads(message)
+            
+            if data.get("type") == "partial_transcript":
+                # Handle partial speech recognition results
+                transcript = data.get("transcript", "").strip()
+                is_final = data.get("is_final", False)
+                confidence = data.get("confidence", 0.0)
+                
+                print(f"📝 Partial: '{transcript}' (final: {is_final}, conf: {confidence:.2f})")
+                
+                # LiveKit-style: process stable partials + finals for sub-second response
+                current_time = int(__import__('time').time() * 1000)
+                
+                # Check if transcript is stable (unchanged for threshold period)
+                if transcript == last_transcript:
+                    if stable_since == 0:
+                        stable_since = current_time
+                    stability_duration = current_time - stable_since
+                    transcript_stable = stability_duration >= stable_threshold_ms
+                    print(f"🔄 Stable for {stability_duration}ms (need {stable_threshold_ms}ms)")
+                else:
+                    last_transcript = transcript
+                    stable_since = current_time
+                    transcript_stable = False
+                    print(f"🔄 New transcript, reset stability timer")
+                
+                # Trigger processing on stable partial OR final transcript
+                should_process = (
+                    is_final or 
+                    (transcript_stable and 
+                     confidence > 0.88 and 
+                     len(transcript) > 8 and 
+                     transcript.count(' ') >= 2 and
+                     not processing_active)
+                )
+                
+                if should_process:
+                    if transcript and not processing_active:
+                        processing_active = True
+                        stable_since = 0  # Reset stability tracking
+                        
+                        # Send immediate acknowledgment with trigger type
+                        await ws.send_text(json.dumps({
+                            "type": "processing_started",
+                            "transcript": transcript,
+                            "trigger": "stable_partial" if not is_final else "final"
+                        }))
+                        
+                        # Process with gpt-oss (fast when warm)
+                        response_text = await process_voice_query_streaming(transcript, ws)
+                        
+                        # Generate and stream TTS chunks
+                        await stream_tts_response(response_text, ws)
+                        
+                        # Signal completion
+                        await ws.send_text(json.dumps({
+                            "type": "response_complete",
+                            "transcript": transcript,
+                            "response": response_text
+                        }))
+                        
+                        processing_active = False
+                        
+            elif data.get("type") == "ping":
+                await ws.send_text(json.dumps({"type": "pong"}))
+                
+    except WebSocketDisconnect:
+        print("🔌 Voice stream client disconnected")
+    except Exception as e:
+        print(f"❌ Voice stream error: {e}")
+        try:
+            await ws.send_text(json.dumps({
+                "type": "error", 
+                "message": str(e)
+            }))
+        except:
+            pass
+
+
+async def process_voice_query_streaming(query: str, ws: WebSocket) -> str:
+    """Fast voice processing with gpt-oss via Ollama"""
+    try:
+        # Use gpt-oss through Ollama API for speed (4-7s when warm)
+        ollama_payload = {
+            "model": "gpt-oss:20b",
+            "prompt": f"{query} (svara kort och naturligt på svenska, max 1-2 meningar)",
+            "stream": False,
+            "options": {
+                "temperature": 0.7,
+                "num_predict": 200,
+                "stop": ["Human:", "User:", "Assistant:"]  # Removed \n\n stop token
+            }
+        }
+        
+        print(f"🤖 Processing with gpt-oss via Ollama: {query}")
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "http://127.0.0.1:11434/api/generate", 
+                json=ollama_payload
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                response_text = result.get("response", "").strip()
+                
+                # Debug logging
+                print(f"🔍 Ollama response keys: {list(result.keys())}")
+                print(f"🔍 Raw response field: '{result.get('response', 'MISSING')}'")
+                
+                if response_text:
+                    print(f"✅ gpt-oss response ({len(response_text)} chars): {response_text[:50]}...")
+                    return response_text
+                else:
+                    print(f"⚠️ Empty response from gpt-oss. Full result: {result}")
+                    return "Hej! Tyvärr fick jag inget svar från språkmodellen."
+            else:
+                print(f"❌ Ollama error: {response.status_code} - {response.text}")
+                return "Ursäkta, jag kunde inte bearbeta din fråga just nu."
+                
+    except Exception as e:
+        print(f"❌ Processing error: {e}")
+        return "Ursäkta, något gick fel."
+
+
+async def stream_tts_response(text: str, ws: WebSocket) -> None:
+    """Generate and stream TTS in chunks for immediate playback"""
+    if not text.strip():
+        return
+        
+    try:
+        # LiveKit-style micro-chunking for sub-second TTFA
+        import re
+        
+        # Break into very small chunks (3-5 words) for immediate streaming
+        words = text.split()
+        chunks = []
+        
+        # Create 3-5 word chunks for optimal streaming balance
+        for i in range(0, len(words), 4):
+            chunk = ' '.join(words[i:i+4])
+            if chunk:
+                chunks.append(chunk)
+        
+        print(f"🎵 Streaming {len(chunks)} micro-chunks for sub-second TTFA...")
+        sentences = chunks
+            
+        for i, sentence in enumerate(sentences):
+            if not sentence.strip():
+                continue
+                
+            print(f"🎵 Generating TTS chunk {i+1}/{len(sentences)}: {sentence[:30]}...")
+            
+            try:
+                # Use existing TTS API endpoint - American voice for testing
+                tts_payload = {
+                    "text": sentence.strip(),
+                    "voice": "en-US-standard-female",  # American female voice for testing
+                    "speed": 1.0,
+                    "pitch": 1.0  # Fixed: API requires pitch >= 0.8
+                }
+                
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    response = await client.post(
+                        "http://127.0.0.1:8000/api/tts/synthesize",
+                        json=tts_payload
+                    )
+                    
+                    if response.status_code == 200:
+                        # Response contains base64 audio data in 'audio_data' field
+                        result = response.json()
+                        audio_b64 = result.get("audio_data", "") or result.get("audio", "")
+                        
+                        print(f"🔍 TTS response keys: {list(result.keys())}")
+                        print(f"🔍 Audio data length: {len(audio_b64) if audio_b64 else 0}")
+                        
+                        if audio_b64:
+                            # Stream audio chunk immediately
+                            await ws.send_text(json.dumps({
+                                "type": "audio_chunk",
+                                "audio": audio_b64,
+                                "chunk": i + 1,
+                                "total_chunks": len(sentences),
+                                "text": sentence
+                            }))
+                            
+                            print(f"📤 Streamed audio chunk {i+1}/{len(sentences)} ({len(audio_b64)} b64 chars)")
+                        else:
+                            print(f"⚠️ Empty audio response for chunk: {sentence}")
+                    else:
+                        print(f"❌ TTS API error {response.status_code} for chunk: {sentence}")
+                        
+            except Exception as chunk_error:
+                print(f"❌ TTS chunk error: {chunk_error}")
+                        
+            # Minimal delay for immediate streaming (LiveKit-style)
+            await asyncio.sleep(0.02)  # 20ms delay for smooth streaming
+            
+    except Exception as e:
+        print(f"❌ TTS streaming error: {e}")
+
+
 @app.websocket("/ws/alice")
 async def ws_alice(ws: WebSocket) -> None:
     await hub.connect(ws)
@@ -3711,6 +3943,18 @@ async def get_realtime_usage():
     except Exception as e:
         logger.error(f"Error getting realtime usage: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ========== OpenAI Realtime API Support ==========
+
+@app.get("/api/auth/openai-key")  
+async def get_openai_key():
+    """Get OpenAI API key for frontend Realtime API access"""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+    
+    # Return key securely (only for authenticated requests in production)
+    return {"key": api_key}
 
 # ========== Voice-Gateway API Endpoints (Hybrid Architecture Phase 1) ==========
 

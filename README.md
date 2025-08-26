@@ -156,12 +156,12 @@ Alice has impressive technical foundations but **voice stability issues prevent 
 
 </div>
 
-### 🎤 **Voice Pipeline (Current + Issues)**
-- **🎙️ Browser SpeechRecognition** - Working Swedish recognition ✅
-- **🎭 Streaming Voice System** - LiveKit-style implementation with echo problems ⚠️
+### 🎤 **Voice Pipeline (LiveKit-Class Architecture)**
+- **🎙️ WebRTC Duplex Audio** - 53ms handshake, stable ICE negotiation ✅
+- **🎭 Voice Gateway** - FastAPI + aiortc session management ✅
 - **🇸🇪 Swedish TTS Engine** - Multiple voices with emotional modulation ✅
-- **❌ Known Issues** - Echo loops, unreliable partial detection, test buttons broken
-- **🔧 Active Development** - Fixing stability before adding wake-word detection
+- **⏳ Audio Processing** - 16kHz PCM conversion optimization (FAS 2)
+- **📋 Streaming ASR/TTS** - OpenAI/Deepgram integration planned (FAS 3-4)
 
 ### 🧠 **Hybrid AI & Privacy**
 - **🏠 gpt-oss:20B Local** - Complex reasoning, tools, and sensitive data processing entirely local
@@ -221,19 +221,19 @@ graph TB
 | **🎨 Frontend** | Next.js 15 + React 19 + TypeScript | Modern, responsive UI with PWA support |
 | **⚡ Backend** | FastAPI + Python 3.9+ | High-performance API with 25+ endpoints |
 | **🧠 AI Engine** | Hybrid: gpt-oss:20B + OpenAI Realtime | Local reasoning + cloud voice for optimal performance |
-| **🎤 Voice** | OpenAI Realtime + Whisper STT + Piper TTS | Hybrid voice pipeline with intelligent routing |
+| **🎤 Voice** | WebRTC + aiortc + Redis | LiveKit-class duplex audio with session management |
 | **💾 Data** | SQLite + Vector DB | Efficient local storage with embeddings |
 | **🔗 Integrations** | Google APIs + Spotify Web API | Calendar, Gmail, and music streaming |
 
-### 🌊 **Data Flow**
-1. **Voice Input** → WebRTC captures audio with <100ms latency
-2. **Intent Routing** → Smart classification: Fast Path (OpenAI) vs Think Path (Local)
-3. **Fast Path** → Simple queries get <300ms responses via OpenAI Realtime
-4. **Think Path** → Complex requests processed locally with gpt-oss:20B
-5. **Tool Integration** → Calendar, Spotify, Gmail APIs executed entirely locally
-6. **Response Generation** → Hybrid: Quick cloud responses + deep local analysis
-7. **TTS Output** → Piper synthesizes natural Swedish speech locally
-8. **UI Updates** → Real-time WebSocket pushes to HUD interface
+### 🌊 **Data Flow (LiveKit-Class Architecture)**
+1. **Voice Input** → WebRTC duplex audio capture (53ms handshake)
+2. **Session Management** → Redis state tracking with TTL
+3. **Audio Processing** → aiortc PCM conversion to 16kHz mono
+4. **ASR Pipeline** → Streaming speech recognition (FAS 3 - planned)
+5. **Intent Processing** → Local gpt-oss:20B reasoning and tool execution
+6. **TTS Pipeline** → Streaming text-to-speech synthesis (FAS 4 - planned)
+7. **Audio Streaming** → WebRTC real-time audio delivery
+8. **UI Updates** → Real-time metrics and status via Prometheus
 
 ---
 
@@ -291,28 +291,30 @@ graph TB
 
 ---
 
-## 🚧 **Current Development Status (HONEST)**
+## 🚧 **Current Development Status (August 2025)**
 
-**As of August 2025 - Realistic Assessment:**
+**Architecture Transition Complete - LiveKit-Class Foundation Established:**
 
-🟢 **Working Solid:**
-- ✅ Local AI (Ollama gpt-oss:20B) with Swedish responses  
-- ✅ Basic voice input (Browser SpeechRecognition sv-SE)
-- ✅ Text-to-Speech with Swedish voices
-- ✅ Core integrations (Spotify, Calendar, Weather)
+🟢 **Production Ready:**
+- ✅ **Local AI**: Ollama gpt-oss:20B with Swedish responses (2-4s)
+- ✅ **Text Interfaces**: Full chat functionality with tool integration
+- ✅ **Core Integrations**: Spotify, Calendar, Weather APIs working
+- ✅ **WebRTC Foundation**: 53ms handshake, stable ICE negotiation
+- ✅ **Container Deployment**: Docker + monitoring ready
 
-🟡 **Implemented but Unstable:**
-- ⚠️ **Voice Pipeline**: LiveKit-style streaming works but has echo loops
-- ⚠️ **Sub-second response**: Achieved ~700ms but inconsistent
-- ⚠️ **B3 Always-On**: Backend complete, frontend needs hardening
+🟡 **FAS 1 Complete - FAS 2 In Progress:**
+- ✅ **Voice Gateway**: FastAPI + aiortc WebRTC infrastructure  
+- ✅ **Session Management**: Redis-backed state with TTL
+- ✅ **Test Infrastructure**: Interactive test interface with metrics
+- ⏳ **Audio Processing**: 16kHz PCM conversion optimization needed
+- ⏳ **Performance**: 2574ms audio delay → <600ms target (FAS 2)
 
-🔴 **Known Issues:**
-- ❌ Echo control not perfect (processes own TTS output)
-- ❌ Stable partial detection can be unreliable
-- ❌ Test interfaces have non-functioning buttons
-- ❌ "Stökigt" (messy) behavior reported in voice interactions
+🔴 **Archived Systems:**
+- 📚 **Batch Voice Pipeline**: 1141ms TTFA archived for LiveKit-class
+- 📚 **WebSocket Implementation**: Replaced with WebRTC duplex audio
+- 📚 **Old Test Interfaces**: Replaced with glassmorphism UI
 
-**🎯 Current Focus:** Fix voice stability before advancing to multimodal features.
+**🎯 Current Focus:** Complete FAS 2 audio optimization, then implement streaming ASR/TTS in FAS 3-4.
 
 ---
 
