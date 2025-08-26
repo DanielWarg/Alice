@@ -37,6 +37,7 @@ import av
 
 # Import local metrics and utilities
 from metrics import VoiceMetrics
+from streaming_metrics import TalkLatencyLogger, BargeInLogger, Route
 
 logger = logging.getLogger("alice.talk_client")
 
@@ -304,6 +305,12 @@ class OpenAIRealtimeTalkClient:
         self.response_start_time: Optional[float] = None
         self.first_audio_time: Optional[float] = None
         
+        # Streaming metrics loggers
+        self.talk_latency_logger = TalkLatencyLogger()
+        self.barge_in_logger = BargeInLogger()
+        self.current_turn_id: Optional[str] = None
+        self.current_playback_id: Optional[str] = None
+        
         # Audio state management
         self.is_speaking = False  # AI is speaking
         self.is_listening = False  # User is speaking
@@ -316,6 +323,10 @@ class OpenAIRealtimeTalkClient:
         self.on_error: Optional[Callable[[str], None]] = None
         self.on_connection_change: Optional[Callable[[bool], None]] = None
         self.on_safe_summary: Optional[Callable[[str], None]] = None
+        
+        # Test callbacks
+        self.on_text_response: Optional[Callable[[str], None]] = None
+        self.on_audio_response: Optional[Callable[[bytes], None]] = None
         
         # Connection management
         self._reconnect_attempts = 0
@@ -410,7 +421,7 @@ class OpenAIRealtimeTalkClient:
             logger.info("🔌 Connecting to OpenAI Realtime API...")
             
             # WebSocket URL and headers
-            url = "wss://api.openai.com/v1/realtime"
+            url = f"wss://api.openai.com/v1/realtime?model={self.config.model}"
             headers = {
                 "Authorization": f"Bearer {self.config.api_key}",
                 "OpenAI-Beta": "realtime=v1"
@@ -419,7 +430,7 @@ class OpenAIRealtimeTalkClient:
             # Connect
             self.websocket = await websockets.connect(
                 url,
-                extra_headers=headers,
+                additional_headers=headers,
                 ping_interval=30,
                 ping_timeout=10,
                 close_timeout=5
@@ -461,8 +472,11 @@ class OpenAIRealtimeTalkClient:
             self._message_handler_task.cancel()
         
         # Close WebSocket
-        if self.websocket and not self.websocket.closed:
-            await self.websocket.close()
+        if self.websocket:
+            try:
+                await self.websocket.close()
+            except Exception as e:
+                logger.debug(f"WebSocket already closed: {e}")
         
         # Close WebRTC
         if self.peer_connection:
@@ -510,7 +524,7 @@ class OpenAIRealtimeTalkClient:
     
     async def _send_message(self, message: Dict[str, Any]):
         """Send message to OpenAI WebSocket"""
-        if not self.websocket or self.websocket.closed:
+        if not self.websocket:
             raise ConnectionError("WebSocket not connected")
         
         try:
@@ -559,8 +573,14 @@ class OpenAIRealtimeTalkClient:
                 self.is_listening = True
                 logger.info("🎤 Speech started (user speaking)")
                 
+                # Start new conversation turn
+                self.current_turn_id = f"turn_{int(time.time() * 1000)}"
+                self.talk_latency_logger.start_turn(self.current_turn_id, Route.REALTIME)
+                
                 # Implement barge-in if AI is currently speaking
                 if self.is_speaking and self.playback_track:
+                    if self.current_playback_id:
+                        self.barge_in_logger.mark_user_voice_detected(self.current_playback_id)
                     barge_in_start = time.time()
                     await self._handle_barge_in()
                     barge_in_time = (time.time() - barge_in_start) * 1000
@@ -574,6 +594,11 @@ class OpenAIRealtimeTalkClient:
             elif msg_type == "conversation.item.input_audio_transcription.completed":
                 transcript = message.get("transcript", "")
                 logger.info(f"📝 User transcript: {transcript}")
+                
+                # Mark transcript timing
+                if self.current_turn_id:
+                    self.talk_latency_logger.mark_event(self.current_turn_id, "stt_final")
+                
                 if self.on_transcript:
                     await self._safe_callback(self.on_transcript, transcript, True)
                     
@@ -584,7 +609,19 @@ class OpenAIRealtimeTalkClient:
             elif msg_type == "response.audio.delta":
                 # Streaming audio from AI
                 if "delta" in message:
+                    # Mark first TTS chunk timing  
+                    if self.current_turn_id and not self.first_audio_time:
+                        self.talk_latency_logger.mark_event(self.current_turn_id, "tts_first_chunk")
+                    
                     await self._handle_audio_delta(message["delta"])
+                    # Call test callback if set
+                    if self.on_audio_response and "delta" in message:
+                        try:
+                            import base64
+                            audio_data = base64.b64decode(message["delta"])
+                            await self._safe_callback(self.on_audio_response, audio_data)
+                        except Exception as e:
+                            logger.debug(f"Audio callback error: {e}")
                     
             elif msg_type == "response.audio.done":
                 self.is_speaking = False
@@ -600,6 +637,9 @@ class OpenAIRealtimeTalkClient:
                 if "I'll check that locally" in text_delta or "local_result" in text_delta:
                     if self.on_safe_summary:
                         await self._safe_callback(self.on_safe_summary, text_delta)
+                # Call test callback if set
+                if self.on_text_response and text_delta:
+                    await self._safe_callback(self.on_text_response, text_delta)
                         
             elif msg_type == "response.done":
                 # Calculate and record latency metrics
@@ -615,6 +655,11 @@ class OpenAIRealtimeTalkClient:
                 # Log performance metrics
                 p50, p95 = self.latency_metrics.get_p50_p95_latency()
                 logger.info(f"📊 Response complete - P50: {p50:.1f}ms, P95: {p95:.1f}ms")
+                
+                # Finalize turn metrics
+                if self.current_turn_id:
+                    self.talk_latency_logger.mark_event(self.current_turn_id, "playback_start")
+                    asyncio.create_task(self._finalize_turn_metrics())
                 
                 # Reset timing
                 self.response_start_time = None
@@ -643,6 +688,10 @@ class OpenAIRealtimeTalkClient:
                 self.first_audio_time = time.time()
                 if not self.is_speaking:
                     self.is_speaking = True
+                    # Start barge-in session tracking
+                    self.current_playback_id = f"playback_{int(time.time() * 1000)}"
+                    self.barge_in_logger.start_playback(self.current_playback_id, Route.REALTIME)
+                    
                     if self.playback_track:
                         self.playback_track.set_playing(True)
                     if self.on_audio_start:
@@ -681,6 +730,10 @@ class OpenAIRealtimeTalkClient:
             if self.playback_track:
                 self.playback_track.unduck()
             
+            # Log barge-in completion
+            if self.current_playback_id:
+                asyncio.create_task(self._finalize_barge_in_metrics())
+            
             self.barge_in_detected = False
             logger.info("✅ Barge-in handled successfully")
             
@@ -690,24 +743,38 @@ class OpenAIRealtimeTalkClient:
     async def _process_microphone_audio(self, track):
         """Process incoming microphone audio and stream to OpenAI"""
         logger.info("🎤 Starting microphone audio processing")
+        audio_frame_count = 0
         
         try:
             while self.state == TalkClientState.SESSION_ACTIVE:
                 frame = await track.recv()
+                audio_frame_count += 1
+                
+                # Log every 10th frame initially to track activity more frequently
+                if audio_frame_count % 10 == 0:
+                    logger.info(f"🎤 Processed {audio_frame_count} audio frames from microphone")
+                
+                # Log first frame immediately to confirm mic is working
+                if audio_frame_count == 1:
+                    logger.info(f"🎤 FIRST AUDIO FRAME RECEIVED! Frame format: {frame.format if hasattr(frame, 'format') else 'unknown'}, Sample rate: {frame.sample_rate if hasattr(frame, 'sample_rate') else 'unknown'}")
                 
                 # Convert frame to PCM16 for OpenAI
                 pcm_data = await self._convert_frame_to_pcm16(frame)
                 if pcm_data:
+                    logger.debug(f"🔊 Sending {len(pcm_data)} bytes of audio to OpenAI")
                     await self._send_audio_to_openai(pcm_data)
+                else:
+                    logger.warning("⚠️ Failed to convert audio frame to PCM16")
                     
         except Exception as e:
-            logger.info(f"ℹ️ Microphone audio processing ended: {e}")
+            logger.info(f"ℹ️ Microphone audio processing ended after {audio_frame_count} frames: {e}")
     
     async def _convert_frame_to_pcm16(self, frame) -> Optional[bytes]:
         """Convert WebRTC audio frame to PCM16 format for OpenAI"""
         try:
             # Convert frame to numpy array
             audio_data = frame.to_ndarray()
+            logger.debug(f"🔊 Converting audio frame: shape={audio_data.shape}, dtype={audio_data.dtype}, size={len(audio_data) if audio_data is not None else 0}")
             
             # Handle different array layouts
             if len(audio_data.shape) == 2:
@@ -793,7 +860,7 @@ class OpenAIRealtimeTalkClient:
                 await asyncio.sleep(30)
                 
                 # Check connection health
-                if self.websocket and self.websocket.closed:
+                if not self.websocket:
                     logger.warning("⚠️ WebSocket connection lost during heartbeat")
                     break
                     
@@ -841,6 +908,26 @@ class OpenAIRealtimeTalkClient:
         except Exception as e:
             logger.error(f"❌ Callback error: {e}")
     
+    async def _finalize_turn_metrics(self):
+        """Finalize and log turn latency metrics"""
+        if self.current_turn_id:
+            try:
+                result = await self.talk_latency_logger.finalize_turn(self.current_turn_id)
+                logger.info(f"🎯 Turn metrics: {result.get('slo_pass', False)} - {result.get('metrics', {})}")
+                self.current_turn_id = None
+            except Exception as e:
+                logger.error(f"❌ Error finalizing turn metrics: {e}")
+    
+    async def _finalize_barge_in_metrics(self):
+        """Finalize and log barge-in metrics"""
+        if self.current_playback_id:
+            try:
+                result = await self.barge_in_logger.mark_tts_cut_complete(self.current_playback_id)
+                logger.info(f"🛑 Barge-in metrics: {result.get('slo_pass', False)} - {result.get('metrics', {})}")
+                self.current_playback_id = None
+            except Exception as e:
+                logger.error(f"❌ Error finalizing barge-in metrics: {e}")
+    
     def get_performance_metrics(self) -> Dict[str, Any]:
         """Get comprehensive performance metrics"""
         latency_stats = self.latency_metrics.get_stats()
@@ -862,6 +949,14 @@ class OpenAIRealtimeTalkClient:
     def is_connected(self) -> bool:
         """Check if client is connected and session is active"""
         return self.state == TalkClientState.SESSION_ACTIVE
+    
+    def set_response_callback(self, callback: Callable[[str], None]):
+        """Set callback for text responses"""
+        self.on_text_response = callback
+    
+    def set_audio_callback(self, callback: Callable[[bytes], None]):
+        """Set callback for audio responses"""
+        self.on_audio_response = callback
 
 
 # Factory function for easy client creation

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 WebRTC Streaming Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #111;
+            color: #0ff;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            padding: 10px;
+            border: 1px solid #0ff;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        button {
+            background: #333;
+            color: #0ff;
+            border: 1px solid #0ff;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #0ff;
+            color: #111;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #222;
+            padding: 10px;
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #0ff;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .metric {
+            background: #333;
+            padding: 8px;
+            border-radius: 3px;
+            text-align: center;
+            font-size: 12px;
+        }
+        .metric-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Alice WebRTC Streaming Test</h1>
+        <p>Direct WebRTC connection to Voice Gateway → OpenAI Realtime</p>
+        
+        <div class="status" id="status">
+            Status: Disconnected
+        </div>
+        
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value" id="latency">-</div>
+                <div>Latency (ms)</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="throughput">-</div>
+                <div>Audio Chunks</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="state">-</div>
+                <div>Connection</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="startWebRTC()">🚀 Start WebRTC</button>
+            <button onclick="stopWebRTC()" disabled id="stopBtn">🔴 Stop</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let peerConnection = null;
+        let localStream = null;
+        let audioChunks = 0;
+        let startTime = 0;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(status) {
+            document.getElementById('status').textContent = `Status: ${status}`;
+            document.getElementById('state').textContent = status;
+        }
+
+        function updateMetrics() {
+            if (startTime > 0) {
+                const elapsed = Date.now() - startTime;
+                document.getElementById('latency').textContent = elapsed;
+            }
+            document.getElementById('throughput').textContent = audioChunks;
+        }
+
+        async function startWebRTC() {
+            try {
+                log('🚀 Starting WebRTC streaming test...');
+                updateStatus('Starting');
+                
+                // Create peer connection
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                // Setup event handlers
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        log('📡 ICE candidate: ' + event.candidate.candidate.substring(0, 50) + '...');
+                    }
+                };
+                
+                peerConnection.onconnectionstatechange = () => {
+                    log(`🔗 Connection state: ${peerConnection.connectionState}`);
+                    updateStatus(peerConnection.connectionState);
+                    
+                    if (peerConnection.connectionState === 'connected') {
+                        startTime = Date.now();
+                        log('✅ WebRTC connected - audio streaming active');
+                    }
+                };
+                
+                peerConnection.ontrack = (event) => {
+                    log('🎵 Receiving audio track');
+                    const remoteAudio = new Audio();
+                    remoteAudio.srcObject = event.streams[0];
+                    remoteAudio.autoplay = true;
+                    audioChunks++;
+                    updateMetrics();
+                };
+                
+                // Get user media
+                log('🎤 Requesting microphone access...');
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 24000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                
+                log('✅ Microphone access granted');
+                
+                // Add local stream to peer connection
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                    log(`🔊 Added ${track.kind} track to peer connection`);
+                });
+                
+                // Create offer
+                log('📋 Creating WebRTC offer...');
+                const offer = await peerConnection.createOffer({
+                    offerToReceiveAudio: true
+                });
+                
+                await peerConnection.setLocalDescription(offer);
+                log('📤 Local description set, sending offer to voice gateway...');
+                
+                // Send offer to voice gateway
+                const response = await fetch('http://localhost:8001/api/webrtc/offer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sdp: offer.sdp,
+                        session_id: 'test_streaming_' + Date.now()
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                log('📥 Received answer from voice gateway');
+                
+                // Set remote description
+                await peerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: data.sdp  // Voice Gateway returns 'sdp', not 'answer_sdp'
+                });
+                
+                log('✅ WebRTC handshake complete - waiting for connection...');
+                updateStatus('Connecting');
+                
+                // Enable stop button
+                document.getElementById('stopBtn').disabled = false;
+                
+                // Start metrics update interval
+                setInterval(updateMetrics, 1000);
+                
+            } catch (error) {
+                log(`❌ WebRTC setup failed: ${error.message}`);
+                updateStatus('Failed');
+                await stopWebRTC();
+            }
+        }
+
+        async function stopWebRTC() {
+            log('🔴 Stopping WebRTC connection...');
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                log('🔇 Microphone stopped');
+            }
+            
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+                log('🔌 Peer connection closed');
+            }
+            
+            updateStatus('Disconnected');
+            document.getElementById('stopBtn').disabled = true;
+            audioChunks = 0;
+            startTime = 0;
+            updateMetrics();
+            
+            log('✅ WebRTC stopped');
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        // Auto-start on page load for quick testing
+        window.addEventListener('load', () => {
+            log('🚀 WebRTC Streaming Test loaded');
+            log('📋 Click "Start WebRTC" to begin voice streaming test');
+            log('🎯 This connects directly to Voice Gateway on port 8001');
+        });
+    </script>
+</body>
+</html>
