@@ -45,14 +45,24 @@ Alice Production Suite/
 - **`agents/`** - Agent implementations
   - `bridge.py` - Alice AI bridge for external communication
 
-### 🎙️ Voice Pipeline
-- **`voice_gateway.py`** - Main voice system coordinator
-- **`services/voice_gateway/`** - Streaming voice components
-  - `main.py` - WebRTC voice server
-  - `asr_stream.py` - Speech recognition streaming
-  - `tts_stream.py` - Text-to-speech streaming
-  - `llm_stream.py` - LLM response streaming
-  - `privacy_filter.py` - Audio privacy protection
+### 🎙️ Voice Pipeline (Clean Slate Implementation)
+- **`voice/`** - Sub-500ms streaming voice pipeline (NEW)
+  - **`server/`** - WebSocket/DataChannel voice server
+    - `transport.ts` - Binary audio frame transport
+    - `pipeline.ts` - ASR → LLM → TTS orchestration
+    - **`adapters/`** - Streaming component adapters
+      - `asr_faster_whisper.ts` - Partial transcription ≤200ms
+      - `llm_gpt_oss_7b.ts` - First token ≤300ms streaming
+      - `tts_piper.ts` - Pre-warmed streaming chunks ≤150ms
+    - `privacy_gate.ts` - Safe-Summary PII filtering
+    - `telemetry.ts` - Real-time NDJSON metrics
+  - **`client/`** - Browser voice client
+    - `voice_client.ts` - VAD + mic capture + playback
+    - `jitter_buffer.ts` - 100ms buffering with cross-fade
+    - `barge_detector.ts` - Smart interruption handling
+  - **`router/`** - Intelligent routing
+    - `local_fast.ts` - Default on-device pipeline
+    - `cloud_complex.ts` - Optional cloud routing
 
 ### 🗄️ Data & Memory
 - **`data/`** - Databases and cached files
@@ -104,18 +114,11 @@ Alice Production Suite/
   - `B3AmbientVoiceHUD.tsx` - Voice status display
   - `AudioVisualizer.tsx` - Real-time audio visualization
 
-### 🔊 Voice Client
-- **`lib/`** - Client-side utilities
-  - `voice-client.js` - Browser voice interface
-  - `b3-ambient-voice-client.js` - Ambient voice handling
-  - `audio-enhancement.js` - Audio processing utilities
-
-### 🎯 Voice System Architecture
-- **`src/voice/`** - Advanced voice components
-  - `Orchestrator.ts` - Voice pipeline coordination
-  - `AudioStateManager.ts` - Audio state management
-  - `BargeInDetector.ts` - Interrupt detection
-  - `EchoCanceller.ts` - Echo prevention (beta)
+### 🔊 Voice Client (Clean Implementation)
+- **`lib/`** - New voice client utilities
+  - `stream_client.ts` - WebSocket binary streaming
+  - `audio_processor.ts` - VAD + echo cancellation
+  - `playback_manager.ts` - Jitter buffer + cross-fade
 
 ---
 
@@ -189,10 +192,11 @@ Alice Production Suite/
 - **`simple_monitor.py`** - System monitoring script
 - **`alice_monitor.py`** - Comprehensive system monitoring
 
-### 📋 Test Files (Root)
-- **`test_voice_always_on.py`** - Voice system testing (needs cleanup post-OpenAI Realtime removal)
-- **`test_b4_proactive.py`** - Proactive system testing
-- **`test_b4_shadow.py`** - Shadow mode testing
+### 📋 Voice Pipeline Tests
+- **`tests/voice/`** - New streaming pipeline tests
+  - `latency_validation.ts` - Sub-500ms performance testing
+  - `barge_in_tests.ts` - Interruption response testing
+  - `privacy_tests.ts` - PII leak prevention validation
 
 ---
 
@@ -220,15 +224,73 @@ Alice Production Suite/
 
 ---
 
-## 🎯 Deployment Priorities
+## 🎙️ **Voice Pipeline Architecture Specification**
 
-1. **Desktop Application** - Implement Electron/Tauri with OS keyring
-2. **Mobile Applications** - Build React Native iOS/Android apps
-3. **Web Enhancement** - Complete PWA features and offline support
-4. **Production Pipeline** - Implement CI/CD deployment workflows
-5. **Security Audit** - Validate OS keyring and privacy filtering
-6. **Performance Optimization** - Platform-specific tuning
+### **🎯 Objective**
+Implement an **on-device, streaming voice pipeline** with **sub-500ms** total latency using **faster-whisper** → **gpt-oss 7B** → **Piper TTS** with barge-in support.
+
+### **⚡ Performance Targets (SLOs)**
+- `first_partial_ms` ≤ **300ms** - Time to first partial transcription
+- `ttft_ms` ≤ **300ms** - Time to first LLM token
+- `tts_first_chunk_ms` ≤ **150ms** - Time to first TTS audio chunk
+- `total_latency_ms` p95 ≤ **500ms** - End-to-end for short turns (1-8 words)
+- `barge_in_cut_ms` < **120ms** - Interruption response time
+
+### **🔄 Data Flow (local_fast path)**
+```
+Mic (20ms frames, AEC/NS/AGC)
+  → VAD (aggressiveness=2, min-voiced=2 frames)  
+  → STT (faster-whisper, partial ≤200ms, final on silence ≥250ms)
+  → LLM (gpt-oss 7B Q4_K_M, stream, first token ≤300ms)
+  → Phrase splitter (10-25 words, immediate TTS feed)
+  → Piper TTS (pre-warmed, stream 40-80ms PCM chunks, first ≤150ms)
+  → Jitter buffer (client 100ms) → Playback with barge-in detection
+```
+
+### **🛡️ Privacy & Routing**
+- **local_fast** (default): Full local STT/LLM/TTS pipeline
+- **cloud_complex** (optional/off): OpenAI via Safe-Summary filter only
+- **Safe-Summary gate**: Rewrites tool results to 1-2 sentences, no PII
+- **Privacy-first**: No transcripts/audio persisted, local processing by default
+
+### **🎚️ Barge-in & Micro-acks**
+- **Barge-in**: VAD detects speech → `barge_in` signal → 80-120ms TTS fadeout
+- **Micro-acks**: Pre-baked "Mm?" (~180ms) on first partial, cross-fade to TTS
+- **Ducking**: Speaker volume to -18dB when TTS active, prevent echo
+
+### **📊 Event Protocol (WebSocket/DataChannel)**
+**Upstream**: `audio.frame`, `control.barge_in`, `control.mic`
+**Downstream**: `stt.partial/final`, `llm.delta`, `tts.audio_chunk/begin/end/active`
+
+### **🧪 Testing Requirements**
+- **Latency**: 50 short utterances p95 ≤500ms
+- **Barge-in**: 20 interrupts <120ms cut, no clicks
+- **Privacy**: 0 leaks in PII tool prompts
+- **Offline**: Full local_fast operation without network
 
 ---
 
-**📌 Status**: Alice architecture is ready for deployment as a complete application suite with desktop-first approach and mobile/web support. Focus on implementation of portable apps structure.
+## 🎯 **Current Implementation Status**
+
+### **✅ Phase 1: Voice Pipeline Infrastructure (COMPLETE)**
+1. **✅ Transport Layer** - WebSocket binary audio streaming complete
+2. **✅ Audio Processing** - Jitter buffer, cross-fade, ducking, echo cancellation
+3. **✅ Voice Activity Detection** - Real-time VAD with energy calculation
+4. **✅ Session Management** - Multi-client WebSocket with cleanup
+5. **✅ Comprehensive Testing** - Full test suite with browser validation
+
+### **🔄 Phase 2: ASR Integration (NEXT)**
+1. **faster-whisper Adapter** - Streaming ASR with ≤200ms partial transcription
+2. **Event System** - Real-time STT events with confidence scores
+3. **Performance Optimization** - Sub-200ms first partial target
+
+### **📱 Phase 2: Platform Deployment**
+1. **Desktop Application** - Electron/Tauri with OS keyring
+2. **Mobile Applications** - React Native iOS/Android apps
+3. **Web Enhancement** - PWA features and offline support
+4. **Production Pipeline** - CI/CD deployment workflows
+5. **Security Audit** - Validate OS keyring and privacy filtering
+
+---
+
+**📌 Status**: Alice voice pipeline specification complete. Ready for implementation with sub-500ms streaming architecture and privacy-first design.

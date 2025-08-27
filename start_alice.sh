@@ -84,6 +84,31 @@ else
     echo "⚠️  Tool consistency check inconclusive (may still work)"
 fi
 
+# Initialize Progress Tracker
+echo "📊 Initializing Progress Tracker..."
+if [ -f "progress_tracker.py" ] && [ -f "progress_tracker_config.json" ]; then
+    source .venv/bin/activate
+    # Install additional dependencies if needed
+    pip install aiofiles >/dev/null 2>&1 || true
+    
+    # Start progress tracker in background
+    python3 progress_tracker.py --daemon &
+    PROGRESS_TRACKER_PID=$!
+    
+    # Wait a moment for it to initialize
+    sleep 2
+    
+    if kill -0 $PROGRESS_TRACKER_PID 2>/dev/null; then
+        echo "✅ Progress Tracker started (PID: $PROGRESS_TRACKER_PID)"
+    else
+        echo "⚠️ Progress Tracker failed to start, continuing without tracking"
+        PROGRESS_TRACKER_PID=""
+    fi
+else
+    echo "⚠️ Progress Tracker files not found, skipping progress tracking"
+    PROGRESS_TRACKER_PID=""
+fi
+
 # Starta Backend
 echo "🐍 Starting Backend (FastAPI)..."
 cd server
@@ -170,9 +195,12 @@ echo "   Frontend PID: $FRONTEND_PID"
 if [ ! -z "$OLLAMA_PID" ]; then
     echo "   Ollama PID: $OLLAMA_PID"
 fi
+if [ ! -z "$PROGRESS_TRACKER_PID" ]; then
+    echo "   Progress Tracker PID: $PROGRESS_TRACKER_PID"
+fi
 echo ""
 echo "🛑 To stop all services:"
-echo "   pkill -f 'python.*run.py'; pkill -f 'npm run dev'"
+echo "   pkill -f 'python.*run.py'; pkill -f 'npm run dev'; pkill -f 'progress_tracker.py'"
 echo ""
 echo "🎯 Open Alice: http://localhost:3000"
 echo ""
@@ -184,6 +212,6 @@ if [ "$1" = "--wait" ]; then
     
     # Stoppa alla services
     echo "🛑 Stopping all services..."
-    kill $BACKEND_PID $FRONTEND_PID $OLLAMA_PID 2>/dev/null || true
+    kill $BACKEND_PID $FRONTEND_PID $OLLAMA_PID $PROGRESS_TRACKER_PID 2>/dev/null || true
     echo "✅ All services stopped"
 fi

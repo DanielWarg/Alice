@@ -1,1 +1,0 @@
-# WebRTC Gateway Test Suite

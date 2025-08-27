@@ -1,0 +1,28 @@
+{
+  "name": "@alice/voice-pipeline",
+  "version": "1.0.0",
+  "description": "Alice sub-500ms streaming voice pipeline",
+  "main": "dist/server/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node server/index.ts",
+    "test": "jest",
+    "test:selftest": "node dist/server/selftest/run_selftest.js"
+  },
+  "dependencies": {
+    "ws": "^8.14.2",
+    "uuid": "^9.0.1",
+    "@types/ws": "^8.5.8",
+    "@types/uuid": "^9.0.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "ts-node": "^10.9.1",
+    "@types/node": "^20.8.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.6"
+  },
+  "keywords": ["voice", "streaming", "alice", "ai", "privacy"],
+  "author": "Alice Team",
+  "license": "MIT"
+}

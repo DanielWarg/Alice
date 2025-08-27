@@ -1,0 +1,23 @@
+{
+  "name": "@alice/voice-pipeline",
+  "version": "1.0.0", 
+  "description": "Alice Voice Pipeline - Sub-500ms Streaming",
+  "type": "module",
+  "main": "test_simple.js",
+  "scripts": {
+    "test": "node test_simple.js",
+    "test-transport": "node test_simple.js", 
+    "test-server": "node test_server.js",
+    "server": "cd server && npm run dev"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "keywords": [
+    "voice",
+    "streaming", 
+    "websocket",
+    "audio",
+    "real-time"
+  ]
+}
