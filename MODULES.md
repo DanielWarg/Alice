@@ -70,6 +70,694 @@ Alice Production Suite/
   - `ambient.db` - Ambient memory storage
   - `tts_cache/` - Cached TTS audio files
 
+### 🎯 Orchestrator Ready-to-Build Kit
+**Central AI coordination system with complete implementation guide**
+
+#### 📋 Definition of Done (DoD)
+- **State Machine**: Per-session turn management with idle/listening/thinking/speaking/paused states
+- **Barge-in Specifications**: <120ms interruption response with proper audio fadeout
+- **Performance Targets**: P95 latency ≤500ms for short utterances (1-8 words)
+- **Safe-Summary Gate**: PII filtering for all external API calls with 1-2 sentence summaries
+
+#### 🏗️ Complete Repository Structure
+```
+core/orchestrator/
+├── 📁 config/
+│   ├── orchestrator.ini        # Main configuration template
+│   └── alice.env.example       # Environment variables template
+├── 📁 src/
+│   ├── eventBus.ts            # Inter-component event routing
+│   ├── types.ts               # TypeScript interface definitions
+│   ├── stateMachine.ts        # Per-session turn management
+│   ├── router.ts              # Local/cloud routing with auto-degrade
+│   ├── privacyGate.ts         # Safe Summary PII filtering
+│   ├── planner.ts             # Intent detection & tool planning
+│   └── metrics.ts             # P50/P95 SLO telemetry (NDJSON)
+├── 📁 tools/
+│   └── mcpSchema.json         # MCP tool definitions
+├── 📁 tests/
+│   ├── latency/               # Performance validation tests
+│   ├── bargeIn/               # Interruption response tests
+│   └── privacy/               # PII leak prevention tests
+└── 📁 docs/
+    ├── architecture.md        # System design documentation
+    └── api.md                 # Event protocol specification
+```
+
+#### ⚙️ Configuration Templates
+
+**orchestrator.ini**:
+```ini
+[orchestrator]
+# Core settings
+session_timeout = 300
+max_concurrent_sessions = 10
+state_transition_timeout = 5.0
+
+# Performance targets (SLOs)
+p95_latency_target_ms = 500
+barge_in_cut_target_ms = 120
+first_token_target_ms = 300
+
+# Routing configuration
+default_route = local_fast
+cloud_route_threshold = 0.8
+auto_degrade_enabled = true
+
+# Privacy settings
+safe_summary_enabled = true
+pii_detection_threshold = 0.7
+max_summary_sentences = 2
+
+# Telemetry
+metrics_format = ndjson
+metrics_export_interval = 1.0
+slo_monitoring_enabled = true
+
+[voice]
+# Voice-specific orchestrator settings
+vad_aggressiveness = 2
+min_voiced_frames = 2
+silence_timeout_ms = 250
+pre_warmed_tts = true
+
+[tools]
+# MCP tool configuration
+mcp_server_endpoint = /tmp/mcp.sock
+tool_timeout_seconds = 10
+max_parallel_tools = 3
+```
+
+**alice.env.example**:
+```bash
+# Alice Orchestrator Environment Configuration
+# Copy to alice.env and customize for your deployment
+
+# Core Configuration
+ORCHESTRATOR_CONFIG_PATH=./config/orchestrator.ini
+ORCHESTRATOR_LOG_LEVEL=INFO
+ORCHESTRATOR_SESSION_STORAGE=sqlite
+
+# Performance Monitoring
+ENABLE_TELEMETRY=true
+METRICS_ENDPOINT=http://localhost:3001/metrics
+SLO_ALERTS_WEBHOOK=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+
+# Voice Pipeline Integration
+VOICE_SERVER_ENDPOINT=ws://localhost:8765
+ASR_SERVICE_URL=http://localhost:8001
+TTS_SERVICE_URL=http://localhost:8002
+LLM_SERVICE_URL=http://localhost:8003
+
+# Privacy & Security
+SAFE_SUMMARY_ENABLED=true
+PII_DETECTION_MODEL=spacy_en_core_web_sm
+ENCRYPTION_KEY_PATH=./secrets/encryption.key
+
+# Cloud Integration (Optional)
+OPENAI_API_KEY=sk-your-key-here
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+CLOUD_ROUTING_ENABLED=false
+
+# Development Settings
+DEBUG_MODE=false
+ENABLE_REQUEST_LOGGING=false
+MOCK_EXTERNAL_SERVICES=false
+```
+
+#### 💻 Code Stubs and TypeScript Interfaces
+
+**types.ts**:
+```typescript
+// Event system types
+export interface OrchestratorEvent {
+  type: string;
+  sessionId: string;
+  timestamp: number;
+  data: Record<string, any>;
+}
+
+export interface VoiceEvent extends OrchestratorEvent {
+  type: 'voice.partial' | 'voice.final' | 'voice.barge_in';
+  data: {
+    transcript?: string;
+    confidence?: number;
+    duration_ms?: number;
+  };
+}
+
+export interface LLMEvent extends OrchestratorEvent {
+  type: 'llm.token' | 'llm.complete' | 'llm.error';
+  data: {
+    token?: string;
+    total_tokens?: number;
+    model?: string;
+    latency_ms?: number;
+  };
+}
+
+export interface TTSEvent extends OrchestratorEvent {
+  type: 'tts.chunk' | 'tts.begin' | 'tts.end';
+  data: {
+    audio_chunk?: ArrayBuffer;
+    chunk_index?: number;
+    total_chunks?: number;
+    latency_ms?: number;
+  };
+}
+
+// State machine types
+export type SessionState = 
+  | 'idle' 
+  | 'listening' 
+  | 'thinking' 
+  | 'speaking' 
+  | 'paused' 
+  | 'error';
+
+export interface SessionContext {
+  sessionId: string;
+  state: SessionState;
+  createdAt: number;
+  lastActivity: number;
+  metadata: {
+    userId?: string;
+    deviceType?: string;
+    routingMode?: 'local_fast' | 'cloud_complex';
+  };
+}
+
+// Metrics types
+export interface PerformanceMetrics {
+  session_id: string;
+  timestamp: number;
+  latency_ms: number;
+  first_token_ms?: number;
+  barge_in_cut_ms?: number;
+  route_used: 'local_fast' | 'cloud_complex';
+  success: boolean;
+}
+```
+
+**eventBus.ts**:
+```typescript
+import { EventEmitter } from 'events';
+import { OrchestratorEvent } from './types';
+
+export class EventBus extends EventEmitter {
+  private static instance: EventBus;
+  private metrics: Map<string, number> = new Map();
+
+  static getInstance(): EventBus {
+    if (!EventBus.instance) {
+      EventBus.instance = new EventBus();
+    }
+    return EventBus.instance;
+  }
+
+  publish(event: OrchestratorEvent): void {
+    // TODO: Add event validation
+    // TODO: Add metrics collection
+    // TODO: Add event persistence for debugging
+    this.emit(event.type, event);
+  }
+
+  subscribe(eventType: string, handler: (event: OrchestratorEvent) => void): void {
+    // TODO: Add subscription management
+    // TODO: Add handler error boundaries
+    this.on(eventType, handler);
+  }
+
+  unsubscribe(eventType: string, handler: Function): void {
+    // TODO: Add cleanup logic
+    this.off(eventType, handler);
+  }
+
+  // Method stubs for implementation
+  getMetrics(): Record<string, number> {
+    // TODO: Return current metrics snapshot
+    return Object.fromEntries(this.metrics);
+  }
+
+  clearMetrics(): void {
+    // TODO: Reset metrics counters
+    this.metrics.clear();
+  }
+}
+```
+
+**stateMachine.ts**:
+```typescript
+import { SessionState, SessionContext } from './types';
+import { EventBus } from './eventBus';
+
+export class SessionStateMachine {
+  private sessions: Map<string, SessionContext> = new Map();
+  private eventBus: EventBus;
+
+  constructor() {
+    this.eventBus = EventBus.getInstance();
+    this.setupEventHandlers();
+  }
+
+  createSession(sessionId: string, metadata?: any): SessionContext {
+    // TODO: Initialize session with idle state
+    // TODO: Set up session timeout
+    // TODO: Publish session.created event
+    const context: SessionContext = {
+      sessionId,
+      state: 'idle',
+      createdAt: Date.now(),
+      lastActivity: Date.now(),
+      metadata: metadata || {}
+    };
+    
+    this.sessions.set(sessionId, context);
+    return context;
+  }
+
+  transitionState(sessionId: string, newState: SessionState): boolean {
+    // TODO: Validate state transition
+    // TODO: Update session context
+    // TODO: Publish state.changed event
+    // TODO: Handle state-specific logic
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+
+    const oldState = session.state;
+    session.state = newState;
+    session.lastActivity = Date.now();
+
+    this.eventBus.publish({
+      type: 'state.changed',
+      sessionId,
+      timestamp: Date.now(),
+      data: { oldState, newState }
+    });
+
+    return true;
+  }
+
+  private setupEventHandlers(): void {
+    // TODO: Handle voice events (partial, final, barge_in)
+    // TODO: Handle LLM events (token, complete, error)
+    // TODO: Handle TTS events (chunk, begin, end)
+    // TODO: Handle timeout events
+    
+    this.eventBus.subscribe('voice.final', this.handleVoiceFinal.bind(this));
+    this.eventBus.subscribe('llm.complete', this.handleLLMComplete.bind(this));
+    this.eventBus.subscribe('tts.end', this.handleTTSEnd.bind(this));
+    this.eventBus.subscribe('voice.barge_in', this.handleBargeIn.bind(this));
+  }
+
+  private handleVoiceFinal(event: any): void {
+    // TODO: Transition from listening to thinking
+    this.transitionState(event.sessionId, 'thinking');
+  }
+
+  private handleLLMComplete(event: any): void {
+    // TODO: Transition from thinking to speaking
+    this.transitionState(event.sessionId, 'speaking');
+  }
+
+  private handleTTSEnd(event: any): void {
+    // TODO: Transition from speaking to idle
+    this.transitionState(event.sessionId, 'idle');
+  }
+
+  private handleBargeIn(event: any): void {
+    // TODO: Handle interruption - pause current TTS
+    // TODO: Transition to listening state
+    this.transitionState(event.sessionId, 'listening');
+  }
+}
+```
+
+**router.ts**:
+```typescript
+import { SessionContext } from './types';
+
+export interface RoutingDecision {
+  route: 'local_fast' | 'cloud_complex';
+  reason: string;
+  confidence: number;
+}
+
+export class IntelligentRouter {
+  private performanceHistory: Map<string, number[]> = new Map();
+  private cloudThreshold: number = 0.8;
+  private autoDegradeEnabled: boolean = true;
+
+  async routeRequest(
+    sessionId: string, 
+    transcript: string, 
+    context: SessionContext
+  ): Promise<RoutingDecision> {
+    // TODO: Implement complexity scoring
+    // TODO: Check system load and availability
+    // TODO: Consider user preferences and privacy settings
+    // TODO: Apply auto-degrade logic based on performance
+    
+    const complexity = this.calculateComplexity(transcript);
+    const systemLoad = await this.getSystemLoad();
+    const recentPerformance = this.getRecentPerformance(sessionId);
+
+    if (complexity < this.cloudThreshold && systemLoad < 0.8) {
+      return {
+        route: 'local_fast',
+        reason: 'Low complexity, good system performance',
+        confidence: 0.9
+      };
+    }
+
+    return {
+      route: 'cloud_complex',
+      reason: 'High complexity or system load',
+      confidence: 0.7
+    };
+  }
+
+  private calculateComplexity(transcript: string): number {
+    // TODO: Implement NLP-based complexity scoring
+    // TODO: Consider transcript length, vocabulary, intent
+    return transcript.length > 50 ? 0.8 : 0.3;
+  }
+
+  private async getSystemLoad(): Promise<number> {
+    // TODO: Check CPU, memory, GPU utilization
+    // TODO: Check ASR/LLM/TTS service health
+    return 0.5; // Placeholder
+  }
+
+  private getRecentPerformance(sessionId: string): number[] {
+    // TODO: Return recent latency measurements
+    return this.performanceHistory.get(sessionId) || [];
+  }
+
+  recordPerformance(sessionId: string, latencyMs: number): void {
+    // TODO: Store performance data for routing decisions
+    const history = this.performanceHistory.get(sessionId) || [];
+    history.push(latencyMs);
+    if (history.length > 10) history.shift(); // Keep last 10 measurements
+    this.performanceHistory.set(sessionId, history);
+  }
+}
+```
+
+**privacyGate.ts**:
+```typescript
+export interface SafeSummaryResult {
+  summary: string;
+  piiDetected: boolean;
+  originalLength: number;
+  summaryLength: number;
+}
+
+export class PrivacyGate {
+  private piiPatterns: RegExp[];
+  private maxSentences: number = 2;
+
+  constructor() {
+    // TODO: Load comprehensive PII detection patterns
+    this.piiPatterns = [
+      /\b\d{3}-\d{2}-\d{4}\b/g,        // SSN
+      /\b\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b/g, // Credit card
+      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, // Email
+      // TODO: Add more patterns
+    ];
+  }
+
+  async safeSummary(text: string): Promise<SafeSummaryResult> {
+    // TODO: Implement PII detection
+    // TODO: Create 1-2 sentence summary
+    // TODO: Validate summary contains no PII
+    // TODO: Return structured result
+
+    const piiDetected = this.detectPII(text);
+    const summary = await this.generateSummary(text);
+    
+    return {
+      summary,
+      piiDetected,
+      originalLength: text.length,
+      summaryLength: summary.length
+    };
+  }
+
+  private detectPII(text: string): boolean {
+    // TODO: Run all PII detection patterns
+    // TODO: Use ML model for advanced detection
+    return this.piiPatterns.some(pattern => pattern.test(text));
+  }
+
+  private async generateSummary(text: string): Promise<string> {
+    // TODO: Use local summarization model
+    // TODO: Ensure max 2 sentences
+    // TODO: Preserve essential meaning
+    return text.split('.').slice(0, 2).join('.') + '.';
+  }
+
+  filterToolPrompts(toolName: string, args: Record<string, any>): Record<string, any> {
+    // TODO: Apply privacy filtering to tool arguments
+    // TODO: Log PII detection events
+    // TODO: Return sanitized arguments
+    return args; // Placeholder
+  }
+}
+```
+
+**metrics.ts**:
+```typescript
+import { PerformanceMetrics } from './types';
+
+export class MetricsCollector {
+  private metrics: PerformanceMetrics[] = [];
+  private ndjsonStream: WritableStream | null = null;
+
+  startCollection(): void {
+    // TODO: Initialize NDJSON output stream
+    // TODO: Set up periodic SLO reporting
+    // TODO: Configure alerting thresholds
+  }
+
+  recordLatency(sessionId: string, latencyMs: number, route: string): void {
+    // TODO: Record performance metric
+    // TODO: Calculate percentiles
+    // TODO: Trigger alerts if SLO violated
+    
+    const metric: PerformanceMetrics = {
+      session_id: sessionId,
+      timestamp: Date.now(),
+      latency_ms: latencyMs,
+      route_used: route as any,
+      success: latencyMs < 500
+    };
+
+    this.metrics.push(metric);
+    this.exportMetric(metric);
+  }
+
+  private exportMetric(metric: PerformanceMetrics): void {
+    // TODO: Write to NDJSON stream
+    // TODO: Send to monitoring system
+    console.log(JSON.stringify(metric)); // Placeholder
+  }
+
+  getSLOStatus(): { p50: number; p95: number; p99: number } {
+    // TODO: Calculate percentiles from recent metrics
+    // TODO: Return SLO compliance status
+    const latencies = this.metrics.map(m => m.latency_ms).sort((a, b) => a - b);
+    const len = latencies.length;
+    
+    return {
+      p50: latencies[Math.floor(len * 0.5)] || 0,
+      p95: latencies[Math.floor(len * 0.95)] || 0,
+      p99: latencies[Math.floor(len * 0.99)] || 0
+    };
+  }
+}
+```
+
+#### 🔧 MCP Tool Schema Example
+
+**mcpSchema.json**:
+```json
+{
+  "tools": {
+    "camera_control": {
+      "name": "camera_control",
+      "description": "Control camera for taking photos or recording video",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["take_photo", "start_recording", "stop_recording"],
+            "description": "The camera action to perform"
+          },
+          "quality": {
+            "type": "string",
+            "enum": ["low", "medium", "high"],
+            "description": "Image/video quality setting"
+          },
+          "flash": {
+            "type": "boolean",
+            "description": "Whether to use flash"
+          }
+        },
+        "required": ["action"]
+      }
+    }
+  }
+}
+```
+
+#### 🧪 Self-Test Framework
+
+**Latency Validation Tests**:
+```typescript
+// tests/latency/latency_validation.ts
+export class LatencyValidator {
+  async testP95Latency(): Promise<boolean> {
+    // TODO: Run 50 short utterances
+    // TODO: Measure end-to-end latency
+    // TODO: Verify P95 ≤ 500ms
+    return true; // Placeholder
+  }
+
+  async testFirstTokenTime(): Promise<boolean> {
+    // TODO: Measure time to first LLM token
+    // TODO: Verify ≤ 300ms
+    return true; // Placeholder
+  }
+
+  async testTTSFirstChunk(): Promise<boolean> {
+    // TODO: Measure time to first TTS chunk
+    // TODO: Verify ≤ 150ms
+    return true; // Placeholder
+  }
+}
+```
+
+**Barge-in Tests**:
+```typescript
+// tests/bargeIn/barge_in_tests.ts
+export class BargeInTester {
+  async testInterruptionResponse(): Promise<boolean> {
+    // TODO: Simulate user interruption during TTS
+    // TODO: Verify audio cut within 120ms
+    // TODO: Ensure no audio artifacts
+    return true; // Placeholder
+  }
+
+  async testCrossFadeQuality(): Promise<boolean> {
+    // TODO: Test smooth transitions
+    // TODO: Verify no clicks or pops
+    return true; // Placeholder
+  }
+}
+```
+
+**Privacy Validation Tests**:
+```typescript
+// tests/privacy/privacy_tests.ts
+export class PrivacyValidator {
+  async testPIILeakPrevention(): Promise<boolean> {
+    // TODO: Test PII detection in tool prompts
+    // TODO: Verify 0 leaks in external API calls
+    // TODO: Validate Safe-Summary functionality
+    return true; // Placeholder
+  }
+
+  async testLocalProcessing(): Promise<boolean> {
+    // TODO: Verify local_fast route works offline
+    // TODO: Ensure no network calls for local processing
+    return true; // Placeholder
+  }
+}
+```
+
+#### 📋 GitHub Issues List
+
+**Ready-to-Implement Issues**:
+
+1. **ORC-1**: Implement EventBus core event routing system
+2. **ORC-2**: Build SessionStateMachine with state transitions
+3. **ORC-3**: Create IntelligentRouter with local/cloud decision logic
+4. **ORC-4**: Implement PrivacyGate Safe-Summary filtering
+5. **ORC-5**: Build MetricsCollector with NDJSON telemetry
+6. **ORC-6**: Integrate with voice pipeline WebSocket events
+7. **ORC-7**: Add comprehensive latency validation tests
+8. **ORC-8**: Implement barge-in response system
+9. **ORC-9**: Create privacy leak prevention tests
+10. **ORC-10**: Build orchestrator configuration management
+
+#### 🔄 Parallel Work Streams
+
+**Stream 1: Core Infrastructure** (ORC-1, ORC-2)
+- EventBus implementation
+- State machine logic
+- Can be developed independently
+
+**Stream 2: Intelligence Layer** (ORC-3, ORC-4)
+- Routing decisions
+- Privacy filtering
+- Requires Stream 1 EventBus
+
+**Stream 3: Monitoring** (ORC-5, ORC-10)
+- Metrics collection
+- Configuration management
+- Independent development possible
+
+**Stream 4: Integration** (ORC-6, ORC-7)
+- Voice pipeline integration
+- Performance testing
+- Requires Streams 1-3
+
+**Stream 5: Advanced Features** (ORC-8, ORC-9)
+- Barge-in handling
+- Privacy validation
+- Requires full system
+
+#### ✅ Ready-to-Start Checklist
+
+**Prerequisites**:
+- [ ] Voice pipeline WebSocket server running (port 8765)
+- [ ] faster-whisper ASR service available (port 8001)
+- [ ] Local LLM service running (port 8003)
+- [ ] Piper TTS service available (port 8002)
+- [ ] TypeScript development environment set up
+- [ ] Testing framework configured (Jest/Vitest)
+
+**Configuration Setup**:
+- [ ] Copy alice.env.example to alice.env
+- [ ] Configure orchestrator.ini for local environment
+- [ ] Set up metrics endpoint (optional)
+- [ ] Configure PII detection model
+- [ ] Generate encryption keys for privacy gate
+
+**Development Environment**:
+- [ ] Node.js 18+ installed
+- [ ] TypeScript 5+ configured
+- [ ] WebSocket client library available
+- [ ] Audio processing libraries installed
+- [ ] Database connection for session storage
+
+**Testing Setup**:
+- [ ] Audio test files prepared
+- [ ] Network isolation for offline tests
+- [ ] Performance measurement tools
+- [ ] Privacy test dataset with PII examples
+- [ ] Continuous integration pipeline
+
+**Documentation**:
+- [ ] API specification complete
+- [ ] Event protocol documented
+- [ ] Performance SLO definitions
+- [ ] Privacy model documented
+
+**Implementation Status**: Complete specification with code stubs, configurations, and test framework. Ready for parallel development across multiple work streams.
+
 ### 🔧 Support Systems  
 - **`services/`** - Backend services
   - `ambient_memory.py` - Memory management

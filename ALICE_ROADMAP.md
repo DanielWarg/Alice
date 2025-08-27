@@ -1,64 +1,49 @@
 ✅❌ Alice Roadmap 2025–2026 (Checklist Edition)
 Phase B — Robust Core (2025 H1)
 
-B1 Local Fast Lane (**REIMPLEMENTING WITH NEW ARCHITECTURE**)
+B1 Voice Adapter Architecture (**NEW THIN SLICE APPROACH**)
 
-### **🎙️ New Streaming Voice Pipeline (Sub-500ms Target)**
+### **🎙️ Thin Slice Voice Pipeline (Mål: "Prata med Alice idag")**
 
-**📁 Infrastructure & Transport**
-✅ Scaffold WebSocket/DataChannel server + binary audio frames
-✅ Client mic capture → 20ms frames with VAD (WebRTC-VAD aggressiveness=2)
-✅ Jitter buffer (100ms) & playback with cross-fade (80ms)
-✅ Audio ducking (-18dB when TTS active) and echo cancellation
+**🚀 Phase 1: OpenAI Realtime Thin Slice**
+⬜ Arkitektur: Mic → VAD → ASR+TTS (OpenAI Realtime WebSocket) → Agent → Playback
+⬜ VoiceAdapter interface med feature flags (VOICE_PROVIDER=openai|local)
+⬜ Instrumenterad latens: asr_partial_latency, asr_final_latency, llm_latency, tts_ttfa, e2e_roundtrip
+⬜ UX states i UI: "Lyssnar" (VAD on), "Tänker" (agent), "Svarar" (audio stream)
 
-**🎯 ASR Streaming (faster-whisper)**
-✅ faster-whisper adapter with streaming configuration
-✅ Partial transcription system (160ms chunks, 200ms stabilize)
-✅ chunk_ms=160, stabilize_ms=200, beam_size=1, tiny model for speed
-✅ Event emission: `voice.transcript.partial/final` with confidence & timing
+**🔌 Phase 2: Adapterkontrakt & Isolering**
+⬜ Voice adapter interface:
+  - ASR.start({onPartial, onFinal, onError}), ASR.stop()
+  - TTS.speak({text|ssml, voiceId, onStart, onChunk, onEnd, onError}), TTS.cancel()
+⬜ Providers implementerade:
+  - OpenAIRealtimeAdapter (aktiv)
+  - WhisperAdapter (stub för framtid)
+  - PiperAdapter (stub för framtid)
+⬜ Env/feature flags: VOICE_PROVIDER, VOICE_VAD=on/off, VOICE_LOG_METRICS=on
 
-**🧠 LLM Streaming (gpt-oss 7B)**
-✅ gpt-oss 7B Q4_K_M streaming adapter 
-✅ First token emission ≤300ms target (TTFT optimized)
-✅ max_new_tokens=60, temperature=0.3, top_p=0.9, stream=true
-✅ System prompt: "Spoken style, ≤2 sentences, concise"
-✅ Complete ASR → LLM integration with session management
+**📊 Phase 3: Shadow Mode & Mätning**
+⬜ Kör OpenAI Realtime live + shadow Whisper lokalt (mäta WER/fel)
+⬜ Daglig rapport: median/p95 latens, felkoder, avbrott, VAD-fel, fallback-rate
+⬜ Datadrivna val för när vi ska byta till lokal pipeline
 
-**🔊 TTS Streaming (Piper)**
-⬜ Pre-warmed Piper model (synthesize 100ms silence on boot)
-⬜ Stream 40-80ms PCM chunks, first chunk ≤150ms
-⬜ Phrase splitter: 10-25 words or minor punctuation triggers
-⬜ Cancel with 80-120ms smooth ramp-down (no clicks)
+**🔒 Phase 4: Säkerhet & Etik**
+⬜ Banner "Syntetiskt tal" för TTS
+⬜ Samtycke före eventuell röstkloning
+⬜ Logga bara nödvändiga metrikfält (ej råaudio som standard)
+⬜ Förbered digitalt vattenmärke när leverantör stödjer
 
-**⚡ Barge-in System**
-⬜ Client VAD detection during playback → `barge_in` signal
-⬜ Server cancels TTS with smooth fadeout <120ms
-⬜ Measure and log `barge_in_cut_ms` for performance tracking
-⬜ Resume-safe: spurious barge-in doesn't resume old TTS
+**🎯 Acceptanskriterier för Thin Slice**
+⬜ "Hej Alice, vad är vädret?" → svar med strömmad röst
+⬜ e2e roundtrip ≤1200ms p50, ≤2500ms p95 (M4 + bra nätverk)
+⬜ Felhantering: WS-reconnect, mic-varningar, TTS timeout → textfallback
+⬜ Metrics i logg + KPI-rapport via Shadow Mode endpoint
 
-**🎵 Micro-acks & Responsiveness**
-⬜ Pre-baked PCM acks ("Mm?" ~180ms) on first partial (≥2 words)
-⬜ Auto cross-fade out when first Piper chunk arrives
-⬜ Perceived responsiveness without waiting for full LLM response
-
-**🧭 Router & Privacy Architecture**
-⬜ Intelligent routing: `local_fast` (default) vs `cloud_complex` (opt-in)
-⬜ Heuristics: PII/tools/long-tokens → route appropriately
-⬜ Safe-Summary privacy gate: 1-2 sentences, ≤300 chars, no PII
-⬜ Timeout guard: cloud TTFA >600ms twice → lock cloud 5 min
-
-**📊 Telemetry & Diagnostics**
-⬜ Real-time NDJSON metrics: first_partial_ms, ttft_ms, tts_first_chunk_ms
-⬜ total_latency_ms, barge_in_cut_ms, privacy_leak_attempts tracking
-⬜ `/diagnostics` UI panel showing p50/p95 performance live
-⬜ Self-test integration with latency/barge-in/privacy validation
-
-**🧪 Comprehensive Testing Suite**
-⬜ 50 short utterances p95 ≤500ms latency validation
-⬜ 20 barge-in tests <120ms cut, no audible clicks
-⬜ 0 privacy leaks in synthetic tool prompts with PII
-⬜ Full offline `local_fast` operation without network
-⬜ Loopback echo prevention (energy <-12dB with AEC+ducking)
+**📁 Arkiverad Implementation (v1)**
+✅ Komplett lokal voice pipeline (faster-whisper + gpt-oss + Piper) arkiverad
+✅ ASR/LLM/TTS streaming adapters implementerade och testade
+✅ WebSocket binary transport + session management
+✅ Performance metrics och comprehensive testing suite
+📦 Arkiv: `archive/voice_pipeline_v1_20250827/` för framtida användning
 
 B2 Tool Lane & Memory
 

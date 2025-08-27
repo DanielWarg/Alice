@@ -18,6 +18,7 @@ from websockets import WebSocketServerProtocol
 
 from adapters.asr_faster_whisper import StreamingASR, ASRConfig, ASRResult, create_streaming_asr
 from adapters.llm_gpt_oss import StreamingLLM, LLMConfig, LLMResult, create_streaming_llm
+from adapters.tts_dummy import StreamingTTS, TTSConfig, TTSResult, create_streaming_tts
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class VoiceSession:
     websocket: WebSocketServerProtocol
     asr: StreamingASR
     llm: StreamingLLM
+    tts: StreamingTTS
     connected_at: float
     last_activity: float
     
@@ -37,11 +39,14 @@ class VoiceSession:
     final_transcriptions: int = 0
     llm_requests: int = 0
     llm_responses: int = 0
+    tts_requests: int = 0
+    tts_responses: int = 0
     
     # State
     mic_enabled: bool = False
     is_speaking: bool = False
     is_processing_llm: bool = False
+    is_processing_tts: bool = False
 
 class VoicePipelineServer:
     """Complete voice pipeline server with ASR integration"""
@@ -70,6 +75,15 @@ class VoicePipelineServer:
             max_tokens=50,          # Short voice responses
             temperature=0.3,        # Focused but natural
             system_prompt="You are Alice, a helpful AI assistant. Give very concise, natural responses suitable for voice conversation. Keep responses to 1-2 short sentences."
+        )
+        
+        # TTS configuration optimized for streaming
+        self.tts_config = TTSConfig(
+            model_path="../../server/models/tts/sv_SE-nst-medium.onnx",
+            chunk_ms=60,            # 60ms chunks for low latency
+            max_text_length=150,    # Split long responses
+            speed=1.1,              # Slightly faster speech
+            sentence_split=True     # Split on punctuation
         )
         
         # Server statistics
@@ -140,24 +154,36 @@ class VoicePipelineServer:
             config=self.llm_config
         )
         
-        # Initialize ASR and LLM in parallel
+        # Create TTS instance for this session
+        tts = create_streaming_tts(
+            on_chunk=lambda result: asyncio.run_coroutine_threadsafe(
+                self._handle_tts_chunk(session_id, result), loop
+            ),
+            on_complete=lambda result: asyncio.run_coroutine_threadsafe(
+                self._handle_tts_complete(session_id, result), loop
+            ),
+            config=self.tts_config
+        )
+        
+        # Initialize ASR, LLM and TTS in parallel
         try:
             start_time = time.time()
             
-            # Initialize both components concurrently
+            # Initialize all components concurrently
             asr_task = asr.initialize()
             llm_task = llm.initialize()
+            tts_task = tts.initialize()
             
-            await asyncio.gather(asr_task, llm_task)
+            await asyncio.gather(asr_task, llm_task, tts_task)
             
             # Start ASR processing
             asr.start_processing()
             
             init_time = (time.time() - start_time) * 1000
-            logger.info(f"✅ ASR + LLM initialized for {session_id} in {init_time:.1f}ms")
+            logger.info(f"✅ ASR + LLM + TTS initialized for {session_id} in {init_time:.1f}ms")
             
         except Exception as e:
-            logger.error(f"❌ Failed to initialize ASR/LLM for {session_id}: {e}")
+            logger.error(f"❌ Failed to initialize ASR/LLM/TTS for {session_id}: {e}")
             await websocket.close(code=1011, reason="Voice pipeline initialization failed")
             return
         
@@ -167,6 +193,7 @@ class VoicePipelineServer:
             websocket=websocket,
             asr=asr,
             llm=llm,
+            tts=tts,
             connected_at=time.time(),
             last_activity=time.time()
         )
@@ -453,8 +480,87 @@ class VoicePipelineServer:
                    f"({result.total_tokens} tokens, TTFT={result.time_to_first_token_ms:.1f}ms, "
                    f"{result.generation_speed_tokens_per_sec:.1f} tokens/sec)")
         
-        # Future: Send to TTS pipeline here
-        # await self._send_to_tts_pipeline(session_id, result.full_response)
+        # Send to TTS pipeline for voice response
+        if result.full_response.strip():
+            await self._send_to_tts_pipeline(session_id, result.full_response)
+
+    async def _send_to_tts_pipeline(self, session_id: str, text: str) -> None:
+        """Send text to TTS for speech generation"""
+        session = self.sessions.get(session_id)
+        if not session:
+            return
+            
+        try:
+            session.is_processing_tts = True
+            logger.info(f"🔊 Starting TTS generation for {session_id}: '{text[:50]}...'")
+            
+            # Generate streaming TTS
+            async for tts_result in session.tts.generate_speech(text, session_id):
+                await self._handle_tts_chunk(session_id, tts_result)
+                
+        except Exception as e:
+            logger.error(f"❌ TTS pipeline error {session_id}: {e}")
+            session.is_processing_tts = False
+    
+    async def _handle_tts_chunk(self, session_id: str, result: TTSResult) -> None:
+        """Handle streaming TTS audio chunk"""
+        session = self.sessions.get(session_id)
+        if not session:
+            return
+            
+        # Convert numpy array to bytes for WebSocket transmission
+        try:
+            # Convert float32 audio to int16 for transmission
+            audio_int16 = (result.audio_chunk * 32767).astype(np.int16)
+            audio_bytes = audio_int16.tobytes()
+            
+            # Send binary audio chunk to client
+            await session.websocket.send(audio_bytes)
+            
+            # Send metadata as JSON
+            await self._send_message(session.websocket, {
+                "type": "voice.tts.chunk",
+                "chunk_index": result.chunk_index,
+                "total_chunks": result.total_chunks,
+                "is_final": result.is_final,
+                "generation_ms": result.generation_ms,
+                "text_processed": result.text_processed,
+                "session_id": session_id,
+                "timestamp": int(time.time() * 1000)
+            })
+            
+            logger.debug(f"🎵 TTS chunk {session_id}: {result.chunk_index+1}/{result.total_chunks} "
+                        f"({len(result.audio_chunk)} samples, {result.generation_ms:.1f}ms)")
+                        
+            # Handle final chunk
+            if result.is_final:
+                await self._handle_tts_complete(session_id, result)
+                
+        except Exception as e:
+            logger.error(f"❌ TTS chunk error {session_id}: {e}")
+    
+    async def _handle_tts_complete(self, session_id: str, result: TTSResult) -> None:
+        """Handle complete TTS response"""
+        session = self.sessions.get(session_id)
+        if not session:
+            return
+            
+        session.is_processing_tts = False
+        session.tts_responses += 1
+        
+        # Send completion message
+        await self._send_message(session.websocket, {
+            "type": "voice.tts.complete",
+            "total_chunks": result.total_chunks,
+            "time_to_first_chunk_ms": result.time_to_first_chunk_ms,
+            "total_generation_time_ms": result.total_generation_time_ms,
+            "session_id": session_id,
+            "timestamp": int(time.time() * 1000)
+        })
+        
+        logger.info(f"✅ TTS complete {session_id}: {result.total_chunks} chunks "
+                   f"(TTFC={result.time_to_first_chunk_ms:.1f}ms, "
+                   f"Total={result.total_generation_time_ms:.1f}ms)")
 
     async def _send_message(self, websocket: WebSocketServerProtocol, data: Dict[str, Any]) -> None:
         """Send JSON message to WebSocket client"""
@@ -481,6 +587,18 @@ class VoicePipelineServer:
             
             if session.is_processing_llm:
                 logger.warning(f"⚠️ LLM processing timeout for {session_id}")
+        
+        # Wait for TTS processing to complete before cleanup
+        if session.is_processing_tts:
+            logger.info(f"⏳ Waiting for TTS processing to complete for {session_id}")
+            # Wait up to 10 seconds for TTS to complete
+            wait_time = 0
+            while session.is_processing_tts and wait_time < 10.0:
+                await asyncio.sleep(0.1)
+                wait_time += 0.1
+            
+            if session.is_processing_tts:
+                logger.warning(f"⚠️ TTS processing timeout for {session_id}")
             
         # Stop ASR processing
         try:
@@ -497,7 +615,8 @@ class VoicePipelineServer:
         logger.info(f"🧹 Voice session cleanup {session_id}: "
                    f"{duration:.1f}s, {session.frames_received} frames, "
                    f"{session.partial_transcriptions}P/{session.final_transcriptions}F, "
-                   f"LLM {session.llm_requests}→{session.llm_responses}")
+                   f"LLM {session.llm_requests}→{session.llm_responses}, "
+                   f"TTS {session.tts_requests}→{session.tts_responses}")
     
     async def _get_session_stats(self, session_id: str) -> Dict[str, Any]:
         """Get statistics for a specific session"""
@@ -507,6 +626,7 @@ class VoicePipelineServer:
         
         asr_stats = session.asr.get_stats()
         llm_stats = session.llm.get_stats()
+        tts_stats = session.tts.get_stats()
         current_time = time.time()
         
         return {
@@ -517,11 +637,15 @@ class VoicePipelineServer:
             "final_transcriptions": session.final_transcriptions,
             "llm_requests": session.llm_requests,
             "llm_responses": session.llm_responses,
+            "tts_requests": session.tts_requests,
+            "tts_responses": session.tts_responses,
             "mic_enabled": session.mic_enabled,
             "is_speaking": session.is_speaking,
             "is_processing_llm": session.is_processing_llm,
+            "is_processing_tts": session.is_processing_tts,
             "asr": asr_stats,
-            "llm": llm_stats
+            "llm": llm_stats,
+            "tts": tts_stats
         }
     
     def get_server_stats(self) -> Dict[str, Any]:
@@ -566,7 +690,7 @@ class VoicePipelineServer:
 # Test server function
 async def run_voice_pipeline_server():
     """Run voice pipeline server for testing"""
-    server = VoicePipelineServer(host="localhost", port=8001)
+    server = VoicePipelineServer(host="localhost", port=8765)
     
     try:
         await server.start_server()

@@ -4,6 +4,9 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { withRateLimit } from '@/lib/rate-limiter';
+import { validateAgentRequest, ValidationError } from '@/lib/input-validation';
+import { agentResponseCache, generateAgentCacheKey } from '@/lib/response-cache';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -138,11 +141,35 @@ const TOOL_NAME_MAPPING: Record<string, string> = {
 };
 
 export async function POST(request: NextRequest) {
+  // Apply rate limiting
+  return withRateLimit(request, '/api/agent', async () => {
+    return handleAgentRequest(request);
+  });
+}
+
+async function handleAgentRequest(request: NextRequest) {
   const startTime = Date.now();
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2)}`;
   
   try {
-    const body: AgentRequest = await request.json();
+    const rawBody = await request.json();
+    
+    // Validate and sanitize all input
+    let body: AgentRequest;
+    try {
+      body = validateAgentRequest(rawBody);
+    } catch (validationError) {
+      if (validationError instanceof ValidationError) {
+        return NextResponse.json({
+          error: {
+            code: 'INVALID_INPUT',
+            message: `Validering misslyckades: ${validationError.message}`,
+            fallback_action: 'abort'
+          }
+        }, { status: 400 });
+      }
+      throw validationError;
+    }
     
     // Contract logging (redacted for security)
     console.log(`📋 Agent Request [${requestId}]:`, {
@@ -152,17 +179,6 @@ export async function POST(request: NextRequest) {
       allow_tools: body.allow_tool_calls !== false,
       last_message_preview: body.messages?.[body.messages.length - 1]?.content?.substring(0, 50) + '...' || 'none'
     });
-    
-    // Validate required fields
-    if (!body.session_id || !body.messages) {
-      return NextResponse.json({
-        error: {
-          code: 'INVALID_INPUT',
-          message: 'session_id och messages krävs',
-          fallback_action: 'abort'
-        }
-      }, { status: 400 });
-    }
 
     // Prepare system message
     const systemMessage = {
@@ -181,6 +197,23 @@ Dagens datum: ${new Date().toLocaleDateString('sv-SE')}`
 
     // Check if we should use tools
     const shouldUseTools = body.allow_tool_calls !== false;
+    
+    // Check cache for simple queries
+    const cacheKey = generateAgentCacheKey(body.messages, shouldUseTools);
+    if (cacheKey) {
+      const cached = agentResponseCache.get(cacheKey);
+      if (cached) {
+        console.log(`💾 Cache hit for key: ${cacheKey.substring(0, 20)}...`);
+        return NextResponse.json({
+          ...cached,
+          session_id: body.session_id,
+          request_id: body.request_id,
+          metrics: {
+            llm_latency_ms: 5 // Cached response
+          }
+        });
+      }
+    }
     
     const openaiRequest: any = {
       model: 'gpt-4o',
@@ -255,6 +288,15 @@ Dagens datum: ${new Date().toLocaleDateString('sv-SE')}`
         llm_latency_ms: llmLatency
       }
     };
+
+    // Cache simple responses for performance
+    if (cacheKey && response.next_action === 'final') {
+      agentResponseCache.set(cacheKey, {
+        next_action: response.next_action,
+        assistant: response.assistant
+      });
+      console.log(`💾 Cached response for key: ${cacheKey.substring(0, 20)}...`);
+    }
 
     // Contract logging for final response
     console.log(`💬 Agent Response [${requestId}]:`, {

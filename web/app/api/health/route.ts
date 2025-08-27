@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { FeatureFlag } from '@/lib/feature-flags';
+import { withRateLimit } from '@/lib/rate-limiter';
 
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -208,6 +209,12 @@ async function performHealthCheck(): Promise<HealthStatus> {
  * GET /api/health - Full health check
  */
 export async function GET(request: NextRequest) {
+  return withRateLimit(request, '/api/health', async () => {
+    return handleHealthCheck(request);
+  });
+}
+
+async function handleHealthCheck(request: NextRequest) {
   try {
     const healthStatus = await performHealthCheck();
     
