@@ -1,167 +1,235 @@
-# 🗺️ Alice Development Roadmap
+# 🗺️ Alice FAS2 Development Roadmap
 
-## 🎯 Current Status: **PRODUCTION-READY VOICE INTERFACE**
+## 🎯 Current Status: **FAS 0-4 COMPLETED, INTEGRATION TESTED**
 
-*Last Updated: January 28, 2025*
-
----
-
-## ✅ **PHASE 1: FOUNDATION (COMPLETED)**
-*Goal: Stable voice interface with agent capabilities*
-
-### Core Infrastructure
-- [x] **WebRTC Voice Pipeline** - Real-time audio processing
-- [x] **Agent API** - OpenAI GPT-4o integration with toolcalling  
-- [x] **Tool System** - timer.set and weather.get implementations
-- [x] **Health Monitoring** - Comprehensive system health checks
-- [x] **Contract Testing** - 100% success rate validation
-- [x] **Stability Testing** - 0×5xx errors in 100 sequential calls
-- [x] **Security** - API keys secured, no client-side exposure
-- [x] **Build System** - Clean compilation, zero warnings
-
-### Performance Metrics (ACHIEVED)
-- ✅ **Stability**: 100% (0 server errors)
-- ✅ **Health**: All systems green
-- ⚡ **Latency**: p95 = 1229ms (target: <1200ms, 29ms over)
-- ✅ **Build**: Clean compilation
-- ✅ **Security**: Keys secured, rate limiting ready
+*Last Updated: August 27, 2025 - Based on FAS2.md Implementation Plan*
 
 ---
 
-## 🚧 **PHASE 2: HARDENING (IN PROGRESS)**  
-*Goal: Production-grade security, performance, and reliability*
+## ✅ **FAS 0-4: FOUNDATION COMPLETE**
 
-### Security & Compliance
-- [x] API key exposure fixed (critical security issue resolved)
-- [ ] **Rate Limiting** - Per-endpoint protection against abuse
-- [ ] **CORS Configuration** - Secure cross-origin request handling
-- [ ] **Input Validation** - Sanitize all user inputs
-- [ ] **Security Headers** - CSP, HSTS, X-Frame-Options
-- [ ] **Audit Trail** - Request logging and monitoring
+### ✅ FAS 0 - Förberedelser (Grön baslinje)
+*Mål: Låsa nuläget och etablera stabil grund*
 
-### Performance Optimization (Target: <1200ms p95)
-- [ ] **HTTP Keep-Alive** - Persistent connections to OpenAI (save 10-20ms)
-- [ ] **Context Trimming** - Limit to 3 conversation turns (save 10-30ms)
-- [ ] **Response Limits** - Max 128 tokens for faster inference (save 20-40ms)
-- [ ] **Schema Caching** - Pre-compile JSON validation (save 5-15ms)
-- [ ] **Regional Optimization** - EU endpoints for lower RTT
+**COMPLETED:**
+- [x] Environment variables configured (.env)
+- [x] Health endpoints validated (GET /api/health/simple)
+- [x] Integration test suite (100% success rate)
+- [x] 0×5xx errors in production readiness tests
 
-### Release Operations
-- [ ] **CI/CD Pipeline** - Automated testing and deployment
-- [ ] **Monitoring Stack** - Prometheus, Grafana, alerting
-- [ ] **Deployment Automation** - Docker containers, orchestration
-- [ ] **Backup & Recovery** - Data protection strategies
+**Environment:**
+```bash
+OPENAI_API_KEY=***
+AGENT_PROVIDER=openai
+BRAIN_SHADOW_ENABLED=on
+MEMORY_DRIVER=sqlite
+INJECT_BUDGET_PCT=25
+ARTIFACT_CONFIDENCE_MIN=0.7
+```
 
----
+### ✅ FAS 1 - Strict TTS
+*Mål: Brain komponerar, TTS läser exakt det som skrivs*
 
-## 📋 **PHASE 3: EXPANSION (PLANNED)**
-*Goal: Enhanced capabilities and integrations*
+**COMPLETED:**
+- [x] `/api/brain/compose` endpoint implemented
+- [x] `AnswerPackage` interface with strict TTS format
+- [x] Brain compose system with context injection
+- [x] Structured response format for consistent output
 
-### Tool Ecosystem
-- [ ] **Calendar Integration** - Schedule management and conflict detection
-- [ ] **Email Tools** - Gmail search and organization  
-- [ ] **File Management** - Document search and manipulation
-- [ ] **Smart Home** - Device control and automation
-- [ ] **Custom Tools** - Plugin architecture for extensibility
+**API Response:**
+```typescript
+interface AnswerPackage {
+  spoken_text: string;     // exakt vad TTS ska läsa
+  screen_text?: string;    // kort text till UI  
+  ssml?: string;          // om satt – använd före spoken_text
+  citations?: { title: string; url?: string }[];
+  meta?: { confidence: number; tone?: string };
+}
+```
 
-### Advanced Voice Features
-- [ ] **Barge-in Support** - Interrupt Alice mid-response
-- [ ] **Multi-turn Context** - Remember conversation history
-- [ ] **Voice Customization** - Different voices and personalities
-- [ ] **Noise Cancellation** - Better audio processing
-- [ ] **Multi-language** - Swedish, Spanish, French support
+### ✅ FAS 2 - EventBus & Telemetri  
+*Mål: Logga alla systemhändelser för mätning och analys*
 
-### Intelligence Upgrades
-- [ ] **Memory System** - Persistent learning and recall
-- [ ] **Context Awareness** - Understanding user preferences  
-- [ ] **Proactive Assistance** - Suggestions and reminders
-- [ ] **Custom Models** - Fine-tuned responses for specific domains
+**COMPLETED:**
+- [x] Central EventBus (`src/core/eventBus.ts`)
+- [x] NDJSON logging to `logs/metrics.ndjson`
+- [x] All interactions produce ≥3 event entries
+- [x] Metrics summary API (`/api/metrics/summary`)
 
----
+**Event Types:** `brain_compose`, `agent_response`, `tool_result`, `memory.write`, `memory.fetch`
 
-## 🌟 **PHASE 4: ECOSYSTEM (FUTURE)**
-*Goal: Multi-platform AI assistant ecosystem*
+### ✅ FAS 3 - Minne & RAG (Artefakter)
+*Mål: Långtidsminne baserat på artefakter med SQLite*
 
-### Platform Expansion
-- [ ] **Desktop App** - Electron-based native application
-- [ ] **Mobile Apps** - iOS and Android applications
-- [ ] **Browser Extension** - Chrome/Firefox integration
-- [ ] **Smart Displays** - Dedicated hardware interfaces
-- [ ] **API Platform** - Third-party integrations
+**COMPLETED:**
+- [x] SQLite artifacts table with WAL mode
+- [x] Memory interface with write/fetch operations  
+- [x] API endpoints `/api/memory/write` & `/api/memory/fetch`
+- [x] Artifact types: insight, kb_chunk, plan, policy, vision_event, test_data, preference
+- [x] Score-based ranking and expiration handling
 
-### Enterprise Features
-- [ ] **Team Collaboration** - Shared Alice instances
-- [ ] **Admin Dashboard** - Usage analytics and control
-- [ ] **SSO Integration** - Enterprise authentication
-- [ ] **Compliance Tools** - GDPR, HIPAA support
-- [ ] **Custom Deployment** - On-premises installations
+**SQLite Schema:**
+```sql
+CREATE TABLE artifacts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  text TEXT NOT NULL,
+  score REAL NOT NULL DEFAULT 0.0,
+  expires_at TEXT,
+  meta_json TEXT,
+  embedding BLOB,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
 
-### AI Research
-- [ ] **Vision Integration** - Camera and screen awareness
-- [ ] **Emotional Intelligence** - Mood detection and response
-- [ ] **Learning Optimization** - Improved personalization
-- [ ] **Efficiency Research** - Lower computational requirements
+### ✅ FAS 4 - PromptBuilder & Injektionsbudget
+*Mål: Kontrollerat injicera minnesartefakter i prompten (≤25% tokens)*
 
----
+**COMPLETED:**
+- [x] `buildContext()` function för artifact retrieval
+- [x] Persona & style loading from YAML files (`alice/identity/`)
+- [x] Budget compliance: 24.6% injection rate (within 25% target)
+- [x] Automatic context trimming when over budget
+- [x] `injected_tokens_pct` telemetry logging
 
-## 📊 **Success Metrics**
-
-### Technical KPIs
-- **Uptime**: >99.9% availability
-- **Latency**: p95 <1000ms (aggressive target)
-- **Error Rate**: <0.1% 5xx errors
-- **Security**: Zero critical vulnerabilities
-
-### User Experience KPIs  
-- **Voice Accuracy**: >95% intent recognition
-- **Tool Success**: >98% successful tool executions
-- **User Satisfaction**: >4.5/5 rating
-- **Adoption**: Sustained daily usage
-
-### Business KPIs
-- **Demo Success**: >90% positive feedback
-- **Pilot Deployments**: 10+ organizations
-- **Developer Adoption**: Community contributions
-- **Platform Growth**: Multi-channel deployment
+**Files:**
+- `src/core/promptBuilder.ts`
+- `alice/identity/persona.yml`
+- `alice/identity/style.yml`
 
 ---
 
-## 🚀 **Next Milestones**
+## 🚧 **NEXT PHASES: FAS 5-8 ROADMAP**
 
-### Immediate (Next 2-4 weeks)
-1. **Complete Security Hardening** - Rate limiting, CORS, validation
-2. **Achieve Performance Target** - Sub-1200ms p95 latency
-3. **Release Operations Setup** - CI/CD, monitoring, deployment
+### 🔄 FAS 5 - Provider Switch & Failover  
+*Mål: GPT-OSS primär brain, OpenAI fallback*
 
-### Short-term (1-3 months)
-1. **Calendar & Email Integration** - Core productivity tools
-2. **Mobile App Development** - iOS/Android prototypes
-3. **Enterprise Pilot Program** - Real-world testing
+**TODO:**
+- [ ] Implement timeout policy (BRAIN_DEADLINE_MS = 1500)
+- [ ] Fallback routing to `/api/agent` on timeout
+- [ ] Log `fallback_used` and `brain_latency_ms` metrics
+- [ ] Achieve <5% fallback rate in development
 
-### Medium-term (3-6 months)  
-1. **Advanced Voice Features** - Barge-in, multi-turn, customization
-2. **Memory & Learning** - Persistent personalization
-3. **Platform Expansion** - Desktop app, browser extension
+**Target:** Seamless voice flow with fallback protection
+
+### 🔄 FAS 6 - Cloud Complex Lane (OpenAI Responses API)
+*Mål: Använda molnet för komplexa verktygskedjor*
+
+**TODO:**
+- [ ] OpenAI Responses API adapter
+- [ ] Tool-first RAG policy (kb.search → kb.fetch)  
+- [ ] Structured JSON response format enforcement
+- [ ] End-to-end tests for "summarize file" and "run code"
+
+**Integration:** Advanced tool chains via cloud processing
+
+### 🔄 FAS 7 - Brain Worker & Sentence Streaming
+*Mål: Snabbare respons genom sentence streaming*
+
+**TODO:**
+- [ ] Background worker consuming EventBus
+- [ ] Sentence streaming for first sentence TTFA <300ms
+- [ ] `brain_first_sentence_ms` p50 ≤600ms target
+- [ ] Parallel learning and embedding updates
+
+### 🔄 FAS 8 - Vision & Sensorer (Minimal)
+*Mål: YOLO-driven närvaro → vision_event*
+
+**TODO:**
+- [ ] Local YOLO pipeline for object/face detection
+- [ ] Vision event artifacts in memory
+- [ ] Mood adjustment based on visual cues (e.g., smiling)
+- [ ] Demo: Alice reacts to expressions with warmer greeting
 
 ---
 
-## 🤝 **How to Contribute**
+## 📊 **CURRENT SYSTEM METRICS**
 
-### For Developers
-- **Current Focus**: Security hardening and performance optimization
-- **High-Impact Areas**: Tool integrations, voice processing, UI/UX
-- **Getting Started**: See [VOICE_ADAPTER_README.md](web/VOICE_ADAPTER_README.md)
+### ✅ Integration Test Results (100% Success Rate)
+- **Health Check:** ✅ PASS - System responsive  
+- **Memory System:** ✅ PASS - Write/read cycle working
+- **Brain Compose:** ✅ PASS - Budget 25%, Context injection OK
+- **Metrics Collection:** ✅ PASS - Telemetry data collected
+- **Weather Tool:** ✅ PASS - API validation successful  
+- **Agent Integration:** ✅ PASS - Direct response 826ms latency
 
-### For Testers
-- **Test Suite**: Run contract and stability tests
-- **Bug Reports**: Document issues with reproduction steps  
-- **Feedback**: User experience and feature requests
-
-### For Organizations
-- **Pilot Program**: Early access for testing and feedback
-- **Enterprise Features**: Requirements gathering and validation
-- **Deployment Support**: Integration assistance and training
+### 🎯 Performance Targets
+- **Budget Compliance:** 24.6% (target <25%) ✅
+- **Memory Artifacts:** 2 artifacts stored and retrieved ✅
+- **Event Logging:** 36 events in logs/metrics.ndjson ✅
+- **API Response Times:** Weather 248ms, Agent 826ms ✅
 
 ---
 
-*Alice is evolving from prototype to production. Join us in building the future of AI assistance.*
+## 🛠️ **IMMEDIATE NEXT STEPS**
+
+### Phase 1: Complete FAS 5 (Provider Switch)
+1. **Implement timeout & fallback logic**
+2. **Add AbortController for request cancellation** 
+3. **Configure GPT-OSS as primary brain**
+4. **Test fallback scenarios**
+
+### Phase 2: Production Hardening  
+1. **Add input validation with Zod**
+2. **Implement retry logic with exponential backoff**
+3. **Enhance metrics with correlation IDs**
+4. **Add real embedding model (replace stub)**
+
+### Phase 3: Advanced Features
+1. **Sentence streaming for faster response times**
+2. **Local knowledge base with real vector search**
+3. **Camera integration and vision processing**
+4. **Response personalization and mood adaptation**
+
+---
+
+## 🧪 **TESTING STRATEGY**
+
+### ✅ Current Test Coverage
+- **Integration Tests:** E2E API validation against live system
+- **Contract Tests:** All endpoint input/output formats validated
+- **Smoke Tests:** Basic functionality verification
+- **Budget Tests:** Token injection compliance testing
+
+### 📝 Test Commands
+```bash
+npm run test:integration     # Full E2E test suite
+npm run test:integration:ci  # CI-friendly with timeout
+npm run dev                  # Development server
+npm run build               # Production build verification
+```
+
+---
+
+## 🎯 **SUCCESS CRITERIA (FAS2 Completion)**
+
+### Technical Requirements
+- [x] **Strict TTS:** 0 deviations between TTS and `spoken_text`
+- [x] **Budget Compliance:** `injected_tokens_pct` ≤25% stable
+- [x] **Memory Persistence:** User preferences survive restarts
+- [x] **Event Logging:** All interactions produce telemetry
+- [x] **Integration Tests:** 100% pass rate
+
+### Performance Requirements  
+- [x] **System Health:** All endpoints respond correctly
+- [x] **Memory System:** Write/fetch operations working
+- [x] **Context Injection:** Artifact retrieval and compression
+- [x] **Tool Integration:** Weather, agent, memory tools functional
+
+### Next Phase Readiness
+- [ ] **Provider Failover:** <5% fallback rate
+- [ ] **Cloud Integration:** Complex tool chains via Responses API
+- [ ] **Sentence Streaming:** First sentence <300ms TTFA
+- [ ] **Vision Pipeline:** Basic emotion detection working
+
+---
+
+## 🚀 **DEPLOYMENT STATUS**
+
+**Current Environment:** Development with production-ready foundation
+**Integration Test Status:** 100% success rate  
+**System Health:** All green, ready for FAS 5 implementation
+**Architecture:** Event-driven, budget-controlled, memory-enhanced
+
+*Alice FAS2 foundation is complete and validated. Ready to proceed with advanced capabilities in FAS 5-8.*

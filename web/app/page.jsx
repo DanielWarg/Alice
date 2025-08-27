@@ -499,6 +499,45 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
     voiceQuality: 'medium'
   });
   
+  // OpenAI TTS function
+  const tts = async (text) => {
+    if (!text || text.trim() === '') return;
+    
+    try {
+      isTTSPlayingRef.current = true;
+      console.log('🔊 Starting TTS for:', text);
+      
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: text,
+          voice: 'nova'
+        })
+      });
+      
+      if (response.ok) {
+        const audioBlob = await response.blob();
+        const audio = new Audio(URL.createObjectURL(audioBlob));
+        
+        await new Promise((resolve, reject) => {
+          audio.onended = () => {
+            console.log('🔊 TTS playback completed');
+            resolve();
+          };
+          audio.onerror = reject;
+          audio.play().catch(reject);
+        });
+      } else {
+        console.error('TTS API error:', response.status);
+      }
+    } catch (error) {
+      console.error('TTS error:', error);
+    } finally {
+      isTTSPlayingRef.current = false;
+    }
+  };
+  
   const handleVoiceInput = async (text) => {
     // Block voice input while TTS is playing to prevent echo
     if (isTTSPlayingRef.current) {
@@ -539,108 +578,30 @@ function AliceCore({ journal, setJournal, currentWeather, geoCity, cpu, mem, net
         }
       }
       
-      // Send to Alice backend
-      const body = { message: q, type: "voice" };
-      console.log('Sending voice command to backend:', body);
+      // Send to new OpenAI voice handler
+      const body = { text: q, session_id: `alice_core_${Date.now()}` };
+      console.log('Sending voice input to OpenAI handler:', body);
       
-      try {
-        const response = await fetch("http://127.0.0.1:8000/api/alice/command", { 
-          method: "POST", 
-          headers: { "Content-Type": "application/json" }, 
-          body: JSON.stringify(body) 
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        console.log('Backend response:', result);
-      } catch (fetchError) {
-        console.error('Fetch error details:', {
-          error: fetchError.message,
-          stack: fetchError.stack,
-          body: body,
-          url: "http://127.0.0.1:8000/api/alice/command"
-        });
-        throw fetchError;
-      }
-      
-      // Prepare context data
-      const contextData = {
-        weather: currentWeather ? `${currentWeather.temp}°C, ${currentWeather.description}` : null,
-        location: geoCity,
-        time: new Date().toLocaleString('sv-SE'),
-        systemMetrics: { cpu, mem, net }
-      };
-      
-      const chatPayload = { 
-        prompt: q, 
-        model: 'gpt-oss:20b', 
-        stream: false, 
-        provider: 'local', // Use local for voice conversations (OpenAI key issues)
-        context: contextData,
-        raw: true // Skip RAG for natural voice conversations
-      };
-      
-      // Create streaming message entry
-      const messageId = safeUUID();
-      const messageTs = new Date().toISOString();
-      setJournal((J)=>[{ id: messageId, ts: messageTs, text: `Alice: `, streaming: true }, ...J].slice(0,100));
-      
-      // Get Alice response
-      const res = await fetch('http://127.0.0.1:8000/api/chat', { 
-        method:'POST', 
-        headers:{'Content-Type':'application/json'}, 
-        body: JSON.stringify(chatPayload)
+      const response = await fetch('/api/voice-handler', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
       
-      const j = await res.json().catch(()=>null);
+      if (!response.ok) {
+        throw new Error(`Voice handler error: ${response.status}`);
+      }
       
-      if (j && j.text) {
-        // Update journal with final response
-        setJournal((J) => J.map(msg => 
-          msg.id === messageId 
-            ? { ...msg, text: `Alice: ${j.text}`, streaming: false }
-            : msg
-        ));
+      const result = await response.json();
+      console.log('OpenAI voice response:', result);
+      
+      if (result.success && result.response) {
+        // Add AI response to journal
+        setJournal((J)=>[{ id:safeUUID(), ts:new Date().toISOString(), text:`Alice: ${result.response}`}, ...J].slice(0,100));
         
-        // Play Alice's response as speech
-        try {
-          const ttsResponse = await fetch('http://127.0.0.1:8000/api/tts/synthesize', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: j.text,
-              personality: voiceSettings.personality,
-              emotion: voiceSettings.emotion,
-              voice: voiceSettings.voiceQuality === 'high' ? 'sv_SE-nst-high' : 'sv_SE-nst-medium',
-              cache: true
-            })
-          });
-          
-          if (ttsResponse.ok) {
-            const ttsData = await ttsResponse.json();
-            if (ttsData.success) {
-              // Play the TTS audio
-              const audioBuffer = Uint8Array.from(atob(ttsData.audio_data), c => c.charCodeAt(0));
-              const blob = new Blob([audioBuffer], { type: 'audio/wav' });
-              const audio = new Audio(URL.createObjectURL(blob));
-              await audio.play();
-              console.log('🔊 Alice TTS playback completed');
-            }
-          }
-        } catch (ttsError) {
-          console.error('TTS playback failed:', ttsError);
-          // TTS failure shouldn't break voice conversation
-        }
-      } else {
-        // Error response
-        setJournal((J) => J.map(msg => 
-          msg.id === messageId 
-            ? { ...msg, text: `Alice: Ursäkta, jag hade problem att svara just nu.`, streaming: false }
-            : msg
-        ));
+        // Speak the response using TTS
+        await tts(result.response);
+        return;
       }
       
     } catch (error) {

@@ -1,0 +1,12 @@
+format:
+  - "Max 150 ord komplexa frågor, 50 ord enkla"
+  - "Svar först, förklaring sedan"
+emphasis:
+  - "Fetstil för viktigt"
+  - "Listor: bullet points"
+language:
+  - "Du-form, vardagligt, neutralt rikssvenska"
+  - "Naturligt tack och ursäkta"
+context:
+  - "God morgon/kväll baserat på kontext"
+  - "Föreslå konkreta nästa steg vid fel"
