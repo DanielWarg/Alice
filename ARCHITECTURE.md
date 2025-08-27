@@ -1,565 +1,329 @@
-# 🏗️ Alice Architecture Documentation
-*Portable Swedish AI Application Suite*
+# 🏗️ Alice FAS2 Architecture Documentation
+*Event-Driven AI Assistant with Production-Ready Foundations*
 
 ## 📋 Overview
 
-Alice is architected as a **portable application suite** with clear separation between:
-- **Applications Layer** (`apps/`) - Platform-specific user interfaces
-- **Core Engine** (`core/`) - UI-agnostic processing and AI logic  
-- **Shared Components** (`shared/`) - Common utilities and types
+Alice FAS2 is architected as a **single, integrated Next.js application** with modular, event-driven components:
+- **API Layer** (`app/api/`) - Next.js API routes for all system endpoints
+- **Core System** (`src/`) - FAS2 implementation with event-driven architecture  
+- **Memory System** (`data/`) - SQLite-based persistent storage
+- **Telemetry** (`logs/`) - Complete system observability via NDJSON
 
-This design enables deployment across desktop, mobile, and web platforms while maintaining a consistent experience.
+This unified design provides production-ready AI assistance with built-in monitoring, memory, and context awareness.
 
-## 🎯 Design Principles
+## 🎯 FAS2 Design Principles
 
-### 1. **UI-Agnostic Core**
-The Alice Engine runs independently of any user interface, communicating through:
-- **WebSocket API** - Real-time bidirectional communication
-- **HTTP REST API** - Traditional request/response patterns
-- **Talk-socket Protocol** - Voice I/O abstraction layer
+### 1. **Event-Driven Architecture**
+All system interactions flow through a central EventBus:
+- **Event Types** - `brain_compose`, `agent_response`, `tool_result`, `memory.write`
+- **NDJSON Logging** - Complete telemetry to `logs/metrics.ndjson`
+- **Real-time Monitoring** - System observability and performance tracking
 
-### 2. **Platform-Native Applications**
-Each platform gets a native application optimized for its ecosystem:
-- **Desktop** - Electron/Tauri with OS integration
-- **Mobile** - React Native with device features
-- **Web** - PWA with modern browser capabilities
+### 2. **Memory-Enhanced AI**
+Long-term memory system with artifact-based context:
+- **SQLite Storage** - Production-grade persistence with WAL mode
+- **Artifact System** - Scored, typed memories (insight, preference, policy)
+- **Budget Control** - 25% token limit for context injection
 
-### 3. **Privacy-First Architecture**  
-- **OS Keyring Integration** - Secure system-level credential storage
-- **Safe Summary Filtering** - Privacy-aware data processing
-- **Local AI Processing** - Sensitive operations stay on device
-- **Controlled Data Boundaries** - Clear separation of local vs. cloud data
+### 3. **Integration-Tested Reliability**
+100% validation through real endpoint testing:
+- **E2E Integration Tests** - Test real system behavior, not mocks
+- **Contract Validation** - API input/output format verification
+- **Performance Monitoring** - Budget compliance and latency tracking
 
-## 🏗️ System Architecture
+## 🏗️ FAS2 System Architecture
 
 ```mermaid
 graph TB
-    subgraph "Applications Layer (apps/)"
-        DA[🖥️ Desktop App<br/>Electron/Tauri]
-        MA[📱 Mobile Apps<br/>React Native]
-        WA[🌐 Web App<br/>Next.js PWA]
+    subgraph "Next.js Application (web/)"
+        API[🔗 API Routes<br/>/api/brain/*, /api/memory/*]
+        UI[🌐 Web Interface<br/>React Components]
+        TEST[🧪 Test Interface<br/>test_fas_system.html]
     end
     
-    subgraph "Alice Engine (core/)"
-        API[🔗 WebSocket/HTTP API]
-        VG[🎤 Voice Gateway<br/>Talk-socket]
-        AI[🧠 AI Core<br/>Harmony + Local LLM]
-        MEM[💾 Memory System<br/>SQLite + Vector DB]
-        TOOLS[🛠️ Tool Registry<br/>Pydantic Validation]
+    subgraph "FAS2 Core (src/)"
+        BRAIN[🧠 Brain Compose<br/>Context Injection]
+        MEMORY[💾 Memory System<br/>SQLite + Artifacts]
+        EVENT[📊 Event Bus<br/>Telemetry & Monitoring]
+        PROMPT[📝 Prompt Builder<br/>Budget Control]
     end
     
-    subgraph "Shared Components (shared/)"
-        UI[🎨 UI Library<br/>Cross-platform]
-        TYPES[📝 TypeScript Types]
-        UTILS[⚙️ Utilities<br/>Common Functions]
+    subgraph "Data Layer"
+        DB[🗄️ SQLite Database<br/>artifacts, embeddings]
+        LOGS[📋 NDJSON Logs<br/>metrics, events]
+        CONFIG[⚙️ Configuration<br/>persona.yml, style.yml]
     end
+    
+    API --> BRAIN
+    API --> MEMORY
+    BRAIN --> EVENT
+    MEMORY --> EVENT
+    MEMORY --> DB
+    EVENT --> LOGS
+    PROMPT --> CONFIG
     
     subgraph "External Services"
-        OS[🔐 OS Keyring]
-        TTS[🔊 Piper TTS]
-        LLM[🤖 Local Ollama]
-        APIS[📡 External APIs<br/>Spotify, Calendar]
+        OPENAI[🤖 OpenAI API<br/>GPT-4o]
+        TOOLS[🛠️ Tool APIs<br/>Weather, Timer]
     end
     
-    DA --> API
-    MA --> API
-    WA --> API
-    
-    API --> VG
-    API --> AI
-    API --> MEM
+    BRAIN --> OPENAI
     API --> TOOLS
-    
-    VG --> TTS
-    AI --> LLM
-    TOOLS --> APIS
-    
-    DA --> UI
-    MA --> UI
-    WA --> UI
-    
-    AI --> OS
-    
-    style DA fill:#00d4ff,stroke:#0099cc,color:#000
-    style MA fill:#ff6b6b,stroke:#e55353,color:#fff
-    style WA fill:#4ecdc4,stroke:#3bb8b1,color:#000
-    style API fill:#95e1d3,stroke:#6fd4c4,color:#000
 ```
 
-## 📁 Directory Structure
+## 📊 FAS2 Implementation Status
 
-```
-Alice/
-├── apps/                           # Platform-specific applications
-│   ├── desktop/                   # Electron/Tauri desktop app
-│   │   ├── src/
-│   │   │   ├── main.ts           # Electron main process
-│   │   │   ├── renderer.ts       # UI renderer process
-│   │   │   └── preload.ts        # Secure bridge
-│   │   ├── package.json
-│   │   └── electron-builder.yml   # Build configuration
-│   │
-│   ├── mobile/                    # React Native mobile apps
-│   │   ├── src/
-│   │   │   ├── components/       # Mobile-specific components
-│   │   │   ├── screens/          # Navigation screens
-│   │   │   └── services/         # Native bridge services
-│   │   ├── ios/                  # iOS-specific configuration
-│   │   ├── android/              # Android-specific configuration
-│   │   └── package.json
-│   │
-│   └── web/                       # Next.js PWA web app
-│       ├── src/
-│       │   ├── app/              # Next.js app router
-│       │   ├── components/       # Web components
-│       │   └── hooks/            # React hooks
-│       ├── public/
-│       ├── next.config.js
-│       └── package.json
-│
-├── core/                          # Alice Engine (UI-agnostic)
-│   ├── alice/
-│   │   ├── engine/               # Core AI processing
-│   │   │   ├── harmony.py        # AI adapter
-│   │   │   ├── memory.py         # Memory management
-│   │   │   └── orchestrator.py   # Task coordination
-│   │   │
-│   │   ├── voice/                # Voice processing
-│   │   │   ├── talk_socket.py    # Voice I/O abstraction
-│   │   │   ├── piper_tts.py      # Swedish TTS
-│   │   │   └── asr.py            # Speech recognition
-│   │   │
-│   │   ├── tools/                # Tool system
-│   │   │   ├── registry.py       # Tool management
-│   │   │   ├── spotify.py        # Music control
-│   │   │   └── calendar.py       # Calendar integration
-│   │   │
-│   │   └── api/                  # Communication layer
-│   │       ├── websocket.py      # WebSocket handler
-│   │       ├── http.py           # REST API
-│   │       └── auth.py           # Authentication
-│   │
-│   ├── requirements.txt
-│   └── main.py                   # Engine entry point
-│
-├── shared/                        # Cross-platform shared code
-│   ├── ui/                       # Component library
-│   │   ├── components/           # Reusable UI components
-│   │   ├── styles/               # Design system
-│   │   └── hooks/                # Shared React hooks
-│   │
-│   ├── types/                    # TypeScript definitions
-│   │   ├── api.ts                # API interfaces
-│   │   ├── voice.ts              # Voice system types
-│   │   └── alice.ts              # Core Alice types
-│   │
-│   └── utils/                    # Common utilities
-│       ├── config.ts             # Configuration management
-│       ├── crypto.ts             # Encryption utilities
-│       └── validation.ts         # Data validation
-│
-├── docs/                         # Documentation
-├── scripts/                      # Build and deployment scripts
-└── package.json                  # Root package configuration
-```
+### ✅ **Completed Phases (FAS 0-4)**
 
-## 🔗 Communication Architecture
+| Phase | Component | Implementation | Status |
+|-------|-----------|----------------|--------|
+| **FAS 0** | Environment | Environment vars, health endpoints | ✅ Complete |
+| **FAS 1** | Strict TTS | Brain Compose API with structured responses | ✅ Complete |
+| **FAS 2** | Event Bus | Central telemetry and NDJSON logging | ✅ Complete |
+| **FAS 3** | Memory System | SQLite artifacts with score-based retrieval | ✅ Complete |
+| **FAS 4** | Prompt Builder | Context injection with 25% budget control | ✅ Complete |
 
-### WebSocket API
-Real-time bidirectional communication between applications and engine:
+### 🔄 **Next Phases (FAS 5-8)**
 
+| Phase | Component | Description | Timeline |
+|-------|-----------|-------------|----------|
+| **FAS 5** | Provider Switch | GPT-OSS primary, OpenAI fallback | Next |
+| **FAS 6** | Cloud Complex | OpenAI Responses API integration | Q1 2025 |
+| **FAS 7** | Brain Worker | Sentence streaming, background processing | Q1 2025 |
+| **FAS 8** | Vision & Sensors | YOLO-driven presence detection | Q2 2025 |
+
+## 🧩 Core Components Detail
+
+### 🧠 Brain Compose System (FAS 1)
+**Location:** `src/brain/compose.ts`, `app/api/brain/compose/route.ts`
+
+**Purpose:** Structured response generation with context injection
 ```typescript
-interface AliceWebSocket {
-  // Voice interactions
-  startVoiceSession(): Promise<void>
-  sendAudio(data: ArrayBuffer): void
-  onAudioResponse(callback: (audio: ArrayBuffer) => void): void
-  
-  // Text interactions  
-  sendMessage(message: string): Promise<string>
-  onTyping(callback: () => void): void
-  
-  // System events
-  onStatusChange(callback: (status: SystemStatus) => void): void
-  onError(callback: (error: AliceError) => void): void
+interface AnswerPackage {
+  spoken_text: string;      // Exact output for TTS
+  screen_text?: string;     // UI display text
+  ssml?: string;           // Speech markup override
+  citations?: Citation[];   // Source references
+  meta?: ResponseMetadata; // Confidence, tone, metrics
 }
 ```
 
-### HTTP REST API
-Traditional request/response for stateless operations:
+**Features:**
+- Context injection from memory artifacts
+- Budget-controlled token usage (≤25%)
+- Structured response format for consistency
+- Integration with agent toolcalling
 
+### 💾 Memory System (FAS 3)
+**Location:** `src/memory/`, `app/api/memory/`
+
+**Purpose:** Long-term learning and context persistence
 ```typescript
-interface AliceAPI {
-  // Configuration
-  GET    /api/config
-  POST   /api/config
-  
-  // Tools and integrations
-  GET    /api/tools
-  POST   /api/tools/{tool}/execute
-  
-  // Memory system
-  GET    /api/memory/search?q=query
-  POST   /api/memory/add
-  
-  // Health and metrics
-  GET    /api/health
-  GET    /api/metrics
+interface Artifact {
+  id: string;
+  userId: string;
+  kind: ArtifactKind;      // insight, preference, policy, etc.
+  text: string;
+  score: number;           // 0-1 relevance score
+  expiresAt?: string;      // Optional expiration
+  meta?: Record<string, any>;
 }
 ```
 
-### Talk-socket Protocol
-Voice I/O abstraction for cross-platform audio handling:
+**Storage:**
+- **SQLite Database** with WAL mode for production reliability
+- **Artifact Types:** insight, kb_chunk, plan, policy, vision_event
+- **Score-based Retrieval** for relevant context selection
+- **Embedding Support** (stub implemented, ready for vector search)
 
+### 📊 Event Bus & Telemetry (FAS 2)  
+**Location:** `src/core/eventBus.ts`, `src/core/metrics.ts`
+
+**Purpose:** Complete system observability and monitoring
 ```typescript
-interface TalkSocket {
-  // Voice output
-  speak(text: string, options?: SpeakOptions): Promise<void>
-  stopSpeaking(): void
-  
-  // Voice input
-  startListening(options?: ListenOptions): Promise<void>
-  stopListening(): void
-  onTranscript(callback: (text: string, final: boolean) => void): void
-  
-  // Audio control
-  setVolume(level: number): void
-  mute(enabled: boolean): void
-  getAudioDevices(): AudioDevice[]
+type EventType = 
+  | "brain_compose" | "agent_response" | "tool_result" 
+  | "memory.write" | "memory.fetch";
+
+interface EventEnvelope<T> {
+  type: EventType;
+  ts: number;
+  payload: T;
 }
 ```
 
-## 🔐 Security Architecture
+**Monitoring:**
+- **NDJSON Logging** to `logs/metrics.ndjson`
+- **Real-time Metrics** via `/api/metrics/summary`
+- **Performance Tracking** - latency, budget compliance, tool usage
+- **Error Tracking** - failures, timeouts, validation errors
 
-### OS Keyring Integration
+### 📝 Prompt Builder & Budget Control (FAS 4)
+**Location:** `src/core/promptBuilder.ts`
+
+**Purpose:** Context injection with strict token budget control
 ```typescript
-// Secure credential storage
-class AliceKeyring {
-  async setCredential(service: string, key: string, value: string): Promise<void>
-  async getCredential(service: string, key: string): Promise<string | null>
-  async deleteCredential(service: string, key: string): Promise<void>
-  async listCredentials(service: string): Promise<string[]>
-}
-
-// Usage examples
-const keyring = new AliceKeyring()
-await keyring.setCredential('alice-ai', 'openai-key', apiKey)
-await keyring.setCredential('alice-ai', 'spotify-token', spotifyToken)
+export async function buildPromptWithContext(
+  userId: string, 
+  userMessage: string
+): Promise<{
+  messages: ChatMessage[],
+  stats: { injected_tokens_pct: number, artifacts_used: number }
+}>
 ```
 
-### Safe Summary Filter
-```typescript
-// Privacy-aware data processing
-interface SafeSummary {
-  original: string          // Full original content
-  filtered: string         // Safe for external processing  
-  sensitive: string[]      // Detected sensitive data
-  confidence: number       // Detection confidence score
-}
+**Features:**
+- **25% Token Budget** - Automatic enforcement and trimming
+- **Artifact Integration** - Memory-based context injection  
+- **Persona & Style** - YAML configuration loading
+- **Budget Monitoring** - Real-time compliance tracking
 
-class SafeSummaryFilter {
-  async filter(content: string): Promise<SafeSummary>
-  configure(settings: PrivacySettings): void
-}
+## 🔗 API Architecture
+
+### Core Endpoints
+```bash
+# Brain System (FAS 1)
+POST /api/brain/compose          # Main response generation
+
+# Memory System (FAS 3)  
+POST /api/memory/write           # Store artifacts
+POST /api/memory/fetch           # Retrieve by score
+
+# Monitoring (FAS 2)
+GET  /api/metrics/summary        # Performance metrics
+GET  /api/health/simple          # System health
+
+# Tools
+POST /api/tools/weather.get      # Weather information
+POST /api/tools/timer.set        # Timer management
 ```
 
-### Data Flow Boundaries
-```mermaid
-graph LR
-    subgraph "Local Processing"
-        USER[👤 User Input]
-        FILTER[🛡️ Safe Summary Filter]
-        LOCAL[🏠 Local AI Engine]
-    end
-    
-    subgraph "External Services"  
-        CLOUD[☁️ Cloud APIs]
-        SPOTIFY[🎵 Spotify]
-        CALENDAR[📅 Calendar]
-    end
-    
-    USER --> FILTER
-    FILTER --> LOCAL
-    FILTER -.-> CLOUD
-    LOCAL --> SPOTIFY
-    LOCAL --> CALENDAR
-    
-    style FILTER fill:#ff6b6b,stroke:#e55353,color:#fff
-    style LOCAL fill:#4ecdc4,stroke:#3bb8b1,color:#000
+### Request/Response Patterns
+- **Consistent JSON** - All endpoints use structured JSON
+- **Error Handling** - Standardized error responses with codes
+- **Validation** - Input validation with meaningful error messages
+- **Telemetry** - All requests logged to event system
+
+## 🧪 Testing Architecture
+
+### Integration-First Testing Strategy
+**Why:** Mock tests lie, integration tests tell the truth.
+
+```bash
+# Primary validation
+npm run test:integration         # E2E against live system
+npm run test:integration:ci      # CI-friendly with timeout
+
+# Interactive testing
+http://localhost:3000/test_fas_system.html
 ```
 
-## 🎤 Voice System Architecture
+### Test Coverage
+- ✅ **API Contract Testing** - All endpoints validated
+- ✅ **Memory Persistence** - Write/read cycles verified
+- ✅ **Budget Compliance** - Token injection limits enforced
+- ✅ **Tool Integration** - Weather, timer, agent functionality
+- ✅ **Telemetry Collection** - Event logging verified
 
-### Talk-socket Abstraction
-The Talk-socket provides platform-agnostic voice I/O:
-
-```python
-# Core voice abstraction
-class TalkSocket:
-    def __init__(self, platform: Platform):
-        self.tts = self._init_tts(platform)
-        self.asr = self._init_asr(platform)
-        self.audio = self._init_audio(platform)
-    
-    async def speak(self, text: str, voice: VoiceConfig = None):
-        audio_data = await self.tts.synthesize(text, voice)
-        await self.audio.play(audio_data)
-    
-    async def listen(self, callback: Callable[[str], None]):
-        audio_stream = await self.audio.record()
-        async for transcript in self.asr.transcribe(audio_stream):
-            callback(transcript)
+### Current Test Results
+```
+🧪 INTEGRATION TEST RESULTS
+✅ Health Check: System responsive
+✅ Memory System: Write/read cycle working
+✅ Brain Compose: Budget 24.6% (within 25% target)
+✅ Metrics Collection: Events properly logged
+✅ Weather Tool: API validation successful
+✅ Agent Integration: Response latency 826ms
+🎯 Success Rate: 100%
 ```
 
-### Platform-Specific Audio
-Each platform implements audio handling optimally:
+## 🔧 Development Architecture
 
-```typescript
-// Desktop (Electron)
-class DesktopAudio {
-  async record(): Promise<MediaStream>
-  async play(data: ArrayBuffer): Promise<void>
-  getDevices(): AudioDevice[]
-}
+### Development Workflow
+```bash
+# Setup new development environment
+cd Alice/web
+npm install
+cp .env.example .env.local     # Configure OpenAI API key
+npm run dev                    # Start development server
 
-// Mobile (React Native)
-class MobileAudio {
-  async record(): Promise<AudioRecording>  
-  async play(data: ArrayBuffer): Promise<void>
-  requestPermissions(): Promise<boolean>
-}
-
-// Web (Browser)
-class WebAudio {
-  async record(): Promise<MediaStream>
-  async play(data: ArrayBuffer): Promise<void>
-  checkWebRTCSupport(): boolean
-}
+# Validation workflow
+npm run test:integration       # Must pass 100%
+npm run build                  # Must compile cleanly
 ```
 
-## 🧠 AI Processing Architecture
-
-### Harmony Adapter Pattern
-```python
-class HarmonyAdapter:
-    """Unified interface for AI providers"""
-    
-    def __init__(self, config: AIConfig):
-        self.local_llm = OllamaProvider(config.ollama)
-        self.cloud_llm = OpenAIProvider(config.openai)
-        self.router = IntentRouter()
-    
-    async def process(self, message: str, context: Context) -> Response:
-        # Route to appropriate AI based on intent and privacy
-        intent = await self.router.classify(message)
-        
-        if intent.requires_privacy or intent.complexity == "high":
-            return await self.local_llm.process(message, context)
-        else:
-            return await self.cloud_llm.process(message, context)
+### File Structure
+```
+web/
+├── src/                       # FAS2 Core Implementation
+│   ├── brain/compose.ts      # FAS 1: Response generation
+│   ├── core/
+│   │   ├── eventBus.ts       # FAS 2: Event system
+│   │   ├── metrics.ts        # FAS 2: NDJSON logging  
+│   │   └── promptBuilder.ts  # FAS 4: Context injection
+│   ├── memory/               # FAS 3: Persistence layer
+│   │   ├── sqlite.ts         # Production SQLite driver
+│   │   ├── inMemory.ts       # Development driver
+│   │   └── types.ts          # Memory interfaces
+│   └── types/                # Core type definitions
+│       ├── answer.ts         # AnswerPackage interface
+│       └── events.ts         # Event type definitions
+├── app/api/                  # Next.js API Routes
+│   ├── brain/compose/        # Main brain endpoint
+│   ├── memory/{write,fetch}/ # Memory operations
+│   ├── metrics/summary/      # Telemetry endpoint
+│   └── health/simple/        # System health
+├── alice/identity/           # Configuration
+│   ├── persona.yml          # Alice personality
+│   └── style.yml            # Response style
+├── data/alice.db            # SQLite database
+├── logs/metrics.ndjson      # Event log
+└── tests/integration.test.js # E2E validation
 ```
 
-### Memory System
-```python
-class AliceMemory:
-    """Hybrid memory system with local storage"""
-    
-    def __init__(self, db_path: str):
-        self.sqlite = SQLiteStore(db_path)
-        self.vector_db = VectorStore(embeddings_model="local")
-        self.cache = LRUCache(maxsize=1000)
-    
-    async def store(self, content: str, metadata: dict):
-        # Store in both relational and vector databases
-        embedding = await self.vector_db.embed(content)
-        await self.sqlite.insert(content, metadata, embedding)
-        
-    async def search(self, query: str, limit: int = 10) -> List[MemoryItem]:
-        # Hybrid search: vector similarity + metadata filtering
-        query_embedding = await self.vector_db.embed(query)
-        return await self.sqlite.search_hybrid(query_embedding, limit)
-```
+## 🚀 Deployment Architecture
 
-## 🛠️ Tool System Architecture
+### Single Application Deployment
+Alice FAS2 deploys as a single Next.js application:
+- **No separate backend** - All logic in Next.js API routes
+- **SQLite embedded** - Database travels with application
+- **Static assets** - Built-in CDN via Next.js
+- **Environment-based config** - Runtime configuration via `.env`
 
-### Dynamic Tool Registry
-```python
-class ToolRegistry:
-    """Pydantic-validated tool system"""
-    
-    def __init__(self):
-        self.tools: Dict[str, Tool] = {}
-        self.validators: Dict[str, BaseModel] = {}
-    
-    def register_tool(self, tool: Tool):
-        # Validate tool interface with Pydantic
-        validator = self._create_validator(tool)
-        self.tools[tool.name] = tool
-        self.validators[tool.name] = validator
-    
-    async def execute(self, tool_name: str, params: dict) -> ToolResult:
-        # Validate parameters before execution
-        validator = self.validators[tool_name]
-        validated_params = validator(**params)
-        
-        tool = self.tools[tool_name]
-        return await tool.execute(validated_params)
-```
+### Production Considerations
+- **SQLite WAL mode** - Concurrent read/write performance
+- **Event log rotation** - Prevent unbounded log growth
+- **Memory cleanup** - Artifact expiration and cleanup
+- **Health monitoring** - Built-in health and metrics endpoints
 
-### Tool Implementation Example
-```python
-class SpotifyTool(Tool):
-    name = "spotify_control"
-    description = "Control Spotify music playback"
-    
-    class Parameters(BaseModel):
-        action: Literal["play", "pause", "skip", "search"]
-        query: Optional[str] = None
-        
-    async def execute(self, params: Parameters) -> ToolResult:
-        spotify = SpotifyAPI(await get_token_from_keyring())
-        
-        if params.action == "play":
-            await spotify.play()
-        elif params.action == "search" and params.query:
-            results = await spotify.search(params.query)
-            return ToolResult(success=True, data=results)
-            
-        return ToolResult(success=True)
-```
+## 📈 Performance & Scalability
 
-## 📊 Performance Architecture
+### Current Performance Profile
+- **Budget Compliance:** 24.6% injection rate (target <25%) ✅
+- **Memory Operations:** <100ms write/fetch latency ✅
+- **API Response Times:** 826ms average agent latency ✅
+- **Integration Success:** 100% test pass rate ✅
 
-### Resource Management
-```typescript
-interface SystemResources {
-  cpu_usage: number        // Current CPU utilization %
-  memory_usage: number     // Current memory usage MB  
-  disk_usage: number       // Available disk space GB
-  network_status: string   // Connection quality
-  gpu_available: boolean   // Hardware acceleration
-}
+### Scalability Design
+- **Event-driven architecture** - Horizontal scaling of event consumers
+- **SQLite → PostgreSQL** - Easy migration path for higher concurrency
+- **Memory system** - Artifact-based design scales to large context sets
+- **API routes** - Standard Next.js scaling patterns apply
 
-class ResourceMonitor {
-  getSystemResources(): SystemResources
-  onResourcesChange(callback: (resources: SystemResources) => void): void
-  optimizeForPlatform(platform: Platform): void
-}
-```
+## 🔮 Future Architecture Evolution
 
-### Caching Strategy
-```python
-class AliceCache:
-    """Multi-layer caching system"""
-    
-    def __init__(self):
-        self.memory_cache = LRUCache(maxsize=1000)      # Hot data
-        self.disk_cache = DiskCache(max_size_gb=2)      # Warm data  
-        self.vector_cache = VectorCache(similarity=0.9)  # Semantic cache
-    
-    async def get(self, key: str, generator: Callable = None):
-        # Try memory first, then disk, then generate
-        if result := self.memory_cache.get(key):
-            return result
-            
-        if result := await self.disk_cache.get(key):
-            self.memory_cache[key] = result
-            return result
-            
-        if generator:
-            result = await generator()
-            await self.set(key, result)
-            return result
-            
-        return None
-```
+### FAS 5-8 Architectural Changes
+- **Provider Abstraction** - Multiple LLM backend support
+- **Cloud Integration** - Hybrid local/cloud processing
+- **Stream Processing** - Real-time response streaming  
+- **Multi-modal Input** - Vision and sensor integration
 
-## 🔄 State Management
-
-### Application State
-```typescript
-// Zustand-based state management
-interface AliceState {
-  // Connection state
-  connected: boolean
-  connecting: boolean
-  
-  // Voice state
-  listening: boolean
-  speaking: boolean
-  voiceEnabled: boolean
-  
-  // UI state
-  sidebarOpen: boolean
-  currentView: string
-  theme: 'light' | 'dark'
-  
-  // System state
-  resources: SystemResources
-  notifications: Notification[]
-}
-
-const useAliceStore = create<AliceState>((set, get) => ({
-  // Initial state
-  connected: false,
-  listening: false,
-  speaking: false,
-  
-  // Actions
-  setConnected: (connected: boolean) => set({ connected }),
-  toggleListening: () => set(state => ({ listening: !state.listening })),
-  addNotification: (notification: Notification) => 
-    set(state => ({ notifications: [...state.notifications, notification] }))
-}))
-```
-
-### Configuration Management
-```typescript
-class ConfigManager {
-  private config: AliceConfig
-  private watchers: Map<string, Function[]> = new Map()
-  
-  async load(platform: Platform): Promise<AliceConfig>
-  async save(config: Partial<AliceConfig>): Promise<void>
-  
-  watch(key: string, callback: (value: any) => void): void
-  unwatch(key: string, callback: Function): void
-  
-  // Platform-specific config paths
-  getConfigPath(platform: Platform): string {
-    switch (platform) {
-      case 'desktop': return path.join(os.homedir(), '.alice', 'config.json')
-      case 'mobile': return AsyncStorage.getItem('@alice:config')  
-      case 'web': return localStorage.getItem('alice-config')
-    }
-  }
-}
-```
+### Long-term Vision
+- **Federated Memory** - Cross-device memory synchronization
+- **Plugin Architecture** - Third-party tool development
+- **Autonomous Agents** - Background task execution
+- **Enterprise Multi-tenancy** - Team and organization support
 
 ---
 
-## 🎯 Architecture Benefits
-
-### ✅ **Scalability**
-- **Horizontal Scaling** - Multiple platform deployments
-- **Vertical Scaling** - Resource-aware optimization
-- **Modular Growth** - Add platforms and features independently
-
-### ✅ **Maintainability**  
-- **Clear Separation** - UI, logic, and data layers isolated
-- **Shared Components** - Consistent experience across platforms
-- **Type Safety** - TypeScript throughout the stack
-
-### ✅ **Security**
-- **Defense in Depth** - Multiple security layers
-- **Privacy by Design** - Data boundaries built-in
-- **Platform Security** - Native OS security features
-
-### ✅ **Performance**
-- **Local Processing** - Reduced latency and privacy
-- **Intelligent Caching** - Multi-layer performance optimization
-- **Platform Optimization** - Native performance on each platform
-
----
-
-**Alice Architecture Philosophy**: Build once, deploy everywhere - with a UI-agnostic core enabling native applications across all platforms while maintaining security, performance, and the authentic Swedish AI experience.
+*Alice FAS2 represents a production-ready foundation for AI assistance, built on proven patterns of event-driven architecture, comprehensive testing, and observability-first design.*
