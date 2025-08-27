@@ -41,14 +41,15 @@ from core import (
     log_preflight_results
 )
 from harmony_test_endpoint import HarmonyTestBatchRequest, HarmonyTestBatchResponse, run_harmony_test_case
-from voice_stream import get_voice_manager
-from voice_gateway import get_voice_gateway_manager
-from intent_router import get_intent_router
-from voice_stt import transcribe_audio_file, get_stt_status
-from audio_processor import audio_processor, voice_gateway_audio_processor
+# Voice imports temporarily disabled during pipeline rewrite
+# from voice_stream import get_voice_manager
+# from voice_gateway import get_voice_gateway_manager  
+# from intent_router import get_intent_router
+# from voice_stt import transcribe_audio_file, get_stt_status
+# from audio_processor import audio_processor, voice_gateway_audio_processor
 from deps import get_global_openai_settings, OpenAIClient, validate_openai_config
 from services import probe_api
-from b3_ambient_voice import get_b3_ambient_manager
+# from b3_ambient_voice import get_b3_ambient_manager
 from b3_barge_in_controller import router as barge_in_router
 from b3_privacy_hooks import router as privacy_router
 from b3_metrics import router as metrics_router
@@ -325,7 +326,8 @@ class EnhancedTTSHandler:
             
             # Apply audio post-processing and enhancement
             try:
-                enhanced_audio = audio_processor.enhance_audio(raw_audio_data, settings)
+                # enhanced_audio = audio_processor.enhance_audio(raw_audio_data, settings)
+                enhanced_audio = raw_audio_data  # Temporary bypass during voice pipeline rewrite
                 logger.info("Audio enhancement applied to TTS output")
                 return enhanced_audio
             except Exception as e:
@@ -1112,7 +1114,8 @@ async def stream_tts(request: TTSRequest):
             audio_data = await enhanced_tts._generate_audio(request.text, selected_voice, settings)
             
             # Apply quick normalization (faster than full enhancement)
-            normalized_audio = audio_processor.normalize_audio_levels(audio_data)
+            # normalized_audio = audio_processor.normalize_audio_levels(audio_data)
+            normalized_audio = audio_data  # Temporary bypass during voice pipeline rewrite
             
             # Cache for future use
             if request.cache:
@@ -2037,8 +2040,9 @@ async def chat_stream(body: ChatBody):
 @app.websocket("/ws/voice/{session_id}")
 async def voice_websocket(websocket: WebSocket, session_id: str):
     """Real-time voice conversation with Alice using hybrid API/local approach"""
-    voice_mgr = get_voice_manager(memory)
-    await voice_mgr.handle_voice_session(websocket, session_id)
+    # voice_mgr = get_voice_manager(memory)
+    # await voice_mgr.handle_voice_session(websocket, session_id)
+    await websocket.close(code=1000, reason="Voice pipeline being rewritten")
 
 # WebSocket endpoint for Voice-Gateway (Hybrid Voice Architecture Phase 1)
 @app.websocket("/ws/voice-gateway/{session_id}")
@@ -2053,8 +2057,9 @@ async def voice_gateway_websocket(websocket: WebSocket, session_id: str):
     - Barge-in support
     - Swedish intent classification
     """
-    voice_gateway_mgr = get_voice_gateway_manager(memory)
-    await voice_gateway_mgr.handle_voice_gateway_session(websocket, session_id)
+    # voice_gateway_mgr = get_voice_gateway_manager(memory)
+    # await voice_gateway_mgr.handle_voice_gateway_session(websocket, session_id)
+    await websocket.close(code=1000, reason="Voice pipeline being rewritten")
 
 @app.websocket("/ws/voice/ambient")
 async def b3_ambient_voice_websocket(websocket: WebSocket):
@@ -2083,8 +2088,9 @@ async def voice_gateway_websocket_alias(websocket: WebSocket):
     session_id = f"vgw_{int(time.time())}_{uuid.uuid4().hex[:8]}"
     logging.info(f"Voice Gateway WebSocket connection - auto-generated session: {session_id}")
     
-    voice_gateway_mgr = get_voice_gateway_manager(memory)
-    await voice_gateway_mgr.handle_voice_gateway_session(websocket, session_id)
+    # voice_gateway_mgr = get_voice_gateway_manager(memory)
+    # await voice_gateway_mgr.handle_voice_gateway_session(websocket, session_id)
+    await websocket.close(code=1000, reason="Voice pipeline being rewritten")
 
 # Legacy LLM status endpoint redirect (for compatibility)
 @app.get("/api/llm/status")
@@ -2106,8 +2112,9 @@ async def b3_ambient_voice_websocket(websocket: WebSocket):
     - Privacy controls (mute/unmute)
     - Proactive trigger events
     """
-    ambient_mgr = get_b3_ambient_manager(memory)
-    await ambient_mgr.handle_ambient_voice(websocket)
+    # ambient_mgr = get_b3_ambient_manager(memory)
+    # await ambient_mgr.handle_ambient_voice(websocket)
+    await websocket.close(code=1000, reason="Voice pipeline being rewritten")
 
 # Status endpoint for voice gateway
 @app.get("/api/voice-gateway/status")
@@ -3857,8 +3864,9 @@ async def api_transcribe_audio(audio: UploadFile = File(...)):
     Hybrid voice system - högkvalitativ transkribering
     """
     try:
-        result = await transcribe_audio_file(audio)
-        return result
+        # result = await transcribe_audio_file(audio)
+        # return result
+        return {"error": "Voice pipeline being rewritten", "status": "disabled"}
     except Exception as e:
         logger.error(f"Voice transcription API error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -3870,8 +3878,9 @@ async def api_voice_status():
     Visar både Browser API och Whisper status
     """
     try:
-        status = await get_stt_status()
-        return status
+        # status = await get_stt_status()
+        # return status
+        return {"status": "disabled", "message": "Voice pipeline being rewritten"}
     except Exception as e:
         logger.error(f"Voice status API error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -3963,8 +3972,8 @@ async def get_openai_key():
 async def voice_gateway_status():
     """Get Voice-Gateway status and configuration"""
     try:
-        voice_gateway_mgr = get_voice_gateway_manager(memory)
-        intent_router = get_intent_router()
+        # voice_gateway_mgr = get_voice_gateway_manager(memory)
+        # intent_router = get_intent_router()"
         
         return {
             "status": "active",
@@ -3974,8 +3983,8 @@ async def voice_gateway_status():
                 "vad_config": voice_gateway_mgr.vad_config,
                 "routing_config": voice_gateway_mgr.routing_config
             },
-            "intent_router": intent_router.get_routing_stats(),
-            "audio_processor": voice_gateway_audio_processor.get_processing_stats()
+            "intent_router": {"status": "disabled", "message": "Voice pipeline being rewritten"},
+            "audio_processor": {"status": "disabled", "message": "Voice pipeline being rewritten"}
         }
     except Exception as e:
         logger.error(f"Voice-Gateway status error: {e}")
@@ -3985,8 +3994,8 @@ async def voice_gateway_status():
 async def configure_voice_gateway(config: Dict[str, Any]):
     """Update Voice-Gateway configuration"""
     try:
-        voice_gateway_mgr = get_voice_gateway_manager(memory)
-        intent_router = get_intent_router()
+        # voice_gateway_mgr = get_voice_gateway_manager(memory)
+        # intent_router = get_intent_router()"
         
         # Update configurations
         if "audio" in config:
@@ -3997,7 +4006,7 @@ async def configure_voice_gateway(config: Dict[str, Any]):
             
         if "routing" in config:
             voice_gateway_mgr.routing_config.update(config["routing"])
-            intent_router.update_config(config["routing"])
+            # intent_router.update_config(config["routing"])
         
         return {
             "success": True,
@@ -4019,8 +4028,9 @@ async def test_intent_classification(request: Dict[str, Any]):
         text = request.get("text", "")
         audio_features = request.get("audio_features")
         
-        intent_router = get_intent_router()
-        result = await intent_router.route_intent(text, audio_features)
+        # intent_router = get_intent_router()"
+        # result = await intent_router.route_intent(text, audio_features)
+        result = {"status": "disabled", "message": "Voice pipeline being rewritten"}
         
         return {
             "success": True,
@@ -4042,7 +4052,7 @@ async def test_intent_classification(request: Dict[str, Any]):
 async def list_voice_gateway_sessions():
     """List active Voice-Gateway sessions"""
     try:
-        voice_gateway_mgr = get_voice_gateway_manager(memory)
+        # voice_gateway_mgr = get_voice_gateway_manager(memory)
         
         sessions = []
         for session_id, session_data in voice_gateway_mgr.active_sessions.items():
