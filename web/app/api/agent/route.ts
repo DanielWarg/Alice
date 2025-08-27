@@ -65,7 +65,7 @@ const AVAILABLE_TOOLS = [
   {
     type: "function" as const,
     function: {
-      name: "timer.set",
+      name: "timer_set",
       description: "Starta en timer med specificerad tid",
       parameters: {
         type: "object",
@@ -96,7 +96,7 @@ const AVAILABLE_TOOLS = [
   {
     type: "function" as const,
     function: {
-      name: "weather.get",
+      name: "weather_get",
       description: "Hämta aktuellt väder och prognos för en plats",
       parameters: {
         type: "object",
@@ -131,11 +131,27 @@ const AVAILABLE_TOOLS = [
   }
 ];
 
+// Map OpenAI function names to actual API endpoints
+const TOOL_NAME_MAPPING: Record<string, string> = {
+  'timer_set': 'timer.set',
+  'weather_get': 'weather.get'
+};
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2)}`;
   
   try {
     const body: AgentRequest = await request.json();
+    
+    // Contract logging (redacted for security)
+    console.log(`📋 Agent Request [${requestId}]:`, {
+      session_id: body.session_id,
+      request_id: requestId,
+      message_count: body.messages?.length || 0,
+      allow_tools: body.allow_tool_calls !== false,
+      last_message_preview: body.messages?.[body.messages.length - 1]?.content?.substring(0, 50) + '...' || 'none'
+    });
     
     // Validate required fields
     if (!body.session_id || !body.messages) {
@@ -152,8 +168,8 @@ export async function POST(request: NextRequest) {
     const systemMessage = {
       role: 'system' as const,
       content: `Du är Alice, en hjälpsam AI-assistent som talar svenska. Du kan hjälpa till med:
-- Väderinformation (weather.get)
-- Timers och påminnelser (timer.set)
+- Väderinformation (weather_get)
+- Timers och påminnelser (timer_set)
 - Allmänna frågor och konversation
 
 Svara kort och naturligt på svenska. När du använder verktyg, förklara vad du gör.
@@ -170,8 +186,7 @@ Dagens datum: ${new Date().toLocaleDateString('sv-SE')}`
       model: 'gpt-4o',
       messages: messages,
       max_tokens: body.limits?.max_tokens || 300,
-      temperature: body.limits?.temperature || 0.3,
-      timeout: body.timeout_ms || 20000
+      temperature: body.limits?.temperature || 0.3
     };
 
     if (shouldUseTools) {
@@ -210,7 +225,16 @@ Dagens datum: ${new Date().toLocaleDateString('sv-SE')}`
         }
       };
 
-      console.log(`🔧 Returning ${choice.message.tool_calls.length} tool calls in ${llmLatency}ms`);
+      // Contract logging for tool_call response
+      console.log(`🔧 Agent Response [${requestId}]:`, {
+        session_id: body.session_id,
+        request_id: requestId,
+        next_action: 'tool_call',
+        tool_count: choice.message.tool_calls.length,
+        tool_names: choice.message.tool_calls.map(tc => tc.function.name),
+        llm_latency_ms: llmLatency
+      });
+      
       return NextResponse.json(response);
     }
 
@@ -232,7 +256,15 @@ Dagens datum: ${new Date().toLocaleDateString('sv-SE')}`
       }
     };
 
-    console.log(`💬 Final response in ${llmLatency}ms: "${response.assistant.content?.substring(0, 50)}..."`);
+    // Contract logging for final response
+    console.log(`💬 Agent Response [${requestId}]:`, {
+      session_id: body.session_id,
+      request_id: requestId,
+      next_action: 'final',
+      content_preview: response.assistant.content?.substring(0, 50) + '...' || 'no content',
+      llm_latency_ms: llmLatency
+    });
+    
     return NextResponse.json(response);
 
   } catch (error: any) {

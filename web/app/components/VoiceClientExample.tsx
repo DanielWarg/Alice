@@ -43,7 +43,7 @@ export default function VoiceClientExample() {
             Alice Voice Interface
           </h1>
           <p className="text-zinc-400">
-            Integrerad röstgränsnitt med WebRTC och Alice's AI-agent
+            Integrerad röstgränsnitt med WebRTC och Alice&apos;s AI-agent
           </p>
         </div>
 

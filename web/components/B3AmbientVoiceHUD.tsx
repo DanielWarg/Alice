@@ -191,33 +191,33 @@ export function B3AmbientVoiceHUD({ className }: B3AmbientVoiceHUDProps) {
   
   return (
     <Card className={`w-full max-w-md bg-black/40 backdrop-blur-md border-cyan-500/30 ${className}`}>
-      <CardHeader className=\"pb-3\">
-        <CardTitle className=\"flex items-center justify-between text-cyan-100 text-sm\">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center justify-between text-cyan-100 text-sm">
           <span>B3 Ambient Voice</span>
-          <Badge variant={statusBadge.variant} className=\"flex items-center gap-1\">
-            <StatusIcon className=\"w-3 h-3\" />
+          <Badge variant={statusBadge.variant} className="flex items-center gap-1">
+            <StatusIcon className="w-3 h-3" />
             {statusBadge.text}
           </Badge>
         </CardTitle>
       </CardHeader>
       
-      <CardContent className=\"space-y-4\">
+      <CardContent className="space-y-4">
         {/* Main controls */}
-        <div className=\"flex gap-2\">
+        <div className="flex gap-2">
           {!isActive ? (
             <Button
               onClick={handleStart}
               disabled={isInitializing}
-              className=\"flex-1 bg-cyan-600 hover:bg-cyan-700 text-white\"
+              className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white"
             >
               {isInitializing ? (
                 <>
-                  <div className=\"w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2\" />
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                   Starting...
                 </>
               ) : (
                 <>
-                  <Mic className=\"w-4 h-4 mr-2\" />
+                  <Mic className="w-4 h-4 mr-2" />
                   Start Live
                 </>
               )}
@@ -226,26 +226,20 @@ export function B3AmbientVoiceHUD({ className }: B3AmbientVoiceHUDProps) {
             <>
               <Button
                 onClick={handleStop}
-                variant=\"outline\"
-                className=\"flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10\"
+                variant="outline"
+                className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10"
               >
-                <MicOff className=\"w-4 h-4 mr-2\" />
+                <MicOff className="w-4 h-4 mr-2" />
                 Stop
               </Button>
               
               <Button
                 onClick={handleMuteToggle}
-                variant=\"outline\"
+                variant="outline"
                 disabled={status.hardMute}
-                className={`
-                  flex-1 border-yellow-500/50 
-                  ${status.isMuted 
-                    ? 'text-yellow-400 bg-yellow-500/10' 
-                    : 'text-gray-400 hover:bg-yellow-500/10'
-                  }
-                `}
+                className={`flex-1 border-yellow-500/50 ${status.isMuted ? 'text-yellow-400 bg-yellow-500/10' : 'text-gray-400 hover:bg-yellow-500/10'}`}
               >
-                {status.isMuted ? <MicOff className=\"w-4 h-4 mr-2\" /> : <Mic className=\"w-4 h-4 mr-2\" />}
+                {status.isMuted ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
                 {status.isMuted ? 'Unmute' : 'Mute'}
               </Button>
             </>
@@ -256,52 +250,52 @@ export function B3AmbientVoiceHUD({ className }: B3AmbientVoiceHUDProps) {
         {isActive && (
           <Button
             onClick={handleHardMute}
-            variant=\"destructive\"
-            size=\"sm\"
-            className=\"w-full\"
+            variant="destructive"
+            size="sm"
+            className="w-full"
           >
-            <VolumeX className=\"w-4 h-4 mr-2\" />
+            <VolumeX className="w-4 h-4 mr-2" />
             {status.hardMute ? 'Release Emergency Stop' : 'EMERGENCY STOP'}
           </Button>
         )}
         
         {/* Connection error */}
         {connectionError && (
-          <div className=\"p-2 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm\">
-            <AlertTriangle className=\"w-4 h-4 inline mr-2\" />
+          <div className="p-2 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">
+            <AlertTriangle className="w-4 h-4 inline mr-2" />
             {connectionError}
           </div>
         )}
         
         {/* Status information */}
         {isActive && (
-          <div className=\"space-y-2 text-xs text-gray-400\">
-            <div className=\"flex justify-between\">
+          <div className="space-y-2 text-xs text-gray-400">
+            <div className="flex justify-between">
               <span>Session:</span>
-              <span className=\"text-cyan-400\">{formatDuration(status.sessionDuration)}</span>
+              <span className="text-cyan-400">{formatDuration(status.sessionDuration)}</span>
             </div>
-            <div className=\"flex justify-between\">
+            <div className="flex justify-between">
               <span>Frames:</span>
-              <span className=\"text-cyan-400\">{status.framesProcessed}</span>
+              <span className="text-cyan-400">{status.framesProcessed}</span>
             </div>
-            <div className=\"flex justify-between\">
+            <div className="flex justify-between">
               <span>Buffer:</span>
-              <span className=\"text-cyan-400\">{status.bufferSize}</span>
+              <span className="text-cyan-400">{status.bufferSize}</span>
             </div>
           </div>
         )}
         
         {/* Last transcription */}
         {lastTranscription && (
-          <div className=\"space-y-2\">
-            <h4 className=\"text-sm font-medium text-cyan-100\">Latest Transcription</h4>
-            <div className=\"p-2 bg-gray-800/50 rounded text-xs\">
-              <div className=\"text-white\">{lastTranscription.text}</div>
-              <div className=\"mt-1 flex justify-between items-center text-gray-500\">
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-cyan-100">Latest Transcription</h4>
+            <div className="p-2 bg-gray-800/50 rounded text-xs">
+              <div className="text-white">{lastTranscription.text}</div>
+              <div className="mt-1 flex justify-between items-center text-gray-500">
                 <span>Conf: {(lastTranscription.confidence * 100).toFixed(0)}%</span>
                 <span>Score: {lastTranscription.importance_score}</span>
                 {lastTranscription.will_store && (
-                  <Badge variant=\"secondary\" className=\"text-xs py-0\">Stored</Badge>
+                  <Badge variant="secondary" className="text-xs py-0">Stored</Badge>
                 )}
               </div>
             </div>
@@ -312,9 +306,9 @@ export function B3AmbientVoiceHUD({ className }: B3AmbientVoiceHUDProps) {
         {isActive && transcriptionHistory.length > 0 && (
           <Button
             onClick={handleClearMemory}
-            variant=\"ghost\"
-            size=\"sm\"
-            className=\"w-full text-gray-400 hover:text-white\"
+            variant="ghost"
+            size="sm"
+            className="w-full text-gray-400 hover:text-white"
           >
             Clear Memory ({transcriptionHistory.length} items)
           </Button>

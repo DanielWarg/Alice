@@ -1631,4 +1631,3 @@ function HUDInner() {
 function HUDButton({ icon, label, onClick }) { return (<button aria-label={label} onClick={onClick} className="rounded-xl border border-cyan-400/30 bg-cyan-900/30 px-2 sm:px-3 py-2 text-xs backdrop-blur hover:bg-cyan-400/10 flex-shrink-0"><div className="flex items-center gap-1 sm:gap-2 text-cyan-200">{icon}<span className="tracking-widest uppercase hidden sm:inline">{label}</span><span className="tracking-widest uppercase sm:hidden text-[10px]">{label.slice(0,3)}</span></div></button>); }
 
 // Named exports kan störa i vissa sandboxar – kommentera bort vid behov
-export { clampPercent, safeUUID };

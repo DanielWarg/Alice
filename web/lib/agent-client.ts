@@ -289,7 +289,14 @@ export class AgentClient {
   }
 
   private async executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
-    const endpoint = `/api/tools/${toolCall.name}`;
+    // Map OpenAI function names back to API endpoints
+    const toolNameMapping: Record<string, string> = {
+      'timer_set': 'timer.set',
+      'weather_get': 'weather.get'
+    };
+    
+    const actualToolName = toolNameMapping[toolCall.name] || toolCall.name;
+    const endpoint = `/api/tools/${actualToolName}`;
     
     const response = await fetch(endpoint, {
       method: 'POST',

@@ -143,7 +143,7 @@ export default function VoiceBox({
   // Speech Recognition integration (simplified)
   const speechRecognitionRef = useRef<any>(null)
   const [voiceGatewayActive, setVoiceGatewayActive] = useState(false) // Simple boolean state
-  const [sid] = useState(() => trace.start("voicebox")) // egen session för knappen
+  const [sid] = useState(() => Math.random().toString(36)) // egen session för knappen
 
   // DOM & smoothing state
   const barsWrapRef = useRef<HTMLDivElement | null>(null)
@@ -210,7 +210,7 @@ export default function VoiceBox({
       errorMessage,
       errorCode: error?.code,
       constraints: error?.constraint,
-      stack: error?.stack?.substring(0, 500) // Limit stack trace size
+      stack: error?.stack?.substring(0, 500) // Limit stack size
     })
     
     // Determine if this is a recoverable error
@@ -953,7 +953,7 @@ export default function VoiceBox({
   // Simple Voice Control using Browser SpeechRecognition
   const startVoiceRecognition = async () => {
     console.log("🎙️ MIC BUTTON CLICKED - Starting voice recognition");
-    trace.ev(sid, "ui.mic.click", { statusBefore: voiceGatewayActive });
+    // trace.ev(sid, "ui.mic.click", { statusBefore: voiceGatewayActive });
     try {
       console.log("🎙️ Calling start() function...");
       // Start browser speech recognition instead of WebSocket
@@ -962,13 +962,13 @@ export default function VoiceBox({
       setVoiceGatewayActive(true); // Update UI state
     } catch (e: any) {
       console.error("🎙️ ERROR in startVoiceRecognition:", e);
-      trace.error(sid, "ui.mic.error", e);
+      // trace.error(sid, "ui.mic.error", e);
       setError(`Speech recognition fel: ${e.message}`);
     }
   };
 
   const stopVoiceRecognition = async () => {
-    trace.ev(sid, "ui.mic.click", { action: "stop" });
+    // trace.ev(sid, "ui.mic.click", { action: "stop" });
     stop(); // Use existing VoiceBox stop() function  
     setVoiceGatewayActive(false); // Update UI state
   };

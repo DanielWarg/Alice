@@ -30,8 +30,15 @@ async function checkDatabase(): Promise<{ status: 'pass' | 'fail', duration_ms: 
   const start = Date.now();
   
   try {
-    // Test SQLite connection to Alice backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_ALICE_BACKEND_URL || 'http://localhost:8000'}/health`, {
+    // Test Alice backend connection (check if feature-flag enabled)
+    const backendUrl = process.env.NEXT_PUBLIC_ALICE_BACKEND_URL || 'http://localhost:8000';
+    const shouldCheckBackend = FeatureFlag.isDevelopment() || process.env.HEALTH_CHECK_BACKEND === 'true';
+    
+    if (!shouldCheckBackend) {
+      return { status: 'pass', duration_ms: 0, message: 'Backend check disabled' };
+    }
+    
+    const response = await fetch(`${backendUrl}/health`, {
       method: 'GET',
       headers: { 'User-Agent': 'Alice-Web-HealthCheck/1.0' },
       signal: AbortSignal.timeout(2000)
@@ -116,7 +123,7 @@ async function checkMetrics(): Promise<{ status: 'pass' | 'fail', duration_ms: n
   const start = Date.now();
   
   try {
-    const response = await fetch('/api/metrics/voice', {
+    const response = await fetch('http://localhost:3001/api/metrics/voice', {
       method: 'HEAD',
       signal: AbortSignal.timeout(1000)
     });

@@ -1,7 +1,7 @@
 // components/VoiceGatewayClient.tsx
 import React, { useImperativeHandle, forwardRef, useRef, useState } from "react";
 import { buildWsCandidates } from "./lib/ws-utils";
-import { trace } from "./lib/voice-trace"; // 👈 ADD
+// import { trace } from "./lib/voice-trace"; // 👈 DISABLED during voice pipeline rewrite
 
 export type VoiceGatewayStatus = "idle" | "connecting" | "connected" | "streaming" | "error" | "closed";
 
