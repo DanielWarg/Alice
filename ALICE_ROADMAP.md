@@ -12,16 +12,17 @@ B1 Local Fast Lane (**REIMPLEMENTING WITH NEW ARCHITECTURE**)
 ✅ Audio ducking (-18dB when TTS active) and echo cancellation
 
 **🎯 ASR Streaming (faster-whisper)**
-⬜ faster-whisper adapter with streaming configuration
-⬜ Partial transcription ≤200ms, final on silence ≥250ms
-⬜ chunk_ms=200, stabilize_ms=250, beam_size=1, no_speech_threshold=0.6
-⬜ Event emission: `partial(text)`, `final(text)` with timestamps
+✅ faster-whisper adapter with streaming configuration
+✅ Partial transcription system (160ms chunks, 200ms stabilize)
+✅ chunk_ms=160, stabilize_ms=200, beam_size=1, tiny model for speed
+✅ Event emission: `voice.transcript.partial/final` with confidence & timing
 
 **🧠 LLM Streaming (gpt-oss 7B)**
-⬜ gpt-oss 7B Q4_K_M streaming adapter 
-⬜ First token emission ≤300ms target
-⬜ max_new_tokens=40, temperature=0.2, top_p=0.9, stream=true
-⬜ System prompt: "Spoken style, ≤2 sentences, concise"
+✅ gpt-oss 7B Q4_K_M streaming adapter 
+✅ First token emission ≤300ms target (TTFT optimized)
+✅ max_new_tokens=60, temperature=0.3, top_p=0.9, stream=true
+✅ System prompt: "Spoken style, ≤2 sentences, concise"
+✅ Complete ASR → LLM integration with session management
 
 **🔊 TTS Streaming (Piper)**
 ⬜ Pre-warmed Piper model (synthesize 100ms silence on boot)
@@ -61,6 +62,16 @@ B1 Local Fast Lane (**REIMPLEMENTING WITH NEW ARCHITECTURE**)
 
 B2 Tool Lane & Memory
 
+**🎯 Orchestrator Integration (Before Tool Expansion)**
+⬜ State machine per session with turn management
+⬜ Event bus for inter-component routing (STT/LLM/TTS/Tools)
+⬜ Router with cloud auto-degrade (TTFA >600ms → lock 5min)
+⬜ Privacy gate: Safe Summary enforcement before TTS/cloud
+⬜ Planner: Intent detection → tool selection with JSON schema
+⬜ Performance metrics: P50/P95 SLO telemetry collection
+⬜ Barge-in propagation: Cancel LLM/TTS/tools <120ms
+⬜ Self-tests: latency/barge-in/privacy/offline validation
+
 ✅ Local tools (Gmail, Calendar, Files, Home) stubs
 
 ✅ Privacy filter → Safe Summary (no PII)
@@ -69,7 +80,7 @@ B2 Tool Lane & Memory
 
 ⬜ Retention controls (Forget Now/Today/All)
 
-⬜ UI badges (“Cloud used”, “All local”, “What was spoken?”)
+⬜ UI badges ("Cloud used", "All local", "What was spoken?")
 
 B3 Self-Tests & Packaging
 
