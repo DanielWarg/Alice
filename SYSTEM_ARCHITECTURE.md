@@ -1,5 +1,5 @@
-# Alice System Architecture - Live Status
-*Uppdaterad: 2025-08-28 12:20*
+# Alice System Architecture - Live Status  
+*Uppdaterad: 2025-08-28 15:45 - Guardian 2.0 Complete*
 
 ## CURRENT SYSTEM STATE
 
@@ -34,14 +34,16 @@
                     │ LLM Requests + Safety Monitoring
                     ▼
 ┌─────────────────────────────────────────┐
-│           🛡️ GUARDIAN SYSTEM            │
-│         (Daemon + Monitoring)           │
+│        🛡️ GUARDIAN 2.0 SYSTEM          │
+│    (AI Safety + Auto-Tuning)           │
 ├─────────────────────────────────────────┤
 │ ✅ Guardian Daemon      Port: 8787     │
-│ ✅ System Monitor       Status: ACTIVE │
-│ ✅ Killswitch Logic     Status: TESTED │
-│ ✅ Model Wrapper        Status: SAFE   │
-│ ✅ Ollama Proxy         Status: READY  │
+│ ✅ Graceful Killswitch  Status: ARMED  │
+│ ✅ Hysteresis Logic     Status: ACTIVE │
+│ ✅ Brownout Manager     Status: READY  │
+│ ✅ Auto-Tuning Engine   Status: LIVE   │
+│ ✅ NDJSON Logger        Status: LOGGING│
+│ ✅ Metrics APIs         Status: LIVE   │
 │ ✅ Circuit Breaker      Status: ARMED  │
 └─────────────────────────────────────────┘
                     │
@@ -98,29 +100,60 @@ server/
 └── requirements.txt  ✅ Dependencies installed
 ```
 
-### Guardian System - Status: 🛡️ PRODUCTION READY
+### Guardian 2.0 System - Status: 🛡️ ENTERPRISE READY
 ```
 guardian/
-├── Layer 1: DAEMON (guardian.py)
-│   ├── ✅ RAM/CPU monitoring (1s intervals)
-│   ├── ✅ Deterministic thresholds (85% → 92%)  
-│   ├── ✅ Emergency killswitch (pkill -9 -f ollama)
-│   ├── ✅ HTTP health server (:8787)
-│   └── ✅ Auto-recovery logic
-├── Layer 2: WRAPPER (model_wrapper.py)
-│   ├── ✅ Request timeout (45s hard limit)
-│   ├── ✅ Circuit breaker (5 failures → open)
-│   ├── ✅ Queue management (concurrency: 2 → 1)
-│   └── ✅ Graceful degradation
-├── Layer 3: PROXY (ollama_proxy.py)
-│   ├── ✅ Process isolation (nice level, memory limits)
-│   ├── ✅ Health monitoring + restart
-│   └── ✅ macOS-optimized resource limits
-└── Integration: API Hooks
-    ├── ✅ /api/guard/degrade - reduce concurrency
-    ├── ✅ /api/guard/stop-intake - block requests
-    ├── ✅ /api/guard/status - system status
-    └── ✅ Chat API protection (503 when blocked)
+├── Layer 1: INTELLIGENT DAEMON (guardian.py)
+│   ├── ✅ Hysteresis logic (5-point window + 60s recovery)
+│   ├── ✅ State machine (NORMAL→BROWNOUT→DEGRADED→EMERGENCY)
+│   ├── ✅ Kill cooldown (max 1/5min, 3/30min → lockdown)
+│   ├── ✅ Anti-oscillation flap detection
+│   ├── ✅ NDJSON structured logging
+│   └── ✅ HTTP health + metrics server (:8787)
+├── Layer 2: GRACEFUL KILLSWITCH (kill_sequence.py)
+│   ├── ✅ SIGTERM → SIGKILL escalation (PID-targeted)
+│   ├── ✅ Session management (ollama ps + individual stop)
+│   ├── ✅ Health gating (LLM validation before restart)
+│   ├── ✅ Exponential backoff restart (5s→15s→60s)
+│   └── ✅ Process safety (no collateral damage)
+├── Layer 3: BROWNOUT MANAGER (brownout_manager.py)
+│   ├── ✅ Progressive degradation (LIGHT→MODERATE→HEAVY)
+│   ├── ✅ Model switching (gpt-oss:20b → 7b)
+│   ├── ✅ Context reduction (8 → 3 window)
+│   ├── ✅ RAG optimization (8 → 3 top_k)
+│   └── ✅ Tool suspension (heavy toolchain disabling)
+├── Layer 4: AUTO-TUNING ENGINE (guardian.py + logger.py)
+│   ├── ✅ P95 latency monitoring (2000ms target)
+│   ├── ✅ Gradual concurrency adjustment (±1 per 60s)
+│   ├── ✅ RAM vs performance correlation analysis
+│   └── ✅ Predictive capacity planning
+├── Layer 5: METRICS & OBSERVABILITY
+│   ├── ✅ NDJSON logger with rotation (logs/guardian/*.ndjson)
+│   ├── ✅ Correlation analyzer for auto-tuning
+│   ├── ✅ Structured event tracking (state_transition, actions)
+│   └── ✅ Full audit trail for RCA analysis
+└── API Integration: Enhanced Control Surface
+    ├── ✅ Guardian Metrics (/api/metrics/guardian/*)
+    │   ├── /summary - Dashboard overview
+    │   ├── /correlation - Performance analysis  
+    │   ├── /alerts - Active warnings
+    │   ├── /history - Time-series data
+    │   └── /analyze - On-demand correlation
+    ├── ✅ Brain Control (/api/brain/*)
+    │   ├── /model/switch - Dynamic model switching
+    │   ├── /context/set - Context window tuning
+    │   ├── /rag/set - RAG parameter adjustment
+    │   └── /tools/disable - Tool management
+    ├── ✅ Guard Control (/api/guard/*)
+    │   ├── /degrade - Reduce concurrency
+    │   ├── /stop-intake - Block new requests
+    │   ├── /set-concurrency - Auto-tuning integration
+    │   └── /override-lockdown - Manual recovery
+    └── ✅ React Hooks (guardian-metrics-hooks.ts)
+        ├── useGuardianSummary() - Dashboard data
+        ├── useGuardianCorrelation() - Performance analysis
+        ├── useGuardianAlerts() - Alert monitoring
+        └── useGuardianHistory() - Time-series graphs
 ```
 
 ## ACTUAL DATA FLOWS (Current Implementation)
@@ -202,10 +235,15 @@ Display in UI ✅
 4. **✅ COMPLETED**: Verify LLMStatusBadge with real backend
 5. **✅ COMPLETED**: Integrate real LLM (Ollama + gpt-oss + Guardian)
 6. **✅ COMPLETED**: Guardian safety system (killswitch tested)
-7. **🔥 NEXT**: Add intelligent monitoring & auto-tuning
-8. **⚡ HIGH**: Guardian metrics & correlation analysis  
-9. **📋 MEDIUM**: Connect agent system to chat API
-10. **📋 MEDIUM**: Add database integration
+7. **✅ COMPLETED**: Guardian 2.0 - Intelligent monitoring & auto-tuning
+8. **✅ COMPLETED**: Guardian metrics & correlation analysis
+9. **✅ COMPLETED**: NDJSON logging & observability
+10. **✅ COMPLETED**: Graceful killswitch & hysteresis logic
+11. **✅ COMPLETED**: Brownout management & auto-tuning
+12. **🔥 NEXT**: Connect agent system to chat API (real AI responses)
+13. **📋 HIGH**: Add database integration for persistence
+14. **📋 MEDIUM**: Voice pipeline integration
+15. **📋 LOW**: Additional tool integrations
 
 ## TESTING CHECKLIST
 
@@ -225,6 +263,11 @@ Display in UI ✅
 - [x] Chat API accepts messages (POST /api/chat) 
 - [x] Guardian system integration (full test suite passed)
 - [x] Real LLM integration (Ollama + gpt-oss via Guardian)
+- [x] Guardian 2.0 - Graceful killswitch verified
+- [x] Guardian metrics APIs functional
+- [x] NDJSON logging operational
+- [x] Brownout management tested
+- [x] Auto-tuning correlation analysis working
 - [ ] Database connections work (not yet integrated)
 
 ### Integration Tests ✅
@@ -255,4 +298,12 @@ Display in UI ✅
 - **Limited API surface** - Only basic endpoints implemented
 
 ---
-**REALITY CHECK**: Frontend ↔ Backend connectivity **ESTABLISHED**! Clean modular architecture with working HTTP communication. Next priority: Integrate real LLM (Ollama + gpt-oss) for actual AI responses.
+**REALITY CHECK**: **GUARDIAN 2.0 ENTERPRISE-GRADE AI SAFETY COMPLETE**! 
+
+✅ Frontend ↔ Backend connectivity established  
+✅ Guardian 2.0 with graceful killswitch, hysteresis, brownout management  
+✅ Intelligent auto-tuning with correlation analysis  
+✅ Full NDJSON logging & metrics APIs  
+✅ Production-ready safety system protecting against gpt-oss:20b overload
+
+**Next priority**: Connect agent system to chat API for real AI responses with Guardian protection.
