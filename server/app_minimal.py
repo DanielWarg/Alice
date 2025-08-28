@@ -1,10 +1,14 @@
 """
-Alice Backend Server - Real LLM Integration
+Alice Backend Server - Production Ready mit Guardian 2.0
+========================================================
 - FastAPI server with Ollama + OpenAI fallback
-- Real LLM status endpoint with health checks
-- Text chat endpoint with agent system integration
+- Guardian 2.0 admission control middleware 
+- Structured JSON logging with correlation
+- Request timeout protection
+- Brownout management with model switching
+- Real LLM integration with circuit breaker
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -15,6 +19,12 @@ import asyncio
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
+# Import Guardian 2.0 components
+from mw_guardian_gate import GuardianGate
+from mw_timeout import TimeoutMiddleware, PathTimeoutMiddleware
+from log_json import configure_json_logger, jlog, rlog, set_request_context, track_e2e_latency
+from brain_model import router as brain_router, get_current_brain_config
+
 # Import LLM system
 from llm.ollama import OllamaAdapter
 from llm.openai import OpenAIAdapter
@@ -24,9 +34,16 @@ from model_warmer import start_model_warmer, stop_model_warmer
 # Load environment
 load_dotenv()
 
-# Configure logging
+# Configure structured logging
+log_file = os.getenv("ALICE_LOG_FILE", "logs/alice.jsonl")
+configure_json_logger(log_file)
+
+# Configure traditional logging (för fallback)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Log startup
+jlog("alice.startup", version="2.0", log_file=log_file)
 
 # Initialize LLM system
 try:
@@ -52,12 +69,14 @@ except Exception as e:
 
 # Create FastAPI app
 app = FastAPI(
-    title="Alice Backend - Minimal",
-    description="Core Alice backend server without voice dependencies",
-    version="1.0.0"
+    title="Alice Backend - Production",
+    description="Alice backend with Guardian 2.0 protection",
+    version="2.0.0"
 )
 
-# Configure CORS
+# ===== MIDDLEWARE REGISTRATION (ORDER MATTERS) =====
+
+# 1. CORS (må være først för preflight)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -66,20 +85,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 2. Guardian Gate - admission control (kollar Guardian status)
+app.add_middleware(
+    GuardianGate,
+    guardian_url="http://localhost:8787/health",
+    cache_ttl_ms=250,
+    timeout_s=0.25
+)
+
+# 3. Path-specific timeout middleware
+timeout_config = {
+    '/api/chat': 30.0,      # LLM generation needs time
+    '/api/brain': 15.0,     # Model switching operations
+    '/api/agent': 25.0,     # Agent toolchain operations
+    '/api/upload': 45.0,    # File uploads
+    'default': 10.0         # Standard API requests
+}
+app.add_middleware(PathTimeoutMiddleware, timeout_config=timeout_config)
+
+# Include brain model router
+app.include_router(brain_router)
+
 # Startup/Shutdown events
 @app.on_event("startup")
 async def startup_event():
     """Start background services"""
-    logger.info("🚀 Starting Alice Backend")
+    jlog("alice.backend.startup", version="2.0", guardian_enabled=True)
+    logger.info("🚀 Starting Alice Backend with Guardian 2.0")
+    
     if model_manager:
         start_model_warmer()
+        jlog("alice.model_warmer.start", status="success")
         logger.info("🔥 Model warmer started")
+    
+    # Validate Guardian connection
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            response = await client.get("http://localhost:8787/health")
+            if response.status_code == 200:
+                jlog("alice.guardian.connection", status="ok", level="INFO")
+                logger.info("🛡️ Guardian connection validated")
+            else:
+                jlog("alice.guardian.connection", status="error", 
+                     status_code=response.status_code, level="WARN")
+                logger.warning(f"⚠️ Guardian returned {response.status_code}")
+    except Exception as e:
+        jlog("alice.guardian.connection", status="failed", error=str(e), level="ERROR")
+        logger.error(f"❌ Guardian connection failed: {e}")
 
 @app.on_event("shutdown") 
 async def shutdown_event():
     """Stop background services"""
+    jlog("alice.backend.shutdown", graceful=True)
     logger.info("🛑 Shutting down Alice Backend")
     stop_model_warmer()
+    jlog("alice.model_warmer.stop", status="success")
     logger.info("❄️ Model warmer stopped")
 
 @app.get("/")
@@ -165,21 +226,44 @@ async def llm_status():
         }
 
 @app.post("/api/chat")
-async def chat_endpoint(request: ChatRequest):
-    """Real chat endpoint with Alice AI"""
+async def chat_endpoint(request: ChatRequest, http_request: Request):
+    """Production chat endpoint with Guardian protection and structured logging"""
+    
+    # Setup request correlation
+    request_id = getattr(http_request.state, 'request_id', 'unknown')
+    set_request_context(request_id, user_id=None, lane="chat")
+    start_time = datetime.now()
+    
+    # Log request
+    rlog("chat.request_start", 
+         message_len=len(request.message),
+         level="INFO")
+    
     if not model_manager:
+        rlog("chat.request_failed", reason="llm_not_initialized", level="ERROR")
         raise HTTPException(status_code=503, detail="LLM system not initialized")
     
-    # Check if intake is blocked
+    # Check if intake is blocked (redundant with middleware but good for logging)
     if server_state.intake_blocked:
+        rlog("chat.request_blocked", reason="intake_blocked", level="WARN")
         raise HTTPException(status_code=429, detail="System overloaded - requests temporarily blocked")
     
     try:
+        # Get current brain config for brownout support
+        brain_config = get_current_brain_config()
+        
+        # Build system message based on current mode
+        if brain_config["mode"] == "brownout":
+            system_content = "Du är Alice. Svara MYCKET kort och koncist på svenska (max 50 ord)."
+            rlog("chat.brownout_mode", context_window=brain_config["context_window"])
+        else:
+            system_content = "Du är Alice, en hjälpsam svensk AI-assistent. Svara kort och vänligt på svenska."
+        
         # Convert to OpenAI message format
         messages = [
             {
                 "role": "system",
-                "content": "Du är Alice, en hjälpsam svensk AI-assistent. Svara kort och vänligt på svenska."
+                "content": system_content
             },
             {
                 "role": "user", 
@@ -187,8 +271,26 @@ async def chat_endpoint(request: ChatRequest):
             }
         ]
         
+        # Log LLM request start
+        rlog("chat.llm_request_start", 
+             model=brain_config["model"],
+             mode=brain_config["mode"])
+        
         # Send to LLM via model manager (with automatic failover)
         response = await model_manager.ask(messages)
+        
+        # Calculate end-to-end latency
+        e2e_latency = (datetime.now() - start_time).total_seconds() * 1000
+        
+        # Track KPIs
+        track_e2e_latency(int(e2e_latency), request_id)
+        
+        # Log successful response
+        rlog("chat.request_success",
+             response_len=len(response.text),
+             model_used=response.provider,
+             tftt_ms=response.tftt_ms,
+             e2e_ms=int(e2e_latency))
         
         return ChatResponse(
             response=response.text,
@@ -198,7 +300,21 @@ async def chat_endpoint(request: ChatRequest):
         )
         
     except Exception as e:
-        logger.error(f"Chat request failed: {e}")
+        # Calculate error latency
+        error_latency = (datetime.now() - start_time).total_seconds() * 1000
+        
+        # Log error with full context
+        rlog("chat.request_error", 
+             error=str(e),
+             error_type=type(e).__name__,
+             e2e_ms=int(error_latency),
+             level="ERROR")
+        
+        # Track fallback if this was a brownout-related error
+        if "timeout" in str(e).lower() or "overload" in str(e).lower():
+            from log_json import track_fallback
+            track_fallback("llm_timeout", str(e), request_id)
+        
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
 
 # === GUARDIAN INTEGRATION ENDPOINTS ===

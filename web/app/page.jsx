@@ -13,6 +13,7 @@ import VoiceStreamClient from '../components/VoiceStreamClient';
 import VoiceGatewayClient from '../components/VoiceGatewayClient';
 import DocumentUpload from '../components/DocumentUpload';
 import LLMStatusBadge from '../components/LLMStatusBadge';
+import GuardianStatusBadge from '../components/GuardianStatusBadge';
 
 const SAFE_BOOT = true; // <-- slå PÅ för att garantera uppstart i sandbox. Kan sättas till false när allt funkar.
 const UI_ONLY = false; // Backend integration enabled - full functionality
@@ -988,6 +989,7 @@ function HUDInner() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 opacity-80"><IconWifi className="h-4 w-4" /><IconBattery className="h-4 w-4" /><IconBell className="h-4 w-4" /></div>
           <div className="flex items-center gap-2">
+            <GuardianStatusBadge />
             <LLMStatusBadge className="mr-2" />
             <div className="flex items-center gap-2 text-cyan-300/80">
               <IconClock className="h-4 w-4" />
