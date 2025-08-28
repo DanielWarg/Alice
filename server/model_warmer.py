@@ -13,7 +13,7 @@ logger = logging.getLogger("alice.model_warmer")
 class ModelWarmer:
     """Background service to keep LLM models warm"""
     
-    def __init__(self, model: str = "llama3:8b", interval_minutes: int = 8):
+    def __init__(self, model: str = "gpt-oss:20b", interval_minutes: int = 8):
         self.model = model
         self.interval_seconds = interval_minutes * 60
         self.base_url = os.getenv("LLM_BASE_URL", "http://localhost:11434")
@@ -54,6 +54,29 @@ class ModelWarmer:
             logger.error(f"Heartbeat error: {e}")
             return False
     
+    async def verify_model_exists(self) -> bool:
+        """Verify that the model exists in Ollama"""
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"{self.base_url}/api/tags")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    available_models = [m.get("name") for m in data.get("models", [])]
+                    exists = self.model in available_models
+                    
+                    if not exists:
+                        logger.warning(f"Model {self.model} not found in available models: {available_models}")
+                    
+                    return exists
+                else:
+                    logger.warning(f"Could not check available models: {response.status_code}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Model verification error: {e}")
+            return False
+
     async def check_model_status(self) -> bool:
         """Check if model is currently loaded"""
         try:
@@ -85,6 +108,11 @@ class ModelWarmer:
     async def warm_loop(self):
         """Main warming loop"""
         logger.info(f"Starting model warming loop for {self.model}")
+        
+        # Verify model exists before starting loop
+        if not await self.verify_model_exists():
+            logger.error(f"Model {self.model} does not exist, stopping warmer")
+            return
         
         while self.running:
             try:

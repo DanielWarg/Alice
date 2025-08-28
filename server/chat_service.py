@@ -21,7 +21,7 @@ class ChatService:
     """Service för chat hantering med optimized database persistence"""
     
     def __init__(self):
-        self.db = None
+        self._db = None
         # Thread pool för async database operations
         self.db_executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="db-")
         # Write batching för high-volume logging
@@ -41,6 +41,18 @@ class ChatService:
             raise
         finally:
             db.close()
+    
+    def _get_db(self):
+        """Get database session (legacy method for compatibility)"""
+        if self._db is None:
+            self._db = SessionLocal()
+        return self._db
+    
+    def _close_db(self):
+        """Close database session (legacy method for compatibility)"""
+        if self._db is not None:
+            self._db.close()
+            self._db = None
     
     async def _async_db_operation(self, operation, *args, **kwargs):
         """Run database operation in thread pool för non-blocking I/O"""

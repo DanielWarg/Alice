@@ -22,7 +22,7 @@ class OllamaAdapter(LLM):
         self.base_url = base_url or os.getenv("LLM_BASE_URL", "http://localhost:11434")
         self.model = model or os.getenv("LLM_MODEL", "gpt-oss:20b")
         self.name = f"ollama:{self.model}"
-        self.health_timeout = float(os.getenv("LLM_HEALTH_TIMEOUT_MS", "1500")) / 1000
+        self.health_timeout = float(os.getenv("LLM_HEALTH_TIMEOUT_MS", "3000")) / 1000  # Increased for gpt-oss:20b
         self.max_ttft = float(os.getenv("LLM_MAX_TTFT_MS", "1200")) / 1000
         
         # Concurrency control - limit concurrent requests to prevent overload
@@ -98,50 +98,51 @@ class OllamaAdapter(LLM):
         async with self._request_semaphore:
             try:
                 start_time = time.time()
-            
-            # Convert messages to Ollama prompt format
-            prompt = self._messages_to_prompt(messages)
-            
-            payload = {
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-                "keep_alive": os.getenv("LLM_KEEP_ALIVE", "15m"),  # Increased från 10m for better performance
-                "options": {
-                    "temperature": float(os.getenv("LOCAL_AI_TEMPERATURE", "0.3")),
-                    "num_predict": int(os.getenv("LOCAL_AI_MAX_TOKENS", "2048")),
-                    "num_ctx": self.context_window  # Reduced context window för memory optimization
+                
+                # Convert messages to Ollama prompt format
+                prompt = self._messages_to_prompt(messages)
+                
+                payload = {
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "keep_alive": os.getenv("LLM_KEEP_ALIVE", "15m"),  # Increased från 10m for better performance
+                    "options": {
+                        "temperature": float(os.getenv("LOCAL_AI_TEMPERATURE", "0.3")),
+                        "num_predict": int(os.getenv("LOCAL_AI_MAX_TOKENS", "2048")),
+                        "num_ctx": self.context_window  # Reduced context window för memory optimization
+                    }
                 }
-            }
-            
-            # Exponential backoff retry for 500 errors
-            max_retries = 3
-            base_delay = 1.0
-            
-            for attempt in range(max_retries + 1):
-                try:
-                    async with httpx.AsyncClient(timeout=30.0) as client:
-                        response = await client.post(f"{self.base_url}/api/generate", json=payload)
-                        
-                        # If 500 error and retries left, wait and retry
-                        if response.status_code >= 500 and attempt < max_retries:
-                            delay = base_delay * (2 ** attempt)  # Exponential backoff
-                            logger.warning(f"Ollama 500 error, retry {attempt + 1}/{max_retries} after {delay}s")
+                
+                # Exponential backoff retry for 500 errors
+                max_retries = 3
+                base_delay = 1.0
+                
+                for attempt in range(max_retries + 1):
+                    try:
+                        async with httpx.AsyncClient(timeout=30.0) as client:
+                            response = await client.post(f"{self.base_url}/api/generate", json=payload)
+                            
+                            # If 500 error and retries left, wait and retry
+                            if response.status_code >= 500 and attempt < max_retries:
+                                delay = base_delay * (2 ** attempt)  # Exponential backoff
+                                logger.warning(f"Ollama 500 error, retry {attempt + 1}/{max_retries} after {delay}s")
+                                await asyncio.sleep(delay)
+                                continue
+                            
+                            response.raise_for_status()
+                            result = response.json()
+                            break  # Success, exit retry loop
+                            
+                    except httpx.RequestError as e:
+                        if attempt < max_retries:
+                            delay = base_delay * (2 ** attempt)
+                            logger.warning(f"Ollama connection error, retry {attempt + 1}/{max_retries} after {delay}s: {e}")
                             await asyncio.sleep(delay)
                             continue
-                        
-                        response.raise_for_status()
-                        result = response.json()
-                        break  # Success, exit retry loop
-                        
-                except httpx.RequestError as e:
-                    if attempt < max_retries:
-                        delay = base_delay * (2 ** attempt)
-                        logger.warning(f"Ollama connection error, retry {attempt + 1}/{max_retries} after {delay}s: {e}")
-                        await asyncio.sleep(delay)
-                        continue
-                    else:
-                        raise  # Last attempt failed
+                        else:
+                            raise  # Last attempt failed
+                            
                 text = result.get("response", "")
                 
                 # Extract tool calls if present

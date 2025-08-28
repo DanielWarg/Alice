@@ -31,9 +31,6 @@ if DATABASE_URL.startswith("sqlite"):
         poolclass=StaticPool,
         pool_pre_ping=True,  # Test connections before use
         pool_recycle=1800,   # Recycle connections after 30min (var 1h)
-        pool_size=int(os.getenv("SQLITE_POOL_SIZE", "5")),  # Connection pool size
-        max_overflow=int(os.getenv("SQLITE_MAX_OVERFLOW", "10")),  # Extra connections
-        pool_timeout=int(os.getenv("SQLITE_POOL_TIMEOUT", "30")),  # Wait timeout
         echo=os.getenv("SQL_DEBUG", "0") == "1"
     )
     
