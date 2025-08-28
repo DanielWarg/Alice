@@ -11,7 +11,6 @@ import VoiceClient from './components/VoiceClient';
 import VoiceRealtimeClient from '../components/VoiceRealtimeClient';
 import VoiceStreamClient from '../components/VoiceStreamClient';
 import VoiceGatewayClient from '../components/VoiceGatewayClient';
-import CalendarWidget from '../components/CalendarWidget';
 import DocumentUpload from '../components/DocumentUpload';
 import LLMStatusBadge from '../components/LLMStatusBadge';
 
@@ -160,7 +159,7 @@ Pane.displayName = "Pane";
 // Hooks (simulerad data)
 function useSystemMetrics() { const [cpu, setCpu] = useState(37); const [mem, setMem] = useState(52); const [net, setNet] = useState(8); useEffect(() => { const id = setInterval(() => { setCpu((v) => clampPercent(v + (Math.random() * 10 - 5))); setMem((v) => clampPercent(v + (Math.random() * 6 - 3))); setNet((v) => clampPercent(v + (Math.random() * 14 - 7))); }, 1100); return () => clearInterval(id); }, []); return { cpu, mem, net }; }
 function useTodos() { const [todos, setTodos] = useState([{ id: safeUUID(), text: "Setup weather API key", done: false }, { id: safeUUID(), text: "Connect voice input", done: false }]); const add = (text) => setTodos((ts) => [{ id: safeUUID(), text, done: false }, ...ts]); const toggle = (id) => setTodos((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t))); const remove = (id) => setTodos((ts) => ts.filter((t) => t.id !== id)); return { todos, add, toggle, remove }; }
-function useWeatherStub() { const [w, setW] = useState({ temp: 21, desc: "Partly cloudy" }); useEffect(() => { const id = setInterval(() => { setW({ temp: Math.round(18 + Math.random() * 10), desc: ["Sunny", "Cloudy", "Partly cloudy", "Light rain"][Math.floor(Math.random() * 4)] }); }, 5000); return () => clearInterval(id); }, []); return w; }
+function useWeatherStub() { const [w, setW] = useState({ temp: 19.4, desc: "Delvis molnigt" }); useEffect(() => { const fetchWeather = async () => { try { const response = await fetch('/api/tools/weather.get', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'Göteborg, SE' }) }); if (response.ok) { const data = await response.json(); if (data.ok && data.now) { const conditionText = { 'clear': 'Klart', 'partly_cloudy': 'Delvis molnigt', 'foggy': 'Dimmigt', 'drizzle': 'Duggregn', 'rain': 'Regn', 'snow': 'Snö', 'rain_showers': 'Regnskurar', 'snow_showers': 'Snöskurar', 'thunderstorm': 'Åska' }[data.now.condition] || data.now.condition; setW({ temp: data.now.temp, desc: conditionText }); } } } catch (error) { console.error('Weather fetch error:', error); } }; fetchWeather(); const id = setInterval(fetchWeather, 600000); return () => clearInterval(id); }, []); return w; }
 function useVoiceInput() {
   const [transcript, setTranscript] = useState(""); const [isListening, setIsListening] = useState(false); const recRef = useRef(null);
   useEffect(() => { if (SAFE_BOOT) return; const SR = typeof window !== 'undefined' && (window.webkitSpeechRecognition || window.SpeechRecognition); if (!SR) return; const rec = new SR(); rec.lang = "sv-SE"; rec.continuous = false; rec.interimResults = true; rec.onresult = (e) => { const text = Array.from(e.results).map((r) => r[0].transcript).join(" "); setTranscript(text); }; rec.onend = () => setIsListening(false); recRef.current = rec; }, []);
@@ -413,12 +412,9 @@ function CalendarView() {
   };
 
   return (
-    <CalendarWidget 
-      compact={false}
-      showCreateButton={true}
-      onEventCreate={handleEventCreate}
-      onEventClick={handleEventClick}
-    />
+    <div className="text-cyan-300/70 text-sm">
+      Kalender kommer senare
+    </div>
   );
 }
 function MailView() { const mails = [{ id: safeUUID(), from: "Team", subject: "Välkommen till HUD", time: "09:12" }, { id: safeUUID(), from: "Finans", subject: "Veckorapport klar", time: "08:27" }, { id: safeUUID(), from: "Kalender", subject: "Möte 14:00", time: "07:50" }]; return (<div><div className="mb-3 flex items-center gap-2 text-cyan-200"><IconMail className="h-4 w-4" /><h3 className="text-sm uppercase tracking-widest">Mail</h3></div><ul className="divide-y divide-cyan-400/10">{mails.map(m => (<li key={m.id} className="py-2"><div className="text-cyan-100 text-sm">{m.subject}</div><div className="text-cyan-300/70 text-xs">{m.from} • {m.time}</div></li>))}</ul></div>); }
@@ -1546,19 +1542,9 @@ function HUDInner() {
           </Pane>
 
           <Pane title="Snabb Kalender">
-            <CalendarWidget 
-              compact={true}
-              showCreateButton={true}
-              onEventCreate={(event) => {
-                // Quick calendar event handling
-                // Open full calendar for detailed creation
-                dispatch({ type: "SHOW_MODULE", module: "calendar" });
-              }}
-              onEventClick={(event) => {
-                // Calendar event clicked
-                dispatch({ type: "SHOW_MODULE", module: "calendar" });
-              }}
-            />
+            <div className="text-cyan-300/70 text-xs">
+              Kalender kommer senare
+            </div>
           </Pane>
 
           <Pane title="Ladda upp dokument">
@@ -1631,4 +1617,3 @@ function HUDInner() {
 function HUDButton({ icon, label, onClick }) { return (<button aria-label={label} onClick={onClick} className="rounded-xl border border-cyan-400/30 bg-cyan-900/30 px-2 sm:px-3 py-2 text-xs backdrop-blur hover:bg-cyan-400/10 flex-shrink-0"><div className="flex items-center gap-1 sm:gap-2 text-cyan-200">{icon}<span className="tracking-widest uppercase hidden sm:inline">{label}</span><span className="tracking-widest uppercase sm:hidden text-[10px]">{label.slice(0,3)}</span></div></button>); }
 
 // Named exports kan störa i vissa sandboxar – kommentera bort vid behov
-export { clampPercent, safeUUID };
