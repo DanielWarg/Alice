@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 import os
 import asyncio
 from datetime import datetime
+from typing import List, Optional, Dict, Any
 
 # Import LLM system
 from llm.ollama import OllamaAdapter
@@ -105,6 +106,40 @@ class ChatResponse(BaseModel):
     model: str
     tftt_ms: float = None
 
+# Guardian/Brownout related models
+class ModelSwitchRequest(BaseModel):
+    model: str
+    reason: Optional[str] = None
+
+class ConcurrencyRequest(BaseModel):
+    concurrency: int
+
+class ContextRequest(BaseModel):
+    context_window: int
+
+class RAGRequest(BaseModel):
+    top_k: int
+
+class ToolsDisableRequest(BaseModel):
+    tools: List[str]
+    reason: Optional[str] = None
+
+class ToolsEnableRequest(BaseModel):
+    reason: Optional[str] = None
+
+# Global state for Guardian integration
+class ServerState:
+    def __init__(self):
+        self.current_model = os.getenv("LLM_MODEL", "gpt-oss:20b")
+        self.current_concurrency = 5
+        self.context_window = 8
+        self.rag_top_k = 8
+        self.disabled_tools = set()
+        self.intake_blocked = False
+        self.degraded = False
+
+server_state = ServerState()
+
 @app.get("/api/v1/llm/status")
 async def llm_status():
     """Real LLM status with health checks"""
@@ -135,6 +170,10 @@ async def chat_endpoint(request: ChatRequest):
     if not model_manager:
         raise HTTPException(status_code=503, detail="LLM system not initialized")
     
+    # Check if intake is blocked
+    if server_state.intake_blocked:
+        raise HTTPException(status_code=429, detail="System overloaded - requests temporarily blocked")
+    
     try:
         # Convert to OpenAI message format
         messages = [
@@ -161,6 +200,182 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         logger.error(f"Chat request failed: {e}")
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+
+# === GUARDIAN INTEGRATION ENDPOINTS ===
+
+@app.post("/api/brain/model/switch")
+async def switch_model(request: ModelSwitchRequest):
+    """Switch LLM model for brownout degradation"""
+    try:
+        # Validate model
+        if request.model not in ["gpt-oss:20b", "gpt-oss:7b"]:
+            raise HTTPException(status_code=400, detail=f"Unsupported model: {request.model}")
+        
+        old_model = server_state.current_model
+        server_state.current_model = request.model
+        
+        # Update the LLM adapter if possible
+        if model_manager and hasattr(model_manager.primary, 'model'):
+            model_manager.primary.model = request.model
+            logger.info(f"Model switched: {old_model} -> {request.model} (reason: {request.reason})")
+        
+        return {
+            "status": "success",
+            "previous_model": old_model,
+            "current_model": request.model,
+            "reason": request.reason,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Model switch failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/guard/set-concurrency")
+async def set_concurrency(request: ConcurrencyRequest):
+    """Set system concurrency for auto-tuning"""
+    try:
+        if request.concurrency < 1 or request.concurrency > 20:
+            raise HTTPException(status_code=400, detail="Concurrency must be between 1 and 20")
+        
+        old_concurrency = server_state.current_concurrency
+        server_state.current_concurrency = request.concurrency
+        
+        logger.info(f"Concurrency updated: {old_concurrency} -> {request.concurrency}")
+        
+        return {
+            "status": "success",
+            "previous_concurrency": old_concurrency,
+            "current_concurrency": request.concurrency,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Concurrency update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/brain/context/set")
+async def set_context_window(request: ContextRequest):
+    """Set context window for brownout degradation"""
+    try:
+        if request.context_window < 1 or request.context_window > 32:
+            raise HTTPException(status_code=400, detail="Context window must be between 1 and 32")
+        
+        old_context = server_state.context_window
+        server_state.context_window = request.context_window
+        
+        logger.info(f"Context window updated: {old_context} -> {request.context_window}")
+        
+        return {
+            "status": "success",
+            "previous_context_window": old_context,
+            "current_context_window": request.context_window,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Context window update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/brain/rag/set")
+async def set_rag_settings(request: RAGRequest):
+    """Set RAG top_k for brownout degradation"""
+    try:
+        if request.top_k < 1 or request.top_k > 20:
+            raise HTTPException(status_code=400, detail="RAG top_k must be between 1 and 20")
+        
+        old_top_k = server_state.rag_top_k
+        server_state.rag_top_k = request.top_k
+        
+        logger.info(f"RAG top_k updated: {old_top_k} -> {request.top_k}")
+        
+        return {
+            "status": "success",
+            "previous_top_k": old_top_k,
+            "current_top_k": request.top_k,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"RAG settings update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/brain/tools/disable")
+async def disable_tools(request: ToolsDisableRequest):
+    """Disable heavy toolchains for brownout degradation"""
+    try:
+        for tool in request.tools:
+            server_state.disabled_tools.add(tool)
+        
+        logger.info(f"Tools disabled: {', '.join(request.tools)} (reason: {request.reason})")
+        
+        return {
+            "status": "success",
+            "disabled_tools": list(request.tools),
+            "all_disabled_tools": list(server_state.disabled_tools),
+            "reason": request.reason,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Tool disabling failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/brain/tools/enable-all")
+async def enable_all_tools(request: ToolsEnableRequest):
+    """Re-enable all tools after brownout recovery"""
+    try:
+        disabled_tools = list(server_state.disabled_tools)
+        server_state.disabled_tools.clear()
+        
+        logger.info(f"All tools re-enabled (reason: {request.reason})")
+        
+        return {
+            "status": "success",
+            "previously_disabled_tools": disabled_tools,
+            "reason": request.reason,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Tool enabling failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/guard/degrade")
+async def degrade_system():
+    """Basic system degradation"""
+    server_state.degraded = True
+    logger.warning("System degradation activated")
+    return {"status": "degraded", "timestamp": datetime.now().isoformat()}
+
+@app.post("/api/guard/stop-intake")
+async def stop_intake():
+    """Stop accepting new requests"""
+    server_state.intake_blocked = True
+    logger.error("Intake stopped - system overloaded")
+    return {"status": "intake_blocked", "timestamp": datetime.now().isoformat()}
+
+@app.post("/api/guard/resume-intake")
+async def resume_intake():
+    """Resume accepting new requests"""
+    server_state.intake_blocked = False
+    server_state.degraded = False
+    logger.info("Intake resumed - system recovered")
+    return {"status": "normal", "timestamp": datetime.now().isoformat()}
+
+@app.get("/api/brain/status")
+async def get_brain_status():
+    """Get current brain/system status"""
+    return {
+        "current_model": server_state.current_model,
+        "concurrency": server_state.current_concurrency,
+        "context_window": server_state.context_window,
+        "rag_top_k": server_state.rag_top_k,
+        "disabled_tools": list(server_state.disabled_tools),
+        "intake_blocked": server_state.intake_blocked,
+        "degraded": server_state.degraded,
+        "timestamp": datetime.now().isoformat()
+    }
 
 if __name__ == "__main__":
     import uvicorn
