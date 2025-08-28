@@ -1,23 +1,24 @@
-# 🎙️ Alice Voice Pipeline – Personlig (svenska → engelsk uppläsning)
+# 🎙️ Alice Voice Pipeline – Snappy HTTP TTS (svenska → engelsk uppläsning)
 
 ## Vision
-**All svensk input** (chat, mejl, notiser) översätts snabbt till idiomatisk engelska och läses upp med OpenAI Realtime-röst (Marin/Cedar). 
+**All svensk input** (chat, mejl, notiser) översätts snabbt till idiomatisk engelska och läses upp med **HTTP-based TTS** (Nova/Alloy voices).
 
-**Fokus:** låg latens, enkel drift på din Mac. Ingen Guardian, ingen PII-maskning, inga consent-flöden.
+**Fokus:** låg latens (<1.5s), låg kostnad (~pennies), enkel drift på din Mac. Ingen Guardian, ingen PII-maskning, inga consent-flöden.
 
-## Arkitektur (4 delar)
+## Arkitektur (4 delar) - UPPDATERAD
 
 ```
-[Svensk Input] → [GPT-OSS Orchestrator] → [OpenAI Realtime] → [HUD/Player]
-     ↓               ↓                       ↓               ↓
-Chat/Email/Cal  Smart översättning      Audio stream    Original + English
-                tone/style              Marin/Cedar     + Audio playback
+[Svensk Input] → [GPT-OSS Orchestrator] → [HTTP TTS + Cache] → [HUD/Player]
+     ↓               ↓                       ↓                   ↓
+Chat/Email/Cal  Smart översättning      Nova/Alloy HTTP      Original + English
+                tone/style              + LRU Cache          + Audio playback
+                                        + Piper Fallback
 ```
 
 **Flöde:**
 1. **Ingest:** tar in text från valfri källa (chat, mejl, kalenderrad, notis)
-2. **Orchestrator (gpt-oss lokalt):** gör "smart översättning" + formaterar talvänlig text och enkel metadata (tone/style). Ingen policy, bara funktion.
-3. **TTS (OpenAI Realtime):** tar emot speak_text och streamar engelsk audio (Marin/Cedar) tillbaka
+2. **Orchestrator (gpt-oss lokalt):** gör "smart översättning" + formaterar talvänlig text och enkel metadata (tone/style). Segmenterar långa texter.
+3. **TTS (HTTP OpenAI + fallback):** HTTP POST till OpenAI TTS API, LRU cache (300 entries), Piper local fallback
 4. **HUD/Player:** visar original (svenska) och engelsk text, spelar upp ljudet, sparar enkel cache
 
 ## Implementation (minsta möjliga)
@@ -155,7 +156,15 @@ class VoiceCache:
 - **Database**: ✅ KOMPLETT - Chat history och sessions fungerar
 - **LLM Pipeline**: ✅ KOMPLETT - gpt-oss:20b + OpenAI fallback
 
-**Nästa steg**: Implementera denna slimmade voice pipeline!
+**Status**: ✅ HTTP TTS approach validerad - kostnad $15/miljon tecken istället för $900/månad!
+
+**Implementation pågår**: 
+- ✅ Input processor skapad
+- ✅ Voice capabilities konfigurerad  
+- 🔄 Orchestrator (pågår)
+- ⏳ HTTP TTS client med cache
+- ⏳ SSML phoneme support
+- ⏳ HUD interface
 
 ---
 *Personlig Alice voice pipeline - svensk input → engelsk uppläsning, inga enterprise-krångel.*
