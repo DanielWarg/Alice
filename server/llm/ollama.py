@@ -7,14 +7,16 @@ import time
 import json
 import httpx
 import logging
+import asyncio
 from typing import Dict, List, Any, Optional
+from asyncio import Semaphore
 
 from .manager import LLM, HealthStatus, LLMResponse
 
 logger = logging.getLogger("alice.llm.ollama")
 
 class OllamaAdapter(LLM):
-    """Ollama LLM adapter with health monitoring"""
+    """Ollama LLM adapter with health monitoring and concurrency control"""
     
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
         self.base_url = base_url or os.getenv("LLM_BASE_URL", "http://localhost:11434")
@@ -22,6 +24,13 @@ class OllamaAdapter(LLM):
         self.name = f"ollama:{self.model}"
         self.health_timeout = float(os.getenv("LLM_HEALTH_TIMEOUT_MS", "1500")) / 1000
         self.max_ttft = float(os.getenv("LLM_MAX_TTFT_MS", "1200")) / 1000
+        
+        # Concurrency control - limit concurrent requests to prevent overload
+        self.max_concurrent = int(os.getenv("OLLAMA_MAX_CONCURRENT", "3"))
+        self._request_semaphore = Semaphore(self.max_concurrent)
+        
+        # Context window optimization
+        self.context_window = int(os.getenv("OLLAMA_CONTEXT_WINDOW", "4096"))  # Reduced from 8192
         
         # Minimal health check prompt
         self.health_prompt = "Hej"
@@ -82,11 +91,13 @@ class OllamaAdapter(LLM):
     
     async def chat(self, messages: List[Dict[str, Any]], tools: Optional[List[Any]] = None) -> LLMResponse:
         """
-        Send chat request to Ollama.
+        Send chat request to Ollama with concurrency control.
         Converts messages to Ollama format and handles tool calls.
         """
-        try:
-            start_time = time.time()
+        # Acquire semaphore to limit concurrent requests
+        async with self._request_semaphore:
+            try:
+                start_time = time.time()
             
             # Convert messages to Ollama prompt format
             prompt = self._messages_to_prompt(messages)
@@ -95,18 +106,42 @@ class OllamaAdapter(LLM):
                 "model": self.model,
                 "prompt": prompt,
                 "stream": False,
-                "keep_alive": os.getenv("LLM_KEEP_ALIVE", "10m"),  # Keep model loaded for 10 minutes
+                "keep_alive": os.getenv("LLM_KEEP_ALIVE", "15m"),  # Increased från 10m for better performance
                 "options": {
                     "temperature": float(os.getenv("LOCAL_AI_TEMPERATURE", "0.3")),
-                    "num_predict": int(os.getenv("LOCAL_AI_MAX_TOKENS", "2048"))
+                    "num_predict": int(os.getenv("LOCAL_AI_MAX_TOKENS", "2048")),
+                    "num_ctx": self.context_window  # Reduced context window för memory optimization
                 }
             }
             
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(f"{self.base_url}/api/generate", json=payload)
-                response.raise_for_status()
-                
-                result = response.json()
+            # Exponential backoff retry for 500 errors
+            max_retries = 3
+            base_delay = 1.0
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        response = await client.post(f"{self.base_url}/api/generate", json=payload)
+                        
+                        # If 500 error and retries left, wait and retry
+                        if response.status_code >= 500 and attempt < max_retries:
+                            delay = base_delay * (2 ** attempt)  # Exponential backoff
+                            logger.warning(f"Ollama 500 error, retry {attempt + 1}/{max_retries} after {delay}s")
+                            await asyncio.sleep(delay)
+                            continue
+                        
+                        response.raise_for_status()
+                        result = response.json()
+                        break  # Success, exit retry loop
+                        
+                except httpx.RequestError as e:
+                    if attempt < max_retries:
+                        delay = base_delay * (2 ** attempt)
+                        logger.warning(f"Ollama connection error, retry {attempt + 1}/{max_retries} after {delay}s: {e}")
+                        await asyncio.sleep(delay)
+                        continue
+                    else:
+                        raise  # Last attempt failed
                 text = result.get("response", "")
                 
                 # Extract tool calls if present
@@ -123,12 +158,12 @@ class OllamaAdapter(LLM):
                     tftt_ms=ttft_ms
                 )
                 
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Ollama HTTP error: {e.response.status_code} - {e.response.text}")
-            raise Exception(f"Ollama request failed: {e.response.status_code}")
-        except Exception as e:
-            logger.error(f"Ollama request error: {e}")
-            raise
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Ollama HTTP error: {e.response.status_code} - {e.response.text}")
+                raise Exception(f"Ollama request failed: {e.response.status_code}")
+            except Exception as e:
+                logger.error(f"Ollama request error: {e}")
+                raise
     
     def _messages_to_prompt(self, messages: List[Dict[str, Any]]) -> str:
         """Convert OpenAI-style messages to Ollama prompt"""

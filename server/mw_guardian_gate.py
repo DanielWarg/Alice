@@ -42,10 +42,16 @@ class GuardianGate(BaseHTTPMiddleware):
         self._cache = None
         self._cache_ts = 0
         
+        # Hysteresis för unknown status - förhindra flapping
+        self.unknown_streak = 0
+        self.unknown_threshold = 3  # Block efter 3 consecutive unknown
+        self.last_known_good_mode = 'ok'
+        
         # Metrics
         self.requests_total = 0
         self.requests_blocked = 0
         self.requests_degraded = 0
+        self.unknown_graceful_passes = 0
         
         self.logger = logging.getLogger("guardian.gate")
         
@@ -147,11 +153,29 @@ class GuardianGate(BaseHTTPMiddleware):
             # Låt andra requests passera
             return False, 0, 'degrade_passthrough'
         
-        # UNKNOWN mode - försiktighetsprincip för LLM requests
+        # UNKNOWN mode - graceful degradation med hysteresis
         if mode == 'unknown':
+            self.unknown_streak += 1
+            
+            # Graceful degradation: Allow requests om inte persistent unknown
+            if self.unknown_streak < self.unknown_threshold:
+                # Log för debugging
+                if path.startswith(('/api/chat', '/api/v1/llm')):
+                    self.unknown_graceful_passes += 1
+                    self.logger.debug(f"Unknown mode graceful pass #{self.unknown_streak} for {path}")
+                return False, 0, f'unknown_graceful_pass_{self.unknown_streak}'
+            
+            # Efter threshold: block LLM requests men låt övrigt passera
             if path.startswith(('/api/chat', '/api/v1/llm')):
-                return True, 503, 'guardian_unknown_precaution'
+                return True, 503, f'guardian_persistent_unknown_{self.unknown_streak}'
             return False, 0, 'unknown_passthrough'
+        else:
+            # Reset unknown streak när vi får känd status
+            if mode in ['ok', 'degrade', 'stop']:
+                if self.unknown_streak > 0:
+                    self.logger.info(f"Guardian status recovered after {self.unknown_streak} unknown checks")
+                self.unknown_streak = 0
+                self.last_known_good_mode = mode
         
         # OK mode - släpp igenom allt
         return False, 0, 'ok'

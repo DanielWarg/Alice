@@ -53,20 +53,20 @@ class GuardianConfig:
     # Polling
     poll_interval_s: float = 1.0
     
-    # Hysteresis trösklar (andel av total)
-    ram_soft_pct: float = 0.85      # Mjuk degradation trigger
+    # Hysteresis trösklar (andel av total) - Optimized för production
+    ram_soft_pct: float = 0.80      # Mjuk degradation trigger (var 0.85)
     ram_hard_pct: float = 0.92      # Hard kill trigger
-    ram_recovery_pct: float = 0.75  # Recovery threshold (hysteresis)
-    cpu_soft_pct: float = 0.85      # Mjuk degradation trigger 
+    ram_recovery_pct: float = 0.70  # Recovery threshold (hysteresis) 
+    cpu_soft_pct: float = 0.80      # Mjuk degradation trigger (var 0.85) 
     cpu_hard_pct: float = 0.92      # Hard kill trigger
     cpu_recovery_pct: float = 0.75  # Recovery threshold (hysteresis)
     disk_hard_pct: float = 0.95     # Hard kill
     temp_hard_c: float = 90.0       # Hard kill (om tillgänglig)
     
-    # Hysteresis och flap detection
-    measurement_window: int = 5     # Antal mätpunkter för trigger
-    recovery_window_s: float = 60.0 # Återställningstid i sekunder
-    flap_detection_window: int = 10 # Fönster för oscillation detection
+    # Hysteresis och flap detection - Optimized för stability
+    measurement_window: int = 3     # Antal mätpunkter för trigger (var 5)
+    recovery_window_s: float = 45.0 # Återställningstid i sekunder (var 60.0)
+    flap_detection_window: int = 15 # Fönster för oscillation detection (var 10)
     
     # Kill cooldown settings
     kill_cooldown_short_s: float = 300.0    # 5 min mellan kills
@@ -118,7 +118,7 @@ class GuardianActions:
         """Mjuk nedväxling: minska samtidighet"""
         try:
             url = f"{self.config.alice_base_url}/api/guard/degrade"
-            async with httpx.AsyncClient(timeout=2.0) as client:
+            async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.post(url)
                 self.logger.info(f"Degrade: {response.status_code}")
                 return response.status_code == 200
@@ -130,7 +130,7 @@ class GuardianActions:
         """Hård: stoppa nya requests"""
         try:
             url = f"{self.config.alice_base_url}/api/guard/stop-intake"
-            async with httpx.AsyncClient(timeout=2.0) as client:
+            async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.post(url)
                 self.logger.info(f"Stop intake: {response.status_code}")
                 return response.status_code == 200
@@ -238,6 +238,21 @@ class SystemGuardian:
         self.running = True
         
         self.logger.info(f"Guardian initialized with hysteresis: RAM {self.config.ram_soft_pct:.1%}/{self.config.ram_recovery_pct:.1%}")
+    
+    @property
+    def degraded(self) -> bool:
+        """Return true if system is in degraded state"""
+        return self.state in [GuardianState.DEGRADED, GuardianState.BROWNOUT]
+    
+    @property
+    def intake_blocked(self) -> bool:
+        """Return true if intake is blocked"""
+        return self.state in [GuardianState.EMERGENCY, GuardianState.LOCKDOWN]
+    
+    @property 
+    def emergency_mode(self) -> bool:
+        """Return true if in emergency mode"""
+        return self.state in [GuardianState.EMERGENCY, GuardianState.LOCKDOWN]
     
     def _signal_handler(self, signum, frame):
         """Graceful shutdown"""

@@ -323,7 +323,7 @@ async def control_brownout(request: BrownoutRequest):
         apply_brownout_settings(request.level)
         
         rlog("brain.brownout_activated", 
-             level=request.level, reason=request.reason, level="WARN")
+             brownout_level=request.level, reason=request.reason, level="WARN")
         
         # Notify Ollama of model switch
         asyncio.create_task(notify_ollama_model_switch(BRAIN_STATE["model"]))

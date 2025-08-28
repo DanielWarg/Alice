@@ -29,7 +29,18 @@ from brain_model import router as brain_router, get_current_brain_config
 from llm.ollama import OllamaAdapter
 from llm.openai import OpenAIAdapter
 from llm.manager import ModelManager
+
+# Import Agent Core system
+from core.agent_orchestrator import AgentOrchestrator, WorkflowConfig
+from core.tool_registry import validate_and_execute_tool
 from model_warmer import start_model_warmer, stop_model_warmer
+
+# Import Database & Chat Service
+from database import init_database
+# Import performance optimizations
+from response_cache import response_cache
+from request_batcher import get_request_batcher
+from chat_service import chat_service
 
 # Load environment
 load_dotenv()
@@ -63,9 +74,20 @@ try:
     model_manager = ModelManager(primary=primary_llm, fallback=fallback_llm)
     logger.info("✅ LLM system initialized successfully")
     
+    # Initialize Agent Orchestrator
+    agent_config = WorkflowConfig(
+        max_iterations=2,
+        auto_improve=False,  # Keep simple for production
+        enable_ai_planning=False,  # Use deterministic planning
+        enable_ai_criticism=False  # Use deterministic criticism
+    )
+    agent_orchestrator = AgentOrchestrator(agent_config)
+    logger.info("✅ Agent system initialized successfully")
+    
 except Exception as e:
-    logger.error(f"❌ Failed to initialize LLM system: {e}")
+    logger.error(f"❌ Failed to initialize systems: {e}")
     model_manager = None
+    agent_orchestrator = None
 
 # Create FastAPI app
 app = FastAPI(
@@ -85,12 +107,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Guardian Gate - admission control (kollar Guardian status)
+# 2. Guardian Gate - admission control (kollar Guardian status) - Optimized
 app.add_middleware(
     GuardianGate,
     guardian_url="http://localhost:8787/health",
-    cache_ttl_ms=250,
-    timeout_s=0.25
+    cache_ttl_ms=300,     # Längre cache (var 250ms) 
+    timeout_s=0.5         # Längre timeout (var 0.25s) för stabilitet
 )
 
 # 3. Path-specific timeout middleware
@@ -106,12 +128,26 @@ app.add_middleware(PathTimeoutMiddleware, timeout_config=timeout_config)
 # Include brain model router
 app.include_router(brain_router)
 
+# Include database router
+from database_router import router as database_router
+app.include_router(database_router)
+
 # Startup/Shutdown events
 @app.on_event("startup")
 async def startup_event():
     """Start background services"""
-    jlog("alice.backend.startup", version="2.0", guardian_enabled=True)
-    logger.info("🚀 Starting Alice Backend with Guardian 2.0")
+    jlog("alice.backend.startup", version="2.0", guardian_enabled=True, database_enabled=True)
+    logger.info("🚀 Starting Alice Backend with Guardian 2.0 + Database")
+    
+    # Initialize database
+    try:
+        init_database()
+        jlog("alice.database.init", status="success")
+        logger.info("🗄️ Database initialized successfully")
+    except Exception as e:
+        jlog("alice.database.init", status="failed", error=str(e), level="ERROR")
+        logger.error(f"❌ Database initialization failed: {e}")
+        # Continue startup - database is not critical for basic operation
     
     if model_manager:
         start_model_warmer()
@@ -234,9 +270,33 @@ async def chat_endpoint(request: ChatRequest, http_request: Request):
     set_request_context(request_id, user_id=None, lane="chat")
     start_time = datetime.now()
     
+    # Check cache först för potential immediate response
+    cached_response = await response_cache.get(
+        message=request.message,
+        model="default",
+        context=""
+    )
+    
+    if cached_response:
+        rlog("chat.cache_hit", 
+             message_len=len(request.message),
+             hit_rate=response_cache.get_stats()['hit_rate_percent'],
+             level="INFO")
+        return cached_response
+    
+    # Process chat request with database persistence
+    chat_request_result = chat_service.process_chat_request(
+        user_message=request.message,
+        username="alice_user",  # Default user for now
+        conversation_id=getattr(request, 'conversation_id', None)
+    )
+    
+    conversation_id = chat_request_result.get('conversation_id') if chat_request_result.get('success') else None
+    
     # Log request
     rlog("chat.request_start", 
          message_len=len(request.message),
+         conversation_id=conversation_id,
          level="INFO")
     
     if not model_manager:
@@ -276,8 +336,36 @@ async def chat_endpoint(request: ChatRequest, http_request: Request):
              model=brain_config["model"],
              mode=brain_config["mode"])
         
-        # Send to LLM via model manager (with automatic failover)
-        response = await model_manager.ask(messages)
+        # Async LLM handler för batching
+        async def llm_handler(batch_messages, tools=None):
+            return await model_manager.ask(batch_messages)
+        
+        # Send to LLM via request batching för optimization
+        try:
+            batched_result = await get_request_batcher().add_request(
+                message=request.message,
+                model=brain_config["model"],
+                llm_handler=llm_handler,
+                request_id=request_id
+            )
+            
+            # Convert batched result to expected format
+            class MockResponse:
+                def __init__(self, text, provider, tftt_ms):
+                    self.text = text
+                    self.provider = provider
+                    self.tftt_ms = tftt_ms
+            
+            response = MockResponse(
+                text=batched_result["response"],
+                provider=batched_result["model"],
+                tftt_ms=batched_result["tftt_ms"]
+            )
+            
+        except Exception as batch_error:
+            # Fallback till direct LLM call om batching fails
+            rlog("chat.batching_failed", error=str(batch_error), level="WARN")
+            response = await model_manager.ask(messages)
         
         # Calculate end-to-end latency
         e2e_latency = (datetime.now() - start_time).total_seconds() * 1000
@@ -285,12 +373,39 @@ async def chat_endpoint(request: ChatRequest, http_request: Request):
         # Track KPIs
         track_e2e_latency(int(e2e_latency), request_id)
         
-        # Log successful response
+        # Save assistant response to database
+        if conversation_id:
+            save_result = chat_service.save_assistant_response(
+                conversation_id=conversation_id,
+                response_content=response.text,
+                model_used=response.provider,
+                response_time_ms=response.tftt_ms,
+                extra_metadata={
+                    "request_id": request_id,
+                    "brain_config": brain_config,
+                    "e2e_latency_ms": int(e2e_latency)
+                }
+            )
+            if not save_result.get('success'):
+                rlog("chat.database_save_failed", error=save_result.get('error'), level="WARN")
+        
+        # Cache response för future requests
+        await response_cache.put(
+            message=request.message,
+            response=response.text,
+            model=response.provider,
+            tftt_ms=response.tftt_ms
+        )
+        
+        # Log successful response with performance metrics
         rlog("chat.request_success",
              response_len=len(response.text),
              model_used=response.provider,
              tftt_ms=response.tftt_ms,
-             e2e_ms=int(e2e_latency))
+             e2e_ms=int(e2e_latency),
+             cache_stats=response_cache.get_stats(),
+             batch_stats=get_request_batcher().get_stats(),
+             conversation_id=conversation_id)
         
         return ChatResponse(
             response=response.text,

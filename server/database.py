@@ -15,12 +15,12 @@ logger = logging.getLogger("alice.database")
 # Database configuration
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "sqlite:///./data/alice_auth.db"
+    "sqlite:///./data/alice.db"
 )
 
 # Create SQLAlchemy engine
 if DATABASE_URL.startswith("sqlite"):
-    # SQLite-specific configuration with enhanced connection pooling
+    # SQLite-specific configuration with optimized connection pooling for production
     engine = create_engine(
         DATABASE_URL,
         connect_args={
@@ -30,7 +30,10 @@ if DATABASE_URL.startswith("sqlite"):
         },
         poolclass=StaticPool,
         pool_pre_ping=True,  # Test connections before use
-        pool_recycle=3600,   # Recycle connections after 1 hour
+        pool_recycle=1800,   # Recycle connections after 30min (var 1h)
+        pool_size=int(os.getenv("SQLITE_POOL_SIZE", "5")),  # Connection pool size
+        max_overflow=int(os.getenv("SQLITE_MAX_OVERFLOW", "10")),  # Extra connections
+        pool_timeout=int(os.getenv("SQLITE_POOL_TIMEOUT", "30")),  # Wait timeout
         echo=os.getenv("SQL_DEBUG", "0") == "1"
     )
     
@@ -38,11 +41,15 @@ if DATABASE_URL.startswith("sqlite"):
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
+        # Production optimized SQLite PRAGMA settings
         cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.execute("PRAGMA temp_store=memory")
-        cursor.execute("PRAGMA mmap_size=268435456")  # 256MB
+        cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging för concurrency
+        cursor.execute("PRAGMA synchronous=NORMAL")  # Balanced durability/performance
+        cursor.execute("PRAGMA temp_store=memory")  # Use memory för temp storage
+        cursor.execute("PRAGMA mmap_size=268435456")  # 256MB memory mapping
+        cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache (negative = KB)
+        cursor.execute("PRAGMA busy_timeout=30000")  # 30s busy timeout
+        cursor.execute("PRAGMA wal_autocheckpoint=1000")  # WAL checkpoint every 1000 pages
         cursor.close()
         
 else:
@@ -82,7 +89,7 @@ def create_database():
     """Create database tables"""
     try:
         # Import all models to ensure they're registered with Base
-        from auth_models import User, UserSession, APIKey, AuditLog
+        from chat_models import User, Conversation, Message, AgentExecution, SystemMetric, ChatSession
         
         # Create data directory if it doesn't exist
         os.makedirs("data", exist_ok=True)
@@ -92,49 +99,41 @@ def create_database():
         
         logger.info("Database tables created successfully")
         
-        # Create default admin user if none exists
-        create_default_admin_user()
+        # Create default user if none exists
+        create_default_user()
         
     except Exception as e:
         logger.error(f"Failed to create database: {e}")
         raise
 
-def create_default_admin_user():
-    """Create default admin user if no users exist"""
+def create_default_user():
+    """Create default user if no users exist"""
     try:
-        from auth_models import User, UserRole
+        from chat_models import User
         
         db = SessionLocal()
         
         # Check if any users exist
         user_count = db.query(User).count()
         if user_count == 0:
-            # Create default admin user
-            admin_user = User(
-                username="admin",
-                email="admin@alice-ai.local",
-                full_name="Administrator",
-                role=UserRole.ADMIN.value,
-                is_active=True,
-                is_verified=True,
-                language="sv"
+            # Create default user
+            default_user = User(
+                username="alice_user",
+                display_name="Alice User",
+                language="sv",
+                timezone="Europe/Stockholm",
+                is_active=True
             )
             
-            # Set default password (should be changed immediately)
-            admin_user.set_password("admin123!")
-            
-            db.add(admin_user)
+            db.add(default_user)
             db.commit()
             
-            logger.warning(
-                "Created default admin user: admin / admin123! "
-                "CHANGE PASSWORD IMMEDIATELY in production!"
-            )
+            logger.info("Created default user: alice_user")
         
         db.close()
         
     except Exception as e:
-        logger.error(f"Failed to create default admin user: {e}")
+        logger.error(f"Failed to create default user: {e}")
 
 def init_database():
     """Initialize database (called at startup)"""
@@ -166,20 +165,24 @@ def check_database_health() -> bool:
 def get_database_stats() -> dict:
     """Get database statistics"""
     try:
-        from auth_models import User, UserSession, APIKey, AuditLog
+        from chat_models import User, Conversation, Message, AgentExecution, ChatSession
+        from datetime import datetime, timedelta
         
         db = SessionLocal()
+        
+        # Calculate stats for last 24 hours
+        yesterday = datetime.now() - timedelta(days=1)
         
         stats = {
             "total_users": db.query(User).count(),
             "active_users": db.query(User).filter(User.is_active == True).count(),
-            "verified_users": db.query(User).filter(User.is_verified == True).count(),
-            "active_sessions": db.query(UserSession).filter(
-                UserSession.status == "active"
-            ).count(),
-            "total_api_keys": db.query(APIKey).count(),
-            "active_api_keys": db.query(APIKey).filter(APIKey.is_active == True).count(),
-            "total_audit_events": db.query(AuditLog).count()
+            "total_conversations": db.query(Conversation).count(),
+            "active_conversations": db.query(Conversation).filter(Conversation.is_active == True).count(),
+            "conversations_24h": db.query(Conversation).filter(Conversation.started_at > yesterday).count(),
+            "total_messages": db.query(Message).count(),
+            "messages_24h": db.query(Message).filter(Message.created_at > yesterday).count(),
+            "agent_executions": db.query(AgentExecution).count(),
+            "active_chat_sessions": db.query(ChatSession).filter(ChatSession.is_active == True).count()
         }
         
         db.close()
@@ -192,57 +195,69 @@ def get_database_stats() -> dict:
 # Database maintenance functions
 
 def cleanup_expired_sessions():
-    """Clean up expired sessions and tokens"""
+    """Clean up expired chat sessions"""
     try:
-        from auth_models import UserSession
-        from datetime import datetime
+        from chat_models import ChatSession
+        from datetime import datetime, timedelta
         
         db = SessionLocal()
         
+        # Sessions inactive for more than 1 hour are expired
+        cutoff_time = datetime.now() - timedelta(hours=1)
+        
         # Update expired sessions
-        expired_count = db.query(UserSession).filter(
-            UserSession.expires_at < datetime.utcnow(),
-            UserSession.status == "active"
-        ).update({"status": "expired"})
+        expired_count = db.query(ChatSession).filter(
+            ChatSession.last_ping < cutoff_time,
+            ChatSession.is_active == True
+        ).update({
+            "is_active": False,
+            "disconnected_at": datetime.now()
+        })
         
         db.commit()
         db.close()
         
         if expired_count > 0:
-            logger.info(f"Marked {expired_count} sessions as expired")
+            logger.info(f"Marked {expired_count} chat sessions as expired")
         
     except Exception as e:
         logger.error(f"Failed to cleanup expired sessions: {e}")
 
-def cleanup_old_audit_logs(days_to_keep: int = 90):
-    """Clean up old audit log entries"""
+def cleanup_old_messages(days_to_keep: int = 90):
+    """Clean up old messages and conversations"""
     try:
-        from auth_models import AuditLog
+        from chat_models import Message, Conversation
         from datetime import datetime, timedelta
         
         db = SessionLocal()
         
-        cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+        cutoff_date = datetime.now() - timedelta(days=days_to_keep)
         
-        deleted_count = db.query(AuditLog).filter(
-            AuditLog.timestamp < cutoff_date
+        # Delete old messages
+        deleted_messages = db.query(Message).filter(
+            Message.created_at < cutoff_date
+        ).delete()
+        
+        # Delete conversations with no messages
+        deleted_conversations = db.query(Conversation).filter(
+            ~Conversation.messages.any()
         ).delete()
         
         db.commit()
         db.close()
         
-        if deleted_count > 0:
-            logger.info(f"Cleaned up {deleted_count} old audit log entries")
+        if deleted_messages > 0 or deleted_conversations > 0:
+            logger.info(f"Cleaned up {deleted_messages} old messages and {deleted_conversations} empty conversations")
         
     except Exception as e:
-        logger.error(f"Failed to cleanup old audit logs: {e}")
+        logger.error(f"Failed to cleanup old messages: {e}")
 
 def run_database_maintenance():
     """Run regular database maintenance tasks"""
     logger.info("Running database maintenance...")
     
     cleanup_expired_sessions()
-    cleanup_old_audit_logs()
+    cleanup_old_messages()
     
     # Vacuum SQLite database if using SQLite
     if DATABASE_URL.startswith("sqlite"):

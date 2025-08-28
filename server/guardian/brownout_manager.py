@@ -54,9 +54,13 @@ class BrownoutConfig:
     alice_base_url: str = "http://localhost:8000"
     ollama_base_url: str = "http://localhost:11434"
     
-    # Timeouts
-    request_timeout_s: float = 5.0
-    model_switch_timeout_s: float = 10.0
+    # Timeouts - Optimized för production stability
+    request_timeout_s: float = 8.0         # Increased från 5.0
+    model_switch_timeout_s: float = 15.0    # Increased från 10.0
+    
+    # Gradual degradation settings
+    enable_gradual_degradation: bool = True
+    degradation_steps: int = 3              # Number of degradation steps
 
 class BrownoutManager:
     """
