@@ -152,10 +152,13 @@ Plan:"""
         try:
             # Använd AI för att skapa plan (om tillgänglig)
             if ai_client:
+                print(f"📋 Using AI planning for goal: {goal}")
                 plan_response = await self._generate_ai_plan(full_prompt, ai_client)
             else:
                 # Fallback till regelbaserad planering
+                print(f"📋 Using rule-based planning for goal: {goal}")
                 plan_response = self._generate_rule_based_plan(goal, context)
+                print(f"📋 Generated plan JSON: {plan_response}")
             
             # Parsa AI-respons till AgentAction-objekt
             actions = self._parse_plan_response(plan_response)
@@ -246,6 +249,18 @@ Plan:"""
                     "description": "Hämta senaste e-postmeddelanden",
                     "depends_on": [],
                     "expected_outcome": "Lista med e-postmeddelanden"
+                }
+            ])
+        
+        elif "tid" in goal_lower or "klocka" in goal_lower or "datum" in goal_lower:
+            return json.dumps([
+                {
+                    "step_id": "step_1",
+                    "tool": "CURRENT_TIME",
+                    "parameters": {},
+                    "description": "Hämta aktuell tid och datum",
+                    "depends_on": [],
+                    "expected_outcome": "Visa aktuell tid"
                 }
             ])
         

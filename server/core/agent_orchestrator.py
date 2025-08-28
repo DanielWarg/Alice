@@ -150,6 +150,7 @@ class AgentOrchestrator:
         self.active_workflows[workflow_id] = result
         
         try:
+            print(f"🎯 Starting workflow for goal: {goal}")
             iteration_count = 0
             current_plan = None
             
@@ -164,10 +165,12 @@ class AgentOrchestrator:
                 result.status = WorkflowStatus.PLANNING
                 
                 # === PLANNING PHASE ===
+                print(f"🎯 Starting planning phase for iteration {iteration_count}")
                 await self._run_hooks("before_planning", goal, context, iteration)
                 
                 if iteration_count == 1:
                     # First iteration - create new plan
+                    print(f"🎯 Creating new plan...")
                     plan = await self.planner.create_plan(
                         goal=goal,
                         context=context,
@@ -277,6 +280,9 @@ class AgentOrchestrator:
             
         except Exception as e:
             # Handle workflow errors
+            print(f"🚨 Workflow failed with exception: {e}")
+            import traceback
+            traceback.print_exc()
             result.status = WorkflowStatus.FAILED
             result.completed_at = datetime.now()
             
@@ -457,6 +463,7 @@ class AgentOrchestrator:
         if result.final_execution and result.final_execution.results:
             summary["actions_completed"] = result.final_execution.completed_actions
             summary["actions_failed"] = result.final_execution.failed_actions
+            summary["execution_results"] = result.final_execution.results
             
         if result.final_report:
             summary["insights"] = len(result.final_report.insights)

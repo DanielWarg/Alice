@@ -201,7 +201,9 @@ class AgentExecutor:
             
             # Utför verktygsanrop
             start_time = datetime.now()
+            print(f"🔧 Executing tool: {action.tool} with params: {action.parameters}")
             tool_result = validate_and_execute_tool(action.tool, action.parameters)
+            print(f"🔧 Tool result: {tool_result}")
             end_time = datetime.now()
             
             result.execution_time_ms = int((end_time - start_time).total_seconds() * 1000)

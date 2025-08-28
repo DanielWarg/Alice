@@ -267,6 +267,17 @@ TOOL_SPECS: Dict[str, Dict[str, Any]] = {
             "kollar konflikter för nästa vecka torsdag"
         ]
     },
+    "CURRENT_TIME": {
+        "args_model": NoArgs,
+        "desc": "Hämta aktuell tid och datum på svenska.",
+        "examples": [
+            "vad är klockan nu",
+            "vilken tid är det",
+            "vilket datum är det idag",
+            "visa nuvarande tid",
+            "kolla tiden"
+        ]
+    },
 }
 
 def enabled_tools() -> List[str]:

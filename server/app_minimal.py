@@ -81,7 +81,7 @@ try:
         enable_ai_planning=False,  # Use deterministic planning
         enable_ai_criticism=False  # Use deterministic criticism
     )
-    agent_orchestrator = AgentOrchestrator(agent_config)
+    agent_orchestrator = AgentOrchestrator(config=agent_config)
     logger.info("✅ Agent system initialized successfully")
     
 except Exception as e:
@@ -319,53 +319,93 @@ async def chat_endpoint(request: ChatRequest, http_request: Request):
         else:
             system_content = "Du är Alice, en hjälpsam svensk AI-assistent. Svara kort och vänligt på svenska."
         
-        # Convert to OpenAI message format
-        messages = [
-            {
-                "role": "system",
-                "content": system_content
-            },
-            {
-                "role": "user", 
-                "content": request.message
-            }
-        ]
-        
-        # Log LLM request start
-        rlog("chat.llm_request_start", 
+        # Log agent request start
+        rlog("chat.agent_request_start", 
              model=brain_config["model"],
              mode=brain_config["mode"])
         
-        # Async LLM handler för batching
-        async def llm_handler(batch_messages, tools=None):
-            return await model_manager.ask(batch_messages)
-        
-        # Send to LLM via request batching för optimization
-        try:
-            batched_result = await get_request_batcher().add_request(
-                message=request.message,
-                model=brain_config["model"],
-                llm_handler=llm_handler,
-                request_id=request_id
-            )
+        # Use agent orchestrator instead of direct LLM for tool support
+        if agent_orchestrator:
+            try:
+                logger.info(f"🤖 Executing agent goal: {request.message}")
+                success, agent_result = await agent_orchestrator.execute_simple_goal(
+                    goal=request.message,
+                    context={
+                        "conversation_id": conversation_id,
+                        "brownout_mode": brain_config["mode"] == "brownout",
+                        "user": "alice_user"
+                    }
+                )
+                logger.info(f"🤖 Agent result - Success: {success}, Results: {agent_result}")
+                
+                # Convert agent result to response format
+                class MockResponse:
+                    def __init__(self, text, provider, tftt_ms):
+                        self.text = text
+                        self.provider = provider
+                        self.tftt_ms = tftt_ms
+                
+                response_time_ms = (datetime.now() - start_time).total_seconds() * 1000
+                
+                # Extract actual response from agent execution results
+                agent_text = "Agent system processed request"
+                
+                # First, check if we have actual execution results with tool outputs
+                if success and agent_result.get("execution_results"):
+                    results = agent_result["execution_results"]
+                    if results and len(results) > 0:
+                        # execution_results is a dict with step_id -> ExecutionResult
+                        # Get the first/any completed execution result
+                        for step_id, exec_result in results.items():
+                            if hasattr(exec_result, 'result') and exec_result.result:
+                                message = exec_result.result.get('message')
+                                if message:
+                                    agent_text = message
+                                    break
+                elif success and agent_result.get("actions_completed", 0) > 0:
+                    agent_text = agent_result.get("critic_summary", "Task completed successfully")
+                elif not success:
+                    # Agent couldn't handle request - fallback to LLM
+                    logger.info(f"Agent failed, falling back to LLM for: {request.message}")
+                    raise Exception("Agent workflow failed, falling back to LLM")
+                
+                response = MockResponse(
+                    text=agent_text,
+                    provider=f"agent:{brain_config['model']}",
+                    tftt_ms=response_time_ms
+                )
+                
+            except Exception as e:
+                logger.error(f"Agent orchestrator failed: {e}")
+                # Fallback to direct LLM on agent failure
+                messages = [
+                    {
+                        "role": "system",
+                        "content": system_content
+                    },
+                    {
+                        "role": "user", 
+                        "content": request.message
+                    }
+                ]
+                
+                response = await model_manager.ask(messages)
+        else:
+            # Fallback to direct LLM if agent not available
+            messages = [
+                {
+                    "role": "system",
+                    "content": system_content
+                },
+                {
+                    "role": "user", 
+                    "content": request.message
+                }
+            ]
             
-            # Convert batched result to expected format
-            class MockResponse:
-                def __init__(self, text, provider, tftt_ms):
-                    self.text = text
-                    self.provider = provider
-                    self.tftt_ms = tftt_ms
-            
-            response = MockResponse(
-                text=batched_result["response"],
-                provider=batched_result["model"],
-                tftt_ms=batched_result["tftt_ms"]
-            )
-            
-        except Exception as batch_error:
-            # Fallback till direct LLM call om batching fails
-            rlog("chat.batching_failed", error=str(batch_error), level="WARN")
             response = await model_manager.ask(messages)
+            
+        # Response ready from agent or LLM fallback
         
         # Calculate end-to-end latency
         e2e_latency = (datetime.now() - start_time).total_seconds() * 1000

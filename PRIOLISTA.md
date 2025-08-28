@@ -3,9 +3,24 @@
 *Datum: 2025-08-28*  
 *Status: Guardian 2.0 klar, nu integrerar vi ALLT*
 
-## 🚨 KRITISKT - MÅSTE FIXAS NU (Week 1)
+## 🎙️ VOICE PIPELINE - NY #1 PRIORITET
 
-### ENTERPRISE VALIDATION REQUIREMENTS (NY HÖGSTA PRIO)
+### UNIVERSAL SVENSKA → ENGELSKA VOICE PIPELINE (HÖGSTA PRIO)
+- [ ] **Voice Pipeline Implementation** - Se VOICE_PIPELINE_PLAN.md
+  - [ ] Phase 1: Universal Voice Module Foundation (Dag 1-2)
+  - [ ] Phase 2: Realtime API Integration (Dag 3-4) 
+  - [ ] Phase 3: Integration Points (Dag 5-6)
+  - [ ] Phase 4: Frontend Universal Voice UI (Dag 7-8)
+  - [ ] Phase 5: Advanced Features (Dag 9-10)
+  - [ ] Phase 6: Production Features (Dag 11-12)
+  - [ ] Alla svenska input → engelsk voice output (chat, mail, calendar, etc.)
+  - [ ] OpenAI Realtime API med Marin/Cedar röster
+  - [ ] GPT-OSS för översättning och orchestration
+  - [ ] Smart caching och fallback chain
+
+## 🚨 KRITISKT - MÅSTE FIXAS NU (Week 2)
+
+### ENTERPRISE VALIDATION REQUIREMENTS
 - [ ] **14-dagars soak testing** med kontinuerlig svensk trafik
   - [ ] Kör minst 7-14 dygn burn-in med kontinuerlig last
   - [ ] Visa p50/p95/p99/p99.9 samt felklasser över tid

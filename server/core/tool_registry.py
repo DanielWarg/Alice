@@ -50,6 +50,27 @@ def like_track() -> str:
 def unlike_track() -> str:
     return "Gilla-markering borttagen."
 
+def current_time() -> str:
+    """Hämta aktuell svensk tid och datum"""
+    from datetime import datetime
+    import locale
+    
+    # Sätt svensk locale för att få svenska månads- och dagnamn
+    try:
+        locale.setlocale(locale.LC_TIME, 'sv_SE.UTF-8')
+    except locale.Error:
+        # Fallback if Swedish locale not available
+        pass
+    
+    now = datetime.now()
+    
+    # Formatera på svenska
+    weekday = now.strftime('%A')
+    date_str = now.strftime('%d %B %Y')
+    time_str = now.strftime('%H:%M:%S')
+    
+    return f"🕐 Aktuell tid: {time_str}\n📅 Datum: {weekday} {date_str}"
+
 # Gmail-funktioner
 def send_email(to: str, subject: str, body: str, cc: str = None, bcc: str = None) -> str:
     return gmail_service.send_email(to, subject, body, cc, bcc)
@@ -136,6 +157,7 @@ EXECUTORS = {
     "UPDATE_CALENDAR_EVENT": lambda args: update_calendar_event(args.event_id, args.title, args.start_time, args.end_time, args.description),
     "SUGGEST_MEETING_TIMES": lambda args: suggest_meeting_times(args.duration_minutes, args.date_preference, args.max_suggestions),
     "CHECK_CALENDAR_CONFLICTS": lambda args: check_calendar_conflicts(args.start_time, args.end_time, args.exclude_event_id),
+    "CURRENT_TIME": lambda _args: current_time(),
 }
 
 def list_tool_specs() -> list[Dict[str, Any]]:
