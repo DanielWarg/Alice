@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { createAudioEnhancer } from '../lib/audio-enhancement.js'
 // import { createVoiceActivityDetector } from '../lib/voice-activity-detection.js'
 import WaveVisualizer from './WaveVisualizer'
-// import { trace } from './lib/voice-trace'
+import { trace } from './lib/voice-trace'
 
 /**
  * Alice Voice Box – Mic‑driven Visualizer

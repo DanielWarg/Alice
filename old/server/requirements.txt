@@ -1,0 +1,34 @@
+fastapi
+uvicorn[standard]
+httpx
+orjson
+python-dotenv
+pydantic
+pytest
+requests
+piper-tts
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+pytz
+faster-whisper
+cryptography
+numpy
+openai
+
+# Authentication & Security
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+pyotp
+qrcode[pil]
+email-validator
+
+# Additional security
+bcrypt
+
+# B3 Always-On Voice System
+websockets
+python-multipart
+psutil
+prometheus_client

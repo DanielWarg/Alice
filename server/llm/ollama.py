@@ -55,6 +55,7 @@ class OllamaAdapter(LLM):
                     "model": self.model,
                     "prompt": self.health_prompt,
                     "stream": False,
+                    "keep_alive": os.getenv("LLM_KEEP_ALIVE", "10m"),  # Keep warm during health checks
                     "options": {
                         "temperature": 0.1,
                         "num_predict": 5  # Very short response
@@ -94,6 +95,7 @@ class OllamaAdapter(LLM):
                 "model": self.model,
                 "prompt": prompt,
                 "stream": False,
+                "keep_alive": os.getenv("LLM_KEEP_ALIVE", "10m"),  # Keep model loaded for 10 minutes
                 "options": {
                     "temperature": float(os.getenv("LOCAL_AI_TEMPERATURE", "0.3")),
                     "num_predict": int(os.getenv("LOCAL_AI_MAX_TOKENS", "2048"))

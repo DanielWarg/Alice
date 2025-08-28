@@ -6,17 +6,18 @@
 ```
 ┌─────────────────────────────────────────┐
 │                FRONTEND                 │
-│            (Port 3000)                  │
+│            (Port 3000)                  │  
 ├─────────────────────────────────────────┤
 │ ✅ Next.js App          Status: LIVE    │
 │ ✅ HUD Layout           Status: WORKING │
-│ ✅ Chat Interface       Status: MOCK    │
+│ ✅ Chat Interface       Status: LIVE    │
 │ ✅ Weather Widget       Status: WORKING │
 │ ✅ DateTime Widget      Status: LIVE    │
+│ ✅ Guardian API Hooks   Status: LIVE    │
 │ 🧹 Calendar Module     Status: REMOVED │
 └─────────────────────────────────────────┘
                     │
-                    │ HTTP/REST
+                    │ HTTP/REST + Guardian Events
                     ▼
 ┌─────────────────────────────────────────┐
 │               BACKEND                   │
@@ -25,8 +26,36 @@
 │ ✅ FastAPI Server       Status: RUNNING │
 │ ✅ Health Endpoints     Status: WORKING │
 │ ✅ LLM Status API       Status: WORKING │
-│ 🚧 Chat API            Status: MOCK     │
+│ ✅ Chat API            Status: LIVE     │
+│ ✅ Guardian Endpoints   Status: LIVE    │
 │ 📋 Full Core System    Status: COPIED   │
+└─────────────────────────────────────────┘
+                    │
+                    │ LLM Requests + Safety Monitoring
+                    ▼
+┌─────────────────────────────────────────┐
+│           🛡️ GUARDIAN SYSTEM            │
+│         (Daemon + Monitoring)           │
+├─────────────────────────────────────────┤
+│ ✅ Guardian Daemon      Port: 8787     │
+│ ✅ System Monitor       Status: ACTIVE │
+│ ✅ Killswitch Logic     Status: TESTED │
+│ ✅ Model Wrapper        Status: SAFE   │
+│ ✅ Ollama Proxy         Status: READY  │
+│ ✅ Circuit Breaker      Status: ARMED  │
+└─────────────────────────────────────────┘
+                    │
+                    │ Protected LLM Communication
+                    ▼
+┌─────────────────────────────────────────┐
+│              LLM LAYER                  │
+│            (Port 11434)                 │
+├─────────────────────────────────────────┤
+│ ✅ Ollama Server        Status: LIVE    │
+│ ✅ gpt-oss:20b         Status: LOADED   │
+│ ✅ Safety Limits       RAM: <92%       │
+│ ✅ Timeout Protection   Limit: 45s     │
+│ ✅ Auto Recovery        Status: READY  │
 └─────────────────────────────────────────┘
 ```
 
@@ -53,14 +82,45 @@ web/
 └── package.json          ✅ Dependencies configured
 ```
 
-### Backend - Status: ✅ CORE IMPORTED
+### Backend - Status: ✅ LIVE + GUARDIAN
 ```
 server/
 ├── app_minimal.py    ✅ FastAPI server running (port 8000)
 ├── core/             ✅ Agent system (copied, not yet integrated)
-├── llm/              ✅ LLM providers (copied, not yet integrated)
+├── llm/              ✅ LLM providers with circuit breaker
 ├── database.py       ✅ Data layer (copied, not yet integrated)
+├── guardian/         ✅ GUARDIAN SYSTEM - PRODUCTION READY
+│   ├── guardian.py       ✅ System monitor daemon (port 8787)
+│   ├── model_wrapper.py  ✅ Circuit breaker + timeout protection
+│   ├── ollama_proxy.py   ✅ Process isolation for macOS
+│   ├── test_*.py         ✅ Complete test suite (passed)
+│   └── README.md         ✅ Full documentation
 └── requirements.txt  ✅ Dependencies installed
+```
+
+### Guardian System - Status: 🛡️ PRODUCTION READY
+```
+guardian/
+├── Layer 1: DAEMON (guardian.py)
+│   ├── ✅ RAM/CPU monitoring (1s intervals)
+│   ├── ✅ Deterministic thresholds (85% → 92%)  
+│   ├── ✅ Emergency killswitch (pkill -9 -f ollama)
+│   ├── ✅ HTTP health server (:8787)
+│   └── ✅ Auto-recovery logic
+├── Layer 2: WRAPPER (model_wrapper.py)
+│   ├── ✅ Request timeout (45s hard limit)
+│   ├── ✅ Circuit breaker (5 failures → open)
+│   ├── ✅ Queue management (concurrency: 2 → 1)
+│   └── ✅ Graceful degradation
+├── Layer 3: PROXY (ollama_proxy.py)
+│   ├── ✅ Process isolation (nice level, memory limits)
+│   ├── ✅ Health monitoring + restart
+│   └── ✅ macOS-optimized resource limits
+└── Integration: API Hooks
+    ├── ✅ /api/guard/degrade - reduce concurrency
+    ├── ✅ /api/guard/stop-intake - block requests
+    ├── ✅ /api/guard/status - system status
+    └── ✅ Chat API protection (503 when blocked)
 ```
 
 ## ACTUAL DATA FLOWS (Current Implementation)
@@ -140,9 +200,12 @@ Display in UI ✅
 2. **✅ COMPLETED**: Get basic FastAPI server running
 3. **✅ COMPLETED**: Test frontend → backend connection
 4. **✅ COMPLETED**: Verify LLMStatusBadge with real backend
-5. **🔥 NEXT**: Integrate real LLM (Ollama + gpt-oss)
-6. **⚡ HIGH**: Connect agent system to chat API
-7. **📋 MEDIUM**: Add database integration
+5. **✅ COMPLETED**: Integrate real LLM (Ollama + gpt-oss + Guardian)
+6. **✅ COMPLETED**: Guardian safety system (killswitch tested)
+7. **🔥 NEXT**: Add intelligent monitoring & auto-tuning
+8. **⚡ HIGH**: Guardian metrics & correlation analysis  
+9. **📋 MEDIUM**: Connect agent system to chat API
+10. **📋 MEDIUM**: Add database integration
 
 ## TESTING CHECKLIST
 
@@ -160,8 +223,9 @@ Display in UI ✅
 - [x] Health check endpoint responds (GET /health)
 - [x] LLM status endpoint works (GET /api/v1/llm/status)
 - [x] Chat API accepts messages (POST /api/chat) 
+- [x] Guardian system integration (full test suite passed)
+- [x] Real LLM integration (Ollama + gpt-oss via Guardian)
 - [ ] Database connections work (not yet integrated)
-- [ ] Real LLM integration (Ollama + gpt-oss)
 
 ### Integration Tests ✅
 - [x] Frontend can reach backend (HTTP connectivity established)

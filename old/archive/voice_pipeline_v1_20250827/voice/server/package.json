@@ -1,0 +1,29 @@
+{
+  "name": "@alice/voice-server",
+  "version": "1.0.0",
+  "description": "Alice Voice Pipeline - Sub-500ms Streaming Server",
+  "main": "transport.ts",
+  "type": "module",
+  "scripts": {
+    "start": "tsx transport.ts",
+    "dev": "tsx --watch transport.ts",
+    "build": "tsc",
+    "test": "tsx tests/transport.test.ts"
+  },
+  "dependencies": {
+    "ws": "^8.14.2",
+    "@types/ws": "^8.5.8"
+  },
+  "devDependencies": {
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0"
+  },
+  "keywords": [
+    "voice",
+    "streaming",
+    "websocket",
+    "audio",
+    "real-time"
+  ]
+}
