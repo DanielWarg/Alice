@@ -8,7 +8,7 @@ Alice Backend Server - Production Ready mit Guardian 2.0
 - Brownout management with model switching
 - Real LLM integration with circuit breaker
 """
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -41,6 +41,11 @@ from database import init_database
 from response_cache import response_cache
 from request_batcher import get_request_batcher
 from chat_service import chat_service
+
+# Import Voice v2 system
+from routes.tts import router as tts_router
+from routes.asr import handle_asr_websocket, asr_health
+from fastapi.staticfiles import StaticFiles
 
 # Load environment
 load_dotenv()
@@ -131,6 +136,35 @@ app.include_router(brain_router)
 # Include database router
 from database_router import router as database_router
 app.include_router(database_router)
+
+# Include Voice v2 TTS router
+app.include_router(tts_router)
+
+# ASR WebSocket endpoint
+@app.websocket("/ws/asr")
+async def websocket_asr(websocket: WebSocket):
+    await websocket.accept()
+    await handle_asr_websocket(websocket)
+
+# ASR health endpoint
+@app.get("/api/asr/health")
+async def get_asr_health():
+    return await asr_health()
+
+# Include Brain Mail Count stub API
+from routes.brain_mail_count import router as brain_mail_router
+app.include_router(brain_mail_router)
+
+# Serve static audio files
+from pathlib import Path
+AUDIO_DIR = Path(os.getenv("AUDIO_DIR", "./voice/audio"))
+AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/audio", StaticFiles(directory=str(AUDIO_DIR)), name="audio")
+
+# Serve voice catalog
+VOICE_DIR = Path("./voice")
+VOICE_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/voice", StaticFiles(directory=str(VOICE_DIR)), name="voice")
 
 # Startup/Shutdown events
 @app.on_event("startup")
