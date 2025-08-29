@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice v2 Complete Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .voice-section {
+            margin: 20px 0;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 15px;
+        }
+        
+        .mic-button {
+            background: linear-gradient(45deg, #ff4757, #ff6348);
+            border: none;
+            color: white;
+            padding: 25px;
+            border-radius: 50%;
+            font-size: 32px;
+            cursor: pointer;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            transition: all 0.3s ease;
+        }
+        
+        .mic-button:hover {
+            transform: scale(1.05);
+        }
+        
+        .mic-button.recording {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        
+        .status.success { background: rgba(76, 175, 80, 0.2); }
+        .status.error { background: rgba(244, 67, 54, 0.2); }
+        .status.warning { background: rgba(255, 152, 0, 0.2); }
+        
+        .transcript, .response {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-size: 16px;
+            min-height: 50px;
+        }
+        
+        .response {
+            background: rgba(46, 204, 113, 0.2);
+        }
+        
+        audio {
+            width: 100%;
+            margin: 15px 0;
+        }
+        
+        .log {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #5dade2, #3498db);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ Voice v2 Test</h1>
+        
+        <div class="voice-section">
+            <button class="mic-button" id="micButton" onclick="toggleRecording()">
+                🎤
+            </button>
+            <div id="status" class="status">Klicka på mikrofonen för att börja</div>
+        </div>
+
+        <div class="voice-section">
+            <h3>Konversation</h3>
+            <div class="transcript" id="transcript">Du sa: ...</div>
+            <div class="response" id="response">Alice svarar: ...</div>
+            <audio id="audio" controls></audio>
+        </div>
+
+        <div class="voice-section">
+            <h3>Snabbtester</h3>
+            <button onclick="testTTS('Hej, hur mår du?')">Test TTS</button>
+            <button onclick="testTTS('Kolla min email')">Test Email</button>
+            <button onclick="testTTS('Vad är klockan?')">Test Tid</button>
+        </div>
+
+        <div class="voice-section">
+            <h3>Systemlogg</h3>
+            <div id="log" class="log">Startar Voice v2 system...<br></div>
+        </div>
+    </div>
+
+    <script>
+        let recognition;
+        let isRecording = false;
+        
+        function log(message) {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${time}] ${message}<br>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function updateStatus(message, type = 'success') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+        
+        // Initialize Speech Recognition
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+            } else if ('SpeechRecognition' in window) {
+                recognition = new SpeechRecognition();
+            } else {
+                log('❌ Speech recognition inte stödd');
+                updateStatus('Speech recognition inte tillgänglig', 'error');
+                return false;
+            }
+
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'sv-SE'; // Swedish
+
+            recognition.onstart = function() {
+                log('🎤 Lyssnar...');
+                updateStatus('Talar nu!', 'warning');
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                log(`🗣️ Du sa: "${transcript}"`);
+                document.getElementById('transcript').textContent = `Du sa: "${transcript}"`;
+                processVoiceCommand(transcript);
+            };
+
+            recognition.onerror = function(event) {
+                log(`❌ Speech error: ${event.error}`);
+                updateStatus(`Fel: ${event.error}`, 'error');
+                resetMic();
+            };
+
+            recognition.onend = function() {
+                resetMic();
+            };
+
+            return true;
+        }
+        
+        function toggleRecording() {
+            if (!recognition) {
+                updateStatus('Speech recognition inte tillgänglig', 'error');
+                return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+                isRecording = true;
+                document.getElementById('micButton').classList.add('recording');
+            }
+        }
+        
+        function resetMic() {
+            isRecording = false;
+            document.getElementById('micButton').classList.remove('recording');
+            updateStatus('Klicka på mikrofonen för att börja', 'success');
+        }
+        
+        async function processVoiceCommand(text) {
+            updateStatus('Alice tänker...', 'warning');
+            log(`🧠 Bearbetar: "${text}"`);
+            
+            try {
+                // Simple response based on keywords
+                let response;
+                if (text.toLowerCase().includes('email') || text.toLowerCase().includes('mail')) {
+                    response = 'Du har 3 nya email.';
+                } else if (text.toLowerCase().includes('tid') || text.toLowerCase().includes('klockan')) {
+                    const now = new Date().toLocaleTimeString('sv-SE');
+                    response = `Klockan är ${now}.`;
+                } else if (text.toLowerCase().includes('väder')) {
+                    response = 'Det är 18 grader och soligt i Stockholm idag.';
+                } else if (text.toLowerCase().includes('hej') || text.toLowerCase().includes('halo')) {
+                    response = 'Hej! Hur kan jag hjälpa dig?';
+                } else {
+                    response = `Du sa "${text}". Hur kan jag hjälpa dig med det?`;
+                }
+                
+                document.getElementById('response').textContent = `Alice: ${response}`;
+                log(`🤖 Alice svarar: "${response}"`);
+                
+                // Convert to speech
+                await testTTS(response);
+                updateStatus('Konversation klar!', 'success');
+                
+            } catch (error) {
+                log(`❌ Fel vid bearbetning: ${error}`);
+                updateStatus('Kunde inte bearbeta kommando', 'error');
+            }
+        }
+        
+        async function testTTS(text) {
+            log(`🔊 TTS: "${text}"`);
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/tts/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        voice: 'nova',
+                        rate: 1.0
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                log(`✅ TTS (${data.processing_time_ms?.toFixed(1)}ms): ${data.cached ? 'cached' : 'generated'}`);
+                
+                // Play audio - try multiple approaches
+                const audio = document.getElementById('audio');
+                const audioUrl = `http://localhost:8000${data.url}`;
+                log(`🔗 Setting audio source: ${audioUrl}`);
+                
+                // Method 1: Try direct audio element approach
+                try {
+                    // First try to fetch the audio as blob to verify it's accessible
+                    const audioResponse = await fetch(audioUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'audio/mpeg,audio/*'
+                        }
+                    });
+                    
+                    if (!audioResponse.ok) {
+                        throw new Error(`HTTP ${audioResponse.status}`);
+                    }
+                    
+                    const contentType = audioResponse.headers.get('content-type');
+                    log(`🔍 Audio content-type: ${contentType}`);
+                    
+                    const arrayBuffer = await audioResponse.arrayBuffer();
+                    log(`📦 Audio size: ${arrayBuffer.byteLength} bytes`);
+                    
+                    // Create blob URL
+                    const blob = new Blob([arrayBuffer], { type: contentType || 'audio/mpeg' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    log(`🔗 Created blob URL: ${blobUrl.substring(0, 50)}...`);
+                    
+                    // Set audio source to blob URL
+                    audio.src = blobUrl;
+                    audio.load();
+                    
+                    // Wait for ready
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => reject(new Error('Audio load timeout')), 5000);
+                        
+                        audio.addEventListener('loadeddata', () => {
+                            clearTimeout(timeout);
+                            log('▶️ Audio ready to play');
+                            resolve();
+                        });
+                        
+                        audio.addEventListener('error', (e) => {
+                            clearTimeout(timeout);
+                            const error = e.target.error;
+                            log(`❌ Audio load error: ${error?.code} - ${error?.message}`);
+                            reject(new Error(`Audio load error: ${error?.message || 'Unknown'}`));
+                        });
+                    });
+                    
+                    // Try to play
+                    await audio.play();
+                    log('🎵 Spelar ljud via blob');
+                    
+                    // Clean up blob URL
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                    
+                } catch (audioError) {
+                    log(`❌ Audio blob method failed: ${audioError.message}`);
+                    
+                    // Method 2: Fallback to direct URL
+                    try {
+                        audio.src = audioUrl;
+                        audio.load();
+                        await audio.play();
+                        log('🎵 Spelar ljud via direct URL');
+                    } catch (fallbackError) {
+                        log(`❌ Audio direct method failed: ${fallbackError.message}`);
+                        log('ℹ️ Manual playback required - click the play button');
+                    }
+                }
+                
+            } catch (error) {
+                log(`❌ TTS fel: ${error}`);
+            }
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Startar Voice v2 system...');
+            
+            if (initSpeechRecognition()) {
+                log('✅ Speech recognition redo');
+                updateStatus('Klicka på mikrofonen för att börja', 'success');
+            }
+            
+            // Test backend
+            fetch('http://localhost:8000/health')
+                .then(response => response.json())
+                .then(data => {
+                    log(`✅ Backend ansluten: ${data.service}`);
+                })
+                .catch(error => {
+                    log(`❌ Backend fel: ${error}`);
+                });
+        });
+        
+        log('💡 Tips: Säg "Kolla min email", "Vad är klockan" eller "Hej Alice"');
+    </script>
+</body>
+</html>
