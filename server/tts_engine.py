@@ -166,17 +166,18 @@ class PiperTTSEngine:
             bool: Success status
         """
         try:
-            # Use ffmpeg with HIGH QUALITY LAME encoding for clear Alice voice
+            # Use ffmpeg with ULTRA-CLEAN LAME encoding (noise reduction + EQ)
             cmd = [
                 'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
                 '-i', wav_path,
                 '-ar', '44100',              # 44.1kHz sample rate
                 '-ac', '1',                  # Mono
                 '-c:a', 'libmp3lame',        # Use LAME encoder explicitly
-                '-b:a', '192k',              # Higher bitrate: 192 kbps for clearer voice
+                '-b:a', '256k',              # Even higher bitrate: 256 kbps for ultimate clarity
                 '-write_xing', '0',          # Remove VBR/Xing header (pure CBR)
                 '-q:a', '0',                 # Highest quality LAME preset
-                '-af', 'highpass=f=80,lowpass=f=15000',  # Clean frequency range for speech
+                # Advanced audio cleaning chain:
+                '-af', 'highpass=f=100,lowpass=f=12000,volume=1.2,dynaudnorm=f=200:g=11,deesser,afftdn=nf=-20',
                 mp3_path
             ]
             
