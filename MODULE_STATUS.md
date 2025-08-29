@@ -1,16 +1,31 @@
-# Alice Module Status & Architecture Report
-*Datum: 2025-08-28*
+# Alice Module Status & Architecture Report  
+*Datum: 2025-08-29 - Post Voice v2 Implementation*
+
+> **🎉 MAJOR UPDATE**: Voice v2 är nu komplett och production-ready med 7/7 E2E tests passing!
 
 ## FUNGERANDE MODULER ✅
 
+### 🎙️ Voice v2 System (PRODUCTION READY)
+- **TTS Pipeline**: `piper_sim_audio.py` → ffmpeg → Real MP3 files (7-13 KB)
+- **ASR WebSocket**: `routes/asr.py` Real-time speech recognition 
+- **Audio Serving**: FastAPI FileResponse med correct MIME types + CORS
+- **Browser Playback**: Blob URL loading, inga DEMUXER_ERROR längre
+- **E2E Testing**: 7/7 automated tests passing ✅
+- **Voice Interface**: `voice-complete.html` + `VoiceV2Interface.tsx`
+
+### 🛡️ Guardian Security System
+- **Request Protection**: Timeout middleware, rate limiting
+- **Metrics API**: `/api/metrics/guardian/*` Real-time system health  
+- **Alert Management**: Structured logging och notification system
+- **Performance Monitoring**: SLO tracking för Voice v2 pipeline
+
 ### Backend (Server)
+- **`app_minimal.py`** - Production FastAPI server med Guardian integration
 - **`server/core/`** - Agent system (orchestrator, planner, executor)
 - **`server/llm/`** - LLM providers (ollama.py fungerar med gpt-oss:20b)
-- **`server/simple_llm_status.py`** - Stabil LLM status endpoint
-- **`alice-tools/`** - Router och tool system
-- **`nlu-agent/`** - NLU service (separat TypeScript service)
+- **`routes/`** - TTS, ASR, Brain APIs alla production-ready
 - **Database** - SQLite med alice.db, patterns.db, triggers.db
-- **API endpoints** - `/api/chat`, `/api/v1/llm/status`, `/api/tools/*`
+- **API endpoints** - `/api/chat`, `/health`, `/api/tts/`, `/api/asr` etc
 
 ### Backend Tools
 - **Weather integration** - Fungerande weather.get tool
