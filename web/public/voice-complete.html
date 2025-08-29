@@ -229,24 +229,34 @@
         }
         
         async function processVoiceCommand(text) {
-            updateStatus('Alice tänker...', 'warning');
-            log(`🧠 Bearbetar: "${text}"`);
+            updateStatus('Alice analyserar intent...', 'warning');
+            log(`🧠 Bearbetar med NLU: "${text}"`);
             
             try {
-                // Simple response based on keywords
-                let response;
-                if (text.toLowerCase().includes('email') || text.toLowerCase().includes('mail')) {
-                    response = 'Du har 3 nya email.';
-                } else if (text.toLowerCase().includes('tid') || text.toLowerCase().includes('klockan')) {
-                    const now = new Date().toLocaleTimeString('sv-SE');
-                    response = `Klockan är ${now}.`;
-                } else if (text.toLowerCase().includes('väder')) {
-                    response = 'Det är 18 grader och soligt i Stockholm idag.';
-                } else if (text.toLowerCase().includes('hej') || text.toLowerCase().includes('halo')) {
-                    response = 'Hej! Hur kan jag hjälpa dig?';
+                // Call NLU Intent Classification API
+                const nluResponse = await fetch('http://localhost:8000/api/nlu/classify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text
+                    })
+                });
+                
+                let intent = null;
+                if (nluResponse.ok) {
+                    intent = await nluResponse.json();
+                    log(`🎯 Intent: ${intent.category}/${intent.action} (conf: ${intent.confidence.toFixed(2)})`);
+                    if (intent.entities && Object.keys(intent.entities).length > 0) {
+                        log(`🔍 Entities: ${JSON.stringify(intent.entities)}`);
+                    }
                 } else {
-                    response = `Du sa "${text}". Hur kan jag hjälpa dig med det?`;
+                    log(`❌ NLU fel: ${nluResponse.status}`);
                 }
+                
+                // Generate response based on intent
+                let response = await generateSmartResponse(text, intent);
                 
                 document.getElementById('response').textContent = `Alice: ${response}`;
                 log(`🤖 Alice svarar: "${response}"`);
@@ -258,6 +268,56 @@
             } catch (error) {
                 log(`❌ Fel vid bearbetning: ${error}`);
                 updateStatus('Kunde inte bearbeta kommando', 'error');
+            }
+        }
+        
+        async function generateSmartResponse(text, intent) {
+            // Generate contextual responses based on intent
+            if (!intent || intent.category === 'unknown') {
+                return `Du sa "${text}". Jag förstod inte riktigt - kan du formulera om det?`;
+            }
+            
+            switch (intent.category) {
+                case 'communication':
+                    if (intent.action === 'check_email') {
+                        return 'Du har 3 nya email och 1 viktigt meddelande.';
+                    } else if (intent.action === 'call') {
+                        const person = intent.entities?.person_name || 'kontakt';
+                        return `Ringer till ${person}... Tyvärr, ingen svarar just nu.`;
+                    }
+                    return 'Hanterar kommunikation...';
+                    
+                case 'time':
+                    if (intent.action === 'current_time') {
+                        const now = new Date().toLocaleTimeString('sv-SE');
+                        return `Klockan är ${now}.`;
+                    } else if (intent.action === 'schedule') {
+                        const date = intent.entities?.date || 'senare';
+                        return `Sätter påminnelse för ${date}. Påminnelsen är sparad!`;
+                    }
+                    return 'Hanterar tid och schema...';
+                    
+                case 'weather':
+                    return 'Det är 18 grader och soligt i Stockholm idag. Lätt molnighet på eftermiddagen.';
+                    
+                case 'system':
+                    if (intent.action === 'lights_on') {
+                        return 'Tänder lamporna... Alla lampor är nu på.';
+                    } else if (intent.action === 'lights_off') {
+                        return 'Släcker lamporna... Alla lampor är nu avstängda.';
+                    }
+                    return 'Utför systemkommando...';
+                    
+                case 'greeting':
+                    if (intent.action === 'hello') {
+                        return 'Hej! Jag mår bra, tack för att du frågar. Hur kan jag hjälpa dig idag?';
+                    } else if (intent.action === 'how_are_you') {
+                        return 'Jag mår utmärkt! Mitt Whisper ASR och NLU system fungerar perfekt. Vad kan jag hjälpa till med?';
+                    }
+                    return 'Hej! Vad kan jag hjälpa dig med?';
+                    
+                default:
+                    return `Jag identifierade "${intent.category}" intent men vet inte hur jag ska hantera det än.`;
             }
         }
         

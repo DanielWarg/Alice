@@ -140,11 +140,12 @@ Alice/web/
 - **Input validation**: All user inputs sanitized
 - **Error containment**: No sensitive data in error messages
 
-### Privacy
+### Privacy & Security
 - **Local-first**: All processing on user's machine
 - **No cloud dependencies**: Ollama + Whisper runs locally
 - **Data retention**: Configurable cleanup policies
 - **Audio processing**: In-memory only, no persistent storage
+- **🔐 KRITISK REGEL**: ALDRIG exponera API-nycklar i kod - ALLTID .env filer
 
 ## 🚀 DEPLOYMENT READY
 

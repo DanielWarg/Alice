@@ -48,6 +48,9 @@ from routes.asr import handle_asr_websocket, asr_health
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+# Import NLU system
+from nlu_intent_classifier import NLUClassifier
+
 # Load environment
 load_dotenv()
 
@@ -90,9 +93,14 @@ try:
     agent_orchestrator = AgentOrchestrator(config=agent_config)
     logger.info("✅ Agent system initialized successfully")
     
+    # Initialize NLU Classifier
+    nlu_classifier = NLUClassifier(llm_manager=model_manager)
+    logger.info("✅ NLU system initialized successfully")
+    
 except Exception as e:
     logger.error(f"❌ Failed to initialize systems: {e}")
     model_manager = None
+    nlu_classifier = None
     agent_orchestrator = None
 
 # Create FastAPI app
@@ -151,6 +159,8 @@ async def websocket_asr(websocket: WebSocket):
 @app.get("/api/asr/health")
 async def get_asr_health():
     return await asr_health()
+
+# Move NLU endpoints after models are defined
 
 # Include Brain Mail Count stub API
 from routes.brain_mail_count import router as brain_mail_router
@@ -266,6 +276,19 @@ class ChatResponse(BaseModel):
     timestamp: str
     model: str
     tftt_ms: float = None
+
+# NLU models
+class NLURequest(BaseModel):
+    text: str
+
+class NLUResponse(BaseModel):
+    category: str
+    action: str
+    confidence: float
+    entities: Dict[str, Any]
+    raw_text: str
+    processing_time_ms: float
+    engine: str
 
 # Guardian/Brownout related models
 class ModelSwitchRequest(BaseModel):
@@ -711,6 +734,38 @@ async def get_brain_status():
         "degraded": server_state.degraded,
         "timestamp": datetime.now().isoformat()
     }
+
+# NLU Intent Classification endpoint
+@app.post("/api/nlu/classify", response_model=NLUResponse)
+async def classify_intent(request: NLURequest):
+    """Classify user intent using NLU system"""
+    try:
+        if not nlu_classifier:
+            raise HTTPException(status_code=503, detail="NLU system not available")
+        
+        intent = await nlu_classifier.classify_intent_async(request.text)
+        
+        return NLUResponse(
+            category=intent.category.value,
+            action=intent.action,
+            confidence=intent.confidence,
+            entities=intent.entities,
+            raw_text=intent.raw_text,
+            processing_time_ms=intent.processing_time_ms,
+            engine=intent.engine
+        )
+        
+    except Exception as e:
+        logger.error(f"NLU classification error: {e}")
+        raise HTTPException(status_code=500, detail=f"NLU processing failed: {str(e)}")
+
+# NLU health endpoint
+@app.get("/api/nlu/health")
+async def nlu_health_endpoint():
+    """NLU system health check"""
+    if not nlu_classifier:
+        return {"service": "nlu", "status": "unavailable"}
+    return nlu_classifier.get_health()
 
 if __name__ == "__main__":
     import uvicorn

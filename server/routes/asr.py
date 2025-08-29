@@ -20,12 +20,15 @@ from pathlib import Path
 import base64
 import tempfile
 
+# Import real Whisper ASR
+from real_whisper_asr import real_whisper_asr, whisper_health
+
 logger = logging.getLogger("alice.asr")
 
-# ASR Configuration
-ASR_ENGINE = "whisper-sim"  # whisper-sim for testing, whisper for production
+# ASR Configuration - PRODUCTION READY
+ASR_ENGINE = "whisper"  # REAL Whisper ASR (production)
 ASR_MODEL = "base"  # base, small, medium for whisper
-ASR_LANG = "sv-SE"  # Swedish as default
+ASR_LANG = "sv"  # Swedish as default (Whisper uses "sv" not "sv-SE")
 VAD_ENGINE = "webrtc"
 SAMPLE_RATE = 16000  # 16kHz for whisper
 
@@ -55,8 +58,18 @@ class ASRSession:
         await self.websocket.send_text(json.dumps(event))
         logger.debug(f"ASR event sent: {event_type} - {data}")
 
-async def simulate_whisper_asr(audio_data: bytes, lang: str = "sv-SE") -> Dict[str, Any]:
-    """Simulate Whisper ASR processing with realistic latency"""
+async def process_whisper_asr(audio_data: bytes, lang: str = "sv") -> Dict[str, Any]:
+    """Process audio with real Whisper ASR"""
+    
+    if ASR_ENGINE == "whisper":
+        # Use real Whisper ASR
+        return await real_whisper_asr(audio_data, language=lang, model_size=ASR_MODEL)
+    else:
+        # Fallback to simulation (for testing)
+        return await simulate_whisper_asr_fallback(audio_data, lang)
+
+async def simulate_whisper_asr_fallback(audio_data: bytes, lang: str = "sv") -> Dict[str, Any]:
+    """Fallback simulation (kept for testing purposes)"""
     
     # Simulate realistic Whisper processing time
     audio_duration_ms = len(audio_data) / 2 / SAMPLE_RATE * 1000  # Assuming 16-bit PCM
@@ -235,7 +248,7 @@ async def finalize_transcription(session: ASRSession):
     vad_duration = (time.time() - session.vad_start_time) * 1000 if session.vad_start_time else 0
     
     # Run ASR on complete audio buffer
-    asr_result = await simulate_whisper_asr(bytes(session.audio_buffer), ASR_LANG)
+    asr_result = await process_whisper_asr(bytes(session.audio_buffer), ASR_LANG)
     
     await session.send_event("final", {
         "text": asr_result["text"],
@@ -289,12 +302,26 @@ async def update_config(session: ASRSession, data: Dict[str, Any]):
 async def asr_health() -> Dict[str, Any]:
     """ASR system health check"""
     
-    return {
-        "service": "asr",
-        "status": "healthy",
-        "engine": ASR_ENGINE,
-        "model": ASR_MODEL,
-        "language": ASR_LANG,
-        "vad_engine": VAD_ENGINE,
-        "sample_rate": SAMPLE_RATE
-    }
+    if ASR_ENGINE == "whisper":
+        # Get real Whisper health
+        whisper_status = await whisper_health()
+        return {
+            "service": "asr",
+            "status": whisper_status.get("status", "unknown"),
+            "engine": ASR_ENGINE,
+            "model": ASR_MODEL,
+            "language": ASR_LANG,
+            "vad_engine": VAD_ENGINE,
+            "sample_rate": SAMPLE_RATE,
+            "whisper_health": whisper_status
+        }
+    else:
+        return {
+            "service": "asr",
+            "status": "healthy",
+            "engine": ASR_ENGINE,
+            "model": ASR_MODEL,
+            "language": ASR_LANG,
+            "vad_engine": VAD_ENGINE,
+            "sample_rate": SAMPLE_RATE
+        }

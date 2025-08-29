@@ -238,6 +238,7 @@ agents:
 3. **Configuration**: Environment-based config med reasonable defaults
 4. **Testing**: Unit tests + integration tests för varje agent
 5. **Documentation**: API documentation med exempel
+6. **🔐 Security**: ALDRIG API-nycklar i kod - ALLTID .env environment
 
 ### Code Structure
 ```python
