@@ -13,14 +13,14 @@ from pydantic import BaseModel
 import json
 import logging
 import time
+from piper_sim_audio import generate_tts_audio
 
 logger = logging.getLogger("alice.tts")
 
 async def generate_with_piper_tts(text: str, output_path: Path, voice: str = "nova", rate: float = 1.0):
-    """Generate TTS using Piper (realistic latency simulation for now)"""
+    """Generate TTS using Piper simulation with proper MP3/WAV files"""
     
     # Simulate realistic Piper + ffmpeg processing time
-    # Real Piper would be 200-800ms depending on text length and hardware
     text_length = len(text)
     base_time = 0.3  # 300ms base
     char_time = text_length * 0.008  # 8ms per character
@@ -31,17 +31,24 @@ async def generate_with_piper_tts(text: str, output_path: Path, voice: str = "no
     # Sleep to simulate real processing time
     await asyncio.sleep(simulated_time)
     
-    # Create a proper MP3 file (minimal valid MP3 header + data)
-    mp3_header = bytes.fromhex("494433030000000000000000FFE3180000000000000000000000000000000000000000000000000000000000000000000000000000")
+    # Generate proper audio file using pydub + ffmpeg
+    base_filename = output_path.stem
+    output_dir = str(output_path.parent)
     
-    # Add some variation based on text length to simulate real MP3 size
-    padding_size = min(max(text_length * 100, 1000), 10000)  # 100 bytes per char, min 1KB, max 10KB
-    mp3_data = mp3_header + b'\x00' * padding_size
+    file_path, media_type, success = generate_tts_audio(text, base_filename, output_dir)
     
-    with open(output_path, 'wb') as f:
-        f.write(mp3_data)
-    
-    logger.info(f"Piper TTS complete: {output_path.name} ({len(mp3_data)} bytes)")
+    if success:
+        # Update output_path to match the actual generated file
+        actual_path = Path(file_path)
+        file_size = actual_path.stat().st_size
+        logger.info(f"Piper TTS complete: {actual_path.name} ({file_size} bytes, {media_type})")
+        
+        # Copy to expected path if different
+        if actual_path != output_path:
+            import shutil
+            shutil.move(str(actual_path), str(output_path))
+    else:
+        raise RuntimeError(f"Failed to generate audio for: {text[:50]}...")
 
 router = APIRouter(prefix="/api/tts", tags=["tts"])
 
@@ -152,11 +159,16 @@ async def generate_tts(request: TTSRequest):
         )
         
     except Exception as e:
-        logger.error(f"Piper TTS failed: {e}, falling back to mock")
-        # Create minimal MP3 for testing when Piper unavailable
-        mock_mp3_data = bytes.fromhex("494433030000000000000000FFE3180064000000000000000000000000000000000000000000")
-        with open(audio_file, 'wb') as f:
-            f.write(mock_mp3_data)
+        logger.error(f"Piper TTS failed: {e}, falling back to direct audio generation")
+        # Direct fallback using pydub
+        base_filename = audio_file.stem
+        output_dir = str(audio_file.parent)
+        
+        file_path, media_type, success = generate_tts_audio(request.text, base_filename, output_dir)
+        
+        if success and Path(file_path) != audio_file:
+            import shutil
+            shutil.move(file_path, str(audio_file))
         
         processing_time = (asyncio.get_event_loop().time() - start_time) * 1000
         logger.warning(f"TTS FALLBACK MODE: {request.text[:50]}... ({processing_time:.1f}ms)")

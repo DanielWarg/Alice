@@ -46,6 +46,7 @@ from chat_service import chat_service
 from routes.tts import router as tts_router
 from routes.asr import handle_asr_websocket, asr_health
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 # Load environment
 load_dotenv()
@@ -155,11 +156,40 @@ async def get_asr_health():
 from routes.brain_mail_count import router as brain_mail_router
 app.include_router(brain_mail_router)
 
-# Serve static audio files
+# Serve static audio files with proper MIME type
 from pathlib import Path
-AUDIO_DIR = Path(os.getenv("AUDIO_DIR", "./voice/audio"))
+AUDIO_DIR = Path(os.getenv("AUDIO_DIR", "./server/voice/audio"))
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/audio", StaticFiles(directory=str(AUDIO_DIR)), name="audio")
+
+@app.get("/audio/{filename}")
+async def serve_audio_file(filename: str):
+    """Serve audio files with proper MIME type and CORS headers"""
+    
+    file_path = AUDIO_DIR / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    
+    # Determine MIME type based on file extension
+    if filename.lower().endswith('.wav'):
+        media_type = "audio/wav"
+    elif filename.lower().endswith('.mp3'):
+        media_type = "audio/mpeg"
+    else:
+        media_type = "audio/mpeg"  # Default to MP3
+    
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+            "Access-Control-Allow-Headers": "Range, Accept",
+            "Cross-Origin-Resource-Policy": "cross-origin",
+        }
+    )
 
 # Serve voice catalog
 VOICE_DIR = Path("./voice")
