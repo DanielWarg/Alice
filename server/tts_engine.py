@@ -59,13 +59,13 @@ class PiperTTSEngine:
         return None
     
     def _find_english_voice_model(self) -> Optional[str]:
-        """Find English voice model file (Female voices only for Alice)"""
+        """Find English voice model file (Female voices - Amy #1, LJSpeech #2)"""
         model_paths = [
-            "server/voices/en_US-amy-medium.onnx",       # Amy: Balanced female voice
+            "server/voices/en_US-amy-medium.onnx",       # #1: Amy (balanced female voice)
             "voices/en_US-amy-medium.onnx",
             "./en_US-amy-medium.onnx",
-            "server/voices/en_US-ljspeech-high.onnx",   # LJSpeech: High quality female
-            "voices/en_US-ljspeech-high.onnx",
+            "server/voices/en_US-ljspeech-high.onnx",   # #2: LJSpeech (high quality female)
+            "voices/en_US-ljspeech-high.onnx", 
             "./en_US-ljspeech-high.onnx"
         ]
         
