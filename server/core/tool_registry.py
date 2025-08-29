@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional
 from .tool_specs import TOOL_SPECS, enabled_tools, is_tool_enabled
 from .gmail_service import gmail_service
 from .calendar_service import calendar_service
+from .weather_service import weather_service
 
 # Dummy-implementationer för demo
 def play() -> str:
@@ -70,6 +71,16 @@ def current_time() -> str:
     time_str = now.strftime('%H:%M:%S')
     
     return f"🕐 Aktuell tid: {time_str}\n📅 Datum: {weekday} {date_str}"
+
+# Weather-funktioner
+def get_current_weather(city: str = None, country: str = None) -> str:
+    return weather_service.get_current_weather(city, country)
+
+def get_weather_forecast(city: str = None, country: str = None, days: int = 3) -> str:
+    return weather_service.get_weather_forecast(city, country, days)
+
+def search_city_weather(query: str) -> str:
+    return weather_service.search_city_weather(query)
 
 # Gmail-funktioner
 def send_email(to: str, subject: str, body: str, cc: str = None, bcc: str = None) -> str:
@@ -158,6 +169,9 @@ EXECUTORS = {
     "SUGGEST_MEETING_TIMES": lambda args: suggest_meeting_times(args.duration_minutes, args.date_preference, args.max_suggestions),
     "CHECK_CALENDAR_CONFLICTS": lambda args: check_calendar_conflicts(args.start_time, args.end_time, args.exclude_event_id),
     "CURRENT_TIME": lambda _args: current_time(),
+    "GET_WEATHER": lambda args: get_current_weather(args.city, args.country),
+    "GET_WEATHER_FORECAST": lambda args: get_weather_forecast(args.city, args.country, args.days),
+    "SEARCH_WEATHER": lambda args: search_city_weather(args.query),
 }
 
 def list_tool_specs() -> list[Dict[str, Any]]:

@@ -69,6 +69,18 @@ class CheckCalendarConflictsArgs(BaseModel):
     end_time: str = Field(None, description="Sluttid (valfritt, standard 1 timme)")
     exclude_event_id: str = Field(None, description="Exkludera händelse-ID från kolning (valfritt)")
 
+class GetWeatherArgs(BaseModel):
+    city: str = Field(None, description="Stad att hämta väder för (standard: Stockholm)")
+    country: str = Field(None, description="Landskod (t.ex. 'SE', 'US', 'NO')")
+
+class GetWeatherForecastArgs(BaseModel):
+    city: str = Field(None, description="Stad för väderprognos (standard: Stockholm)")
+    country: str = Field(None, description="Landskod (t.ex. 'SE', 'US', 'NO')")
+    days: int = Field(3, ge=1, le=5, description="Antal dagar prognos (1-5)")
+
+class SearchWeatherArgs(BaseModel):
+    query: str = Field(description="Stad eller plats att söka väder för")
+
 class NoArgs(BaseModel):
     """Inga argument behövs för detta verktyg"""
     pass
@@ -276,6 +288,38 @@ TOOL_SPECS: Dict[str, Dict[str, Any]] = {
             "vilket datum är det idag",
             "visa nuvarande tid",
             "kolla tiden"
+        ]
+    },
+    "GET_WEATHER": {
+        "args_model": GetWeatherArgs,
+        "desc": "Hämta aktuellt väder för en stad.",
+        "examples": [
+            "vad är det för väder i Stockholm",
+            "hur är vädret utomhus",
+            "kolla vädret i Göteborg",
+            "väder i London",
+            "regnar det idag"
+        ]
+    },
+    "GET_WEATHER_FORECAST": {
+        "args_model": GetWeatherForecastArgs,
+        "desc": "Hämta väderprognos för flera dagar.",
+        "examples": [
+            "väderprognos för Stockholm",
+            "hur blir vädret imorgon",
+            "5-dagars prognos för Paris",
+            "kommer det regna nästa vecka",
+            "väder nästa 3 dagar"
+        ]
+    },
+    "SEARCH_WEATHER": {
+        "args_model": SearchWeatherArgs,
+        "desc": "Sök väder för en plats eller stad.",
+        "examples": [
+            "sök väder för New York",
+            "väder i min hemstad",
+            "kolla vädret där",
+            "hitta väderinformation för Berlin"
         ]
     },
 }

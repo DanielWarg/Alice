@@ -121,13 +121,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Guardian Gate - admission control (kollar Guardian status) - Optimized
-app.add_middleware(
-    GuardianGate,
-    guardian_url="http://localhost:8787/health",
-    cache_ttl_ms=300,     # Längre cache (var 250ms) 
-    timeout_s=0.5         # Längre timeout (var 0.25s) för stabilitet
-)
+# 2. Guardian Gate - admission control (kollar Guardian status) - TEMPORARILY DISABLED FOR VOICE TESTING
+# app.add_middleware(
+#     GuardianGate,
+#     guardian_url="http://localhost:8787/health",
+#     cache_ttl_ms=300,     # Längre cache (var 250ms) 
+#     timeout_s=0.5         # Längre timeout (var 0.25s) för stabilitet
+# )
 
 # 3. Path-specific timeout middleware
 timeout_config = {
