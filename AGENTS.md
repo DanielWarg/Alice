@@ -259,6 +259,24 @@ class BaseAgent:
         pass
 ```
 
+### Development Environment Requirements
+
+> ⚠️ **KRITISKA KRAV för Agent Development**:
+> - **Python Environment**: ALLTID kör via `.venv/bin/activate` - ALDRIG global Python
+> - **Port Requirements**: Backend måste vara port 8000, Frontend port 3000
+> - **Clean Startup**: Döda befintliga processer innan utveckling
+
+```bash
+# Förberedelser innan agent development
+lsof -i :3000 :8000 | awk 'NR>1 {print $2}' | xargs kill -9  # Döda processer
+
+# Starta utvecklingsmiljö för agents  
+cd server
+source .venv/bin/activate  # OBLIGATORISK för alla Python-operationer
+python -m pytest tests/agents/  # Kör agent tests
+uvicorn app_minimal:app --host 127.0.0.1 --port 8000 --reload  # Start server
+```
+
 ## 📋 IMPLEMENTATION ROADMAP
 
 ### Phase 1: Core Agents (Current) ✅

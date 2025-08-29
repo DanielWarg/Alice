@@ -149,14 +149,31 @@ Alice/web/
 ## 🚀 DEPLOYMENT READY
 
 ### Development Environment
+
+> ⚠️ **KRITISKA KRAV FÖR ALICE**:
+> - **PORTSTRIKTA**: Exakt 3000 (frontend) + 8000 (backend) - ICKE-FÖRHANDLINGSBART
+> - **ALLTID .venv**: Python måste köras via `.venv/bin/activate` - ALDRIG global Python
+> 
+> Döda processer innan start: `lsof -i :3000 :8000 | awk 'NR>1 {print $2}' | xargs kill -9`
+
 ```bash
-# Backend (Terminal 1)
-cd server && source .venv/bin/activate
+# Backend (Terminal 1) - MÅSTE vara port 8000 med .venv
+cd server
+source .venv/bin/activate  # OBLIGATORISK - aldrig global Python!
 uvicorn app_minimal:app --host 127.0.0.1 --port 8000 --reload
 
-# Frontend (Terminal 2) 
-cd web && npm run dev
+# Frontend (Terminal 2) - MÅSTE vara port 3000  
+cd web
+npm run dev  # Startar automatiskt på port 3000
 ```
+
+**Kritiska portar (ICKE-FÖRHANDLINGSBARA)**:
+- 🌐 **Frontend**: http://localhost:3000 (Next.js dev server)
+- 🚀 **Backend**: http://localhost:8000 (FastAPI server) 
+- 🔒 **CORS**: Konfigurerat för exakt localhost:3000 ↔ localhost:8000
+- 🎙️ **Voice WebSocket**: ws://localhost:8000/api/asr (ASR pipeline)
+
+*Systemet fungerar ENDAST med dessa exakta portar p.g.a. hardkodade CORS-inställningar!*
 
 ### Production Checklist
 - ✅ Professional MP3 generation med ffmpeg
