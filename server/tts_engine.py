@@ -59,11 +59,14 @@ class PiperTTSEngine:
         return None
     
     def _find_english_voice_model(self) -> Optional[str]:
-        """Find English voice model file (Amy - Alice's voice)"""
+        """Find English voice model file (Female voices only for Alice)"""
         model_paths = [
-            "server/voices/en_US-amy-medium.onnx",
+            "server/voices/en_US-amy-medium.onnx",       # Amy: Balanced female voice
             "voices/en_US-amy-medium.onnx",
-            "./en_US-amy-medium.onnx"
+            "./en_US-amy-medium.onnx",
+            "server/voices/en_US-ljspeech-high.onnx",   # LJSpeech: High quality female
+            "voices/en_US-ljspeech-high.onnx",
+            "./en_US-ljspeech-high.onnx"
         ]
         
         for model_path in model_paths:
@@ -262,22 +265,24 @@ def generate_real_tts_audio(text: str, base_filename: str, output_dir: str = "./
 
 # Test function
 def test_piper_tts():
-    """Test Alice's bilingual TTS (Swedish input → English responses)"""
-    print("🧪 Testing Alice's English voice with realistic responses...")
+    """Test Alice's HIGH-QUALITY bilingual TTS (LJSpeech crystal-clear voice)"""
+    print("🧪 Testing Alice's HIGHEST QUALITY English voice...")
     
     engine = PiperTTSEngine()
     print(f"📡 Alice TTS available: {'✅ Yes' if engine.available else '❌ No'}")
+    print(f"🎙️ Voice model: {Path(engine.english_voice_path).name if engine.english_voice_path else 'None'}")
     
     if not engine.available:
         print("❌ Cannot test - Alice TTS not configured properly")
         return
     
-    # Alice responds in English to Swedish queries (realistic assistant behavior)
+    # Alice responds in English with crystal-clear HIGH QUALITY voice
     test_responses = [
-        "Hello! I understand you want to check your email. You have 3 new messages and 1 important notification from your manager.",
-        "Good morning! The current weather in Stockholm is 18 degrees Celsius with sunny conditions. Light clouds are expected this afternoon.",
-        "I'm turning on the lights for you now. All smart lights in your home have been activated successfully.",
-        "The current time is 1:30 PM. You have a meeting scheduled in 30 minutes with the development team."
+        "Hello! I'm Alice, your intelligent voice assistant with crystal-clear speech quality. How may I help you today?",
+        "I understand you want to check your email. You have 3 new messages and 1 important notification from your manager regarding the quarterly review.",
+        "Good morning! The current weather in Stockholm is 18 degrees Celsius with sunny conditions. Light cloud coverage is expected this afternoon, perfect for outdoor activities.",
+        "I'm turning on all the smart lights in your home now. The lighting system has been activated successfully and is fully operational.",
+        "The current time is 1:30 PM. You have a meeting scheduled in 30 minutes with the development team. Would you like me to set a reminder?"
     ]
     
     output_dir = Path("./test_real_tts")
