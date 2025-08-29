@@ -15,6 +15,7 @@ import logging
 
 from .voice_cache import VoiceCache
 from .orchestrator import VoiceOutput
+from .simple_normalizer import make_cache_key
 
 logger = logging.getLogger("alice.voice.tts")
 
@@ -57,8 +58,8 @@ class TTSClient:
         # Prepare text with SSML if needed
         processed_text = self._apply_ssml_pronunciation(voice_output.speak_text_en)
         
-        # Create cache key
-        cache_key = self._create_cache_key(processed_text, voice_output)
+        # Create cache key using normalized approach
+        cache_key = self._create_cache_key_normalized(processed_text, voice_output)
         
         # Check cache first
         cached_result = self.cache.get(cache_key)
@@ -69,6 +70,7 @@ class TTSClient:
                 "audio_file": cached_result["audio_file"],
                 "duration": cached_result["duration"], 
                 "cached": True,
+                "provider": "cache",  # Fix: label cache hits properly
                 "processing_time": time.time() - start_time
             }
         
@@ -235,6 +237,19 @@ class TTSClient:
             return "nova-hd"
         else:
             return self.config["default_voice"]
+    
+    def _create_cache_key_normalized(self, text: str, voice_output: VoiceOutput) -> str:
+        """Create normalized cache key for better cache hit rate"""
+        
+        voice_name = self._select_voice(voice_output)
+        
+        # Use normalized cache key from normalizer module
+        cache_base = make_cache_key(voice_name, voice_output.rate, voice_output.speak_text_en)
+        
+        # Add style for completeness
+        cache_full = f"{cache_base}|{voice_output.style}"
+        
+        return hashlib.sha256(cache_full.encode()).hexdigest()
     
     def _create_cache_key(self, text: str, voice_output: VoiceOutput) -> str:
         """Create unique cache key for text + voice settings"""

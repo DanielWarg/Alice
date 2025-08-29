@@ -1,5 +1,5 @@
-# Alice System Architecture - Production Optimized
-*Uppdaterad: 2025-08-28 22:30 - PRODUCTION OPTIMIZATION KOMPLETT 🚀*
+# Alice System Architecture - Voice v2 Transition
+*Uppdaterad: 2025-08-29 10:30 - VOICE V2 DEVELOPMENT STARTED 🎙️*
 
 ## CURRENT SYSTEM STATE
 
@@ -15,6 +15,7 @@
 │ ✅ DateTime Widget      Status: LIVE    │
 │ ✅ Guardian API Hooks   Status: LIVE    │
 │ 🧹 Calendar Module     Status: REMOVED │
+│ 🚧 Voice v2 System     Status: DEV     │
 └─────────────────────────────────────────┘
                     │
                     │ HTTP/REST + Guardian Events
@@ -35,6 +36,8 @@
 │ 🚀 Response Caching    Status: ACTIVE  │
 │ 🚀 Request Batching    Status: ACTIVE  │
 │ 🚀 Async DB Ops       Status: OPTIMIZED│
+│ 🚧 TTS HTTP Route      Status: DEV     │
+│ 🚧 Voice Ack System    Status: DEV     │
 └─────────────────────────────────────────┘
                     │
                     │ LLM Requests + Advanced Protection

@@ -1,6 +1,5 @@
 """
-Voice Orchestrator - Translates Swedish input to English speech text using GPT-OSS.
-Handles segmentation for long content and enforces strict output contract.
+Fast Voice Orchestrator - Priority queue + dual Ollama for optimal performance
 """
 
 import json
@@ -12,10 +11,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from .input_processor import InputPackage
-from ..llm.ollama import OllamaAdapter
 from .simple_normalizer import pre_normalize_sv, post_normalize_en, make_cache_key
-from .simple_router import choose_model_for_sv
 from .production_config import ProductionVoiceConfig
+from .priority_queue import voice_priority_queue
+from .dual_ollama_clients import dual_ollama
 
 @dataclass
 class VoiceOutput:
@@ -34,18 +33,19 @@ class VoiceOutput:
         if self.meta is None:
             self.meta = {}
 
-class VoiceOrchestrator:
+class FastVoiceOrchestrator:
     """
-    Orchestrator that translates Swedish to English using local GPT-OSS.
-    Enforces strict output contract and handles segmentation for long content.
+    High-performance voice orchestrator with:
+    - Priority queue processing
+    - Dual Ollama routing (fast/deep)
+    - Single-flight deduplication
+    - Guardian fast-lane integration
     """
     
     def __init__(self):
-        self.llm = OllamaAdapter()
         self.max_segment_length = 320  # Characters per segment
         self.max_total_length = 2000   # Before requiring summary
-        self.config = ProductionVoiceConfig()  # Production settings
-        self._cache_warmed = False  # Track if startup cache warming is done
+        self.config = ProductionVoiceConfig()
         
         # Translation prompts
         self.system_prompt = """Du är Alice's voice orchestrator. Din uppgift är att översätta svensk text till idiomatisk engelska för röstuppläsning.
@@ -71,126 +71,134 @@ Output: {"speak_text_en": "Hi! Meeting with Anna tomorrow at 2 PM about budget."
 
     async def process(self, input_package: InputPackage) -> VoiceOutput:
         """
-        Main processing method - translates Swedish input to English voice output.
-        Handles segmentation for long content automatically.
+        Main processing method - uses priority queue for optimal scheduling
         """
-        start_time = time.time()
         
-        # Skip performance monitoring for now to avoid import issues
-        performance_monitor = None
+        # Submit to priority queue with automatic routing
+        result = await voice_priority_queue.submit(
+            text=input_package.text_sv,
+            source_type=input_package.source_type,
+            processor_coro=self._process_with_priority
+        )
+        
+        return result
+    
+    async def _process_with_priority(self, text_sv: str, source_type: str) -> VoiceOutput:
+        """Process single request through fast-lane pipeline"""
+        
+        start_time = time.time()
         
         # Determine if segmentation is needed
         needs_segmentation = (
-            len(input_package.text_sv) > self.max_total_length or
-            input_package.source_type == "email"
+            len(text_sv) > self.max_total_length or
+            source_type == "email"
         )
         
         if needs_segmentation:
-            return await self._process_with_segmentation(input_package, start_time)
+            return await self._process_with_segmentation(text_sv, source_type, start_time)
         else:
-            return await self._process_single(input_package, start_time)
+            return await self._process_single(text_sv, source_type, start_time)
     
-    async def _process_single(self, input_package: InputPackage, start_time: float) -> VoiceOutput:
-        """Process short text in single request"""
+    async def _process_single(self, text_sv: str, source_type: str, start_time: float) -> VoiceOutput:
+        """Process short text using dual Ollama routing"""
         
-        # 1. Pre-normalize Swedish text to reduce LLM hallucinations
-        pre_normalized = pre_normalize_sv(input_package.text_sv)
+        # 1. Pre-normalize Swedish text
+        pre_normalized = pre_normalize_sv(text_sv)
         
-        # 2. Choose appropriate model based on complexity (enhanced threshold)
-        target_model = self._choose_optimal_model(input_package.text_sv, pre_normalized)
+        # 2. Determine complexity for routing
+        text_length = len(pre_normalized)
+        has_complex_patterns = any(
+            indicator in pre_normalized.lower() 
+            for indicator in self.config.ROUTER_COMPLEX_INDICATORS
+        )
         
-        # 3. Build prompt with pre-normalized text  
-        prompt = self._build_prompt(pre_normalized, input_package.source_type)
+        # 3. Build prompt
+        prompt = self._build_prompt(pre_normalized, source_type)
+        messages = [{"role": "user", "content": prompt}]
         
         try:
-            # Call GPT-OSS for translation
-            messages = [{"role": "user", "content": prompt}]
-            response = await self.llm.chat(messages)
+            # 4. Route to appropriate Ollama instance
+            response = await dual_ollama.translate_with_routing(
+                messages, text_length, has_complex_patterns
+            )
             
-            if not response.text:
-                raise Exception(f"LLM returned empty response")
+            if not response.success or not response.text:
+                raise Exception(f"LLM failed: {response.error}")
             
-            # Parse and validate response
+            # 5. Parse and validate response
             voice_data = self._parse_llm_response(response.text)
             
-            # 4. Post-normalize English for cache consistency and TTS quality
+            # 6. Post-normalize for cache consistency
             normalized_english = post_normalize_en(voice_data["speak_text_en"])
             
-            # Calculate processing time
-            processing_time = time.time() - start_time
+            # 7. Apply production style/rate settings
+            style_rate = self.config.get_style_rate(source_type)
             
-            # Apply production style/rate settings
-            style_rate = self.config.get_style_rate(input_package.source_type)
-            
-            # Create final output
+            # 8. Create final output
             voice_output = VoiceOutput(
                 speak_text_en=normalized_english,
-                screen_text_sv=input_package.text_sv,
+                screen_text_sv=text_sv,
                 style=style_rate["style"],
                 rate=style_rate["rate"],
                 meta={
-                    "processing_time": processing_time,
-                    "source_type": input_package.source_type,
+                    "processing_time": time.time() - start_time,
+                    "llm_time": response.processing_time,
+                    "source_type": source_type,
                     "char_count": len(normalized_english),
-                    "pre_normalized": pre_normalized != input_package.text_sv,
-                    "post_normalized": normalized_english != voice_data["speak_text_en"],
-                    "target_model": target_model
+                    "model_used": response.model,
+                    "fast_lane": True,
+                    "pre_normalized": pre_normalized != text_sv,
+                    "post_normalized": normalized_english != voice_data["speak_text_en"]
                 }
             )
             
-            # Validate output
+            # 9. Validate output
             self._validate_output(voice_output)
-            
-            # Record performance metric (disabled for testing)
-            # if performance_monitor:
-            #     performance_monitor.record_voice_request(...)
             
             return voice_output
             
         except Exception as e:
-            # Record failed metric (disabled for testing)
-            # if performance_monitor:
-            #     performance_monitor.record_voice_request(...)
-            # Fallback to simple translation if LLM fails
-            return self._create_fallback_output(input_package, str(e), start_time)
+            return self._create_fallback_output(text_sv, source_type, str(e), start_time)
     
-    async def _process_with_segmentation(self, input_package: InputPackage, start_time: float) -> VoiceOutput:
-        """Process long content with summary + segmentation"""
+    async def _process_with_segmentation(self, text_sv: str, source_type: str, start_time: float) -> VoiceOutput:
+        """Process long content with TL;DR first approach"""
         
-        # Pre-normalize for segmentation too
-        pre_normalized = pre_normalize_sv(input_package.text_sv)
+        pre_normalized = pre_normalize_sv(text_sv)
         
-        # First, create a summary for immediate playback
-        summary_prompt = self._build_summary_prompt(pre_normalized, input_package.source_type)
+        # Create summary for immediate playback (email TL;DR)
+        summary_prompt = self._build_summary_prompt(pre_normalized, source_type)
+        messages = [{"role": "user", "content": summary_prompt}]
         
         try:
-            # Get summary first (highest priority)
-            messages = [{"role": "user", "content": summary_prompt}]
-            summary_response = await self.llm.chat(messages)
+            # Get TL;DR using fast routing
+            response = await dual_ollama.translate_with_routing(
+                messages, len(summary_prompt), False  # Summaries usually not complex
+            )
             
-            if not summary_response.text:
-                raise Exception(f"Summary failed: empty response")
+            if not response.success or not response.text:
+                raise Exception(f"Summary failed: {response.error}")
             
-            summary_data = self._parse_llm_response(summary_response.text)
-            
-            # Post-normalize summary
+            summary_data = self._parse_llm_response(response.text)
             normalized_summary = post_normalize_en(summary_data["speak_text_en"])
             
-            # Create segments for the rest (we'll process these later if needed)
+            # Create segments for background processing
             segments = self._create_segments(pre_normalized)
             
             voice_output = VoiceOutput(
                 speak_text_en=normalized_summary,
-                screen_text_sv=input_package.text_sv,
-                style=summary_data.get("style", "neutral"),
+                screen_text_sv=text_sv,
+                style=summary_data.get("style", "formal"),
                 rate=summary_data.get("rate", 1.0),
                 segments=segments,
                 is_summary=True,
                 meta={
                     "processing_time": time.time() - start_time,
-                    "source_type": input_package.source_type,
+                    "llm_time": response.processing_time,
+                    "source_type": source_type,
+                    "model_used": response.model,
                     "has_segments": len(segments) > 0,
-                    "total_segments": len(segments)
+                    "total_segments": len(segments),
+                    "fast_lane": True
                 }
             )
             
@@ -198,15 +206,14 @@ Output: {"speak_text_en": "Hi! Meeting with Anna tomorrow at 2 PM about budget."
             return voice_output
             
         except Exception as e:
-            return self._create_fallback_output(input_package, str(e), start_time)
+            return self._create_fallback_output(text_sv, source_type, str(e), start_time)
     
     def _build_prompt(self, swedish_text: str, source_type: str) -> str:
         """Build translation prompt with context"""
         
-        # Add source-specific instructions
         source_instructions = {
             "chat": "Casual conversational tone.",
-            "email": "Professional but friendly tone.", 
+            "email": "Professional but friendly tone.",
             "calendar": "Clear, time-focused information.",
             "notification": "Brief and direct.",
             "command": "Acknowledge the action clearly."
@@ -224,11 +231,11 @@ SVENSK TEXT:
 JSON OUTPUT:"""
 
     def _build_summary_prompt(self, swedish_text: str, source_type: str) -> str:
-        """Build prompt for summary/TL;DR generation"""
+        """Build prompt for TL;DR generation"""
         
         return f"""{self.system_prompt}
 
-SPECIELL UPPGIFT: Skapa en KORT sammanfattning (1-2 meningar, max 200 tecken).
+SPECIELL UPPGIFT: Skapa en KORT sammanfattning (1-2 meningar, max 160 tecken).
 Detta är första ljudet användaren hör - gör det informativt och koncist.
 
 KONTEXT: {source_type} - behöver snabb sammanfattning
@@ -241,7 +248,7 @@ JSON OUTPUT (kort sammanfattning):"""
     def _parse_llm_response(self, response_text: str) -> Dict[str, Any]:
         """Parse and validate LLM JSON response"""
         
-        # Clean response - remove markdown blocks if present
+        # Clean response
         cleaned = response_text.strip()
         if cleaned.startswith("```json"):
             cleaned = cleaned[7:]
@@ -252,11 +259,9 @@ JSON OUTPUT (kort sammanfattning):"""
         try:
             data = json.loads(cleaned)
             
-            # Validate required fields
             if "speak_text_en" not in data:
                 raise ValueError("Missing speak_text_en field")
             
-            # Validate field types
             speak_text = data["speak_text_en"]
             if not isinstance(speak_text, str) or len(speak_text.strip()) == 0:
                 raise ValueError("speak_text_en must be non-empty string")
@@ -271,7 +276,7 @@ JSON OUTPUT (kort sammanfattning):"""
             raise Exception(f"Failed to parse LLM response: {e}. Response: {response_text[:100]}...")
     
     def _validate_output(self, voice_output: VoiceOutput) -> None:
-        """Validate final voice output meets requirements"""
+        """Validate final voice output"""
         
         text = voice_output.speak_text_en
         
@@ -279,20 +284,19 @@ JSON OUTPUT (kort sammanfattning):"""
         if len(text) > self.max_segment_length and not voice_output.is_summary:
             raise ValueError(f"Output too long: {len(text)} > {self.max_segment_length}")
         
-        # Check for Swedish content (basic check)
+        # Check for Swedish content
         swedish_indicators = ["jag", "och", "är", "det", "på", "med", "för", "till", "av", "om"]
         text_lower = text.lower()
         if any(word in text_lower.split() for word in swedish_indicators):
             raise ValueError(f"Output contains Swedish words: {text}")
         
-        # Check ends with punctuation
+        # Ensure ends with punctuation
         if not text.strip().endswith(('.', '!', '?')):
             voice_output.speak_text_en = text.strip() + "."
     
     def _create_segments(self, text: str) -> List[str]:
-        """Split long text into segments for later processing"""
+        """Split long text into segments"""
         
-        # Simple sentence-based segmentation
         sentences = re.split(r'[.!?]+', text)
         segments = []
         current_segment = ""
@@ -302,68 +306,47 @@ JSON OUTPUT (kort sammanfattning):"""
             if not sentence:
                 continue
                 
-            # If adding this sentence would exceed limit, save current and start new
             if len(current_segment + sentence) > self.max_segment_length and current_segment:
                 segments.append(current_segment.strip())
                 current_segment = sentence
             else:
                 current_segment += " " + sentence if current_segment else sentence
         
-        # Add final segment
         if current_segment.strip():
             segments.append(current_segment.strip())
             
-        return segments[:5]  # Max 5 segments to avoid too much processing
+        return segments[:5]  # Max 5 segments
     
-    def _create_fallback_output(self, input_package: InputPackage, error: str, start_time: float) -> VoiceOutput:
+    def _create_fallback_output(self, text_sv: str, source_type: str, error: str, start_time: float) -> VoiceOutput:
         """Create fallback output when translation fails"""
         
-        # Simple fallback - acknowledge the input in English
-        fallback_text = f"I received a {input_package.source_type} message in Swedish."
+        fallback_text = f"I received a {source_type} message in Swedish."
         
         return VoiceOutput(
             speak_text_en=fallback_text,
-            screen_text_sv=input_package.text_sv,
+            screen_text_sv=text_sv,
             style="neutral",
             rate=1.0,
             meta={
                 "processing_time": time.time() - start_time,
-                "source_type": input_package.source_type,
+                "source_type": source_type,
                 "error": error,
-                "fallback": True
+                "fallback": True,
+                "fast_lane": True
             }
         )
-    
-    def _choose_optimal_model(self, original_text: str, pre_normalized: str) -> str:
-        """Enhanced model selection with production threshold"""
-        
-        # Use production threshold (130 chars instead of 80)
-        text_length = len(original_text)
-        
-        # Check for complexity indicators
-        has_complex_patterns = any(
-            indicator in original_text.lower() 
-            for indicator in self.config.ROUTER_COMPLEX_INDICATORS
-        )
-        
-        # Enhanced decision logic
-        if text_length <= self.config.ROUTER_SIMPLE_THRESHOLD and not has_complex_patterns:
-            return "llama3:8b"  # Fast path
-        else:
-            return "gpt-oss:20b"  # Full model for complex cases
 
-    async def process_segment(self, segment_text: str, context: Dict[str, Any]) -> str:
-        """Process individual segment from a larger text"""
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get orchestrator statistics"""
         
-        prompt = self._build_prompt(segment_text, context.get("source_type", "text"))
+        queue_stats = await voice_priority_queue.get_stats()
+        health = await dual_ollama.health_check()
         
-        try:
-            messages = [{"role": "user", "content": prompt}]
-            response = await self.llm.chat(messages)
-            if response.text:
-                data = self._parse_llm_response(response.text)
-                return data["speak_text_en"]
-            else:
-                return f"Segment in Swedish: {segment_text[:50]}..."
-        except Exception:
-            return f"Segment processing failed."
+        return {
+            "queue": queue_stats,
+            "ollama_health": health,
+            "fast_lane_enabled": True
+        }
+
+# Global fast orchestrator instance
+fast_voice_orchestrator = FastVoiceOrchestrator()
