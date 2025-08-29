@@ -120,7 +120,10 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎙️ Voice v2 Test</h1>
+        <h1>🎙️ Alice Voice Assistant</h1>
+        <p style="text-align: center; color: rgba(255,255,255,0.8); margin-bottom: 20px;">
+            🇸🇪 → 🇺🇸 Speak Swedish, Alice responds in English
+        </p>
         
         <div class="voice-section">
             <button class="mic-button" id="micButton" onclick="toggleRecording()">
@@ -130,17 +133,18 @@
         </div>
 
         <div class="voice-section">
-            <h3>Konversation</h3>
-            <div class="transcript" id="transcript">Du sa: ...</div>
-            <div class="response" id="response">Alice svarar: ...</div>
+            <h3>Bilingual Conversation</h3>
+            <div class="transcript" id="transcript">Du sa (Swedish): ...</div>
+            <div class="response" id="response">Alice responds (English): ...</div>
             <audio id="audio" controls></audio>
         </div>
 
         <div class="voice-section">
-            <h3>Snabbtester</h3>
-            <button onclick="testTTS('Hej, hur mår du?')">Test TTS</button>
-            <button onclick="testTTS('Kolla min email')">Test Email</button>
-            <button onclick="testTTS('Vad är klockan?')">Test Tid</button>
+            <h3>Alice TTS Tests (English Voice)</h3>
+            <button onclick="testTTS('Hello! I\\'m Alice, your Swedish-English voice assistant.')">Test Greeting</button>
+            <button onclick="testTTS('You have 3 new messages and 1 important notification.')">Test Email</button>
+            <button onclick="testTTS('The current weather in Stockholm is 18 degrees with sunny conditions.')">Test Weather</button>
+            <button onclick="testTTS('I\\'m turning on all the smart lights in your home now.')">Test Smart Home</button>
         </div>
 
         <div class="voice-section">
@@ -272,52 +276,52 @@
         }
         
         async function generateSmartResponse(text, intent) {
-            // Generate contextual responses based on intent
+            // Alice understands Swedish but responds in English (her natural personality)
             if (!intent || intent.category === 'unknown') {
-                return `Du sa "${text}". Jag förstod inte riktigt - kan du formulera om det?`;
+                return `I heard you say "${text}" in Swedish, but I'm not quite sure what you need. Could you rephrase that for me?`;
             }
             
             switch (intent.category) {
                 case 'communication':
                     if (intent.action === 'check_email') {
-                        return 'Du har 3 nya email och 1 viktigt meddelande.';
+                        return 'I understand you want to check your email. You have 3 new messages and 1 important notification from your manager regarding the quarterly review.';
                     } else if (intent.action === 'call') {
-                        const person = intent.entities?.person_name || 'kontakt';
-                        return `Ringer till ${person}... Tyvärr, ingen svarar just nu.`;
+                        const person = intent.entities?.person_name || 'your contact';
+                        return `I'm calling ${person} for you now... Unfortunately, they're not answering at the moment. Would you like me to send them a message instead?`;
                     }
-                    return 'Hanterar kommunikation...';
+                    return 'I\'m handling your communication request. Let me process that for you.';
                     
                 case 'time':
                     if (intent.action === 'current_time') {
-                        const now = new Date().toLocaleTimeString('sv-SE');
-                        return `Klockan är ${now}.`;
+                        const now = new Date().toLocaleTimeString('en-US');
+                        return `The current time is ${now}. Is there anything else you need to know about your schedule?`;
                     } else if (intent.action === 'schedule') {
-                        const date = intent.entities?.date || 'senare';
-                        return `Sätter påminnelse för ${date}. Påminnelsen är sparad!`;
+                        const date = intent.entities?.date || 'later today';
+                        return `I'm setting a reminder for ${date}. The reminder has been saved successfully and I'll notify you when the time comes.`;
                     }
-                    return 'Hanterar tid och schema...';
+                    return 'I\'m managing your time and scheduling needs right now.';
                     
                 case 'weather':
-                    return 'Det är 18 grader och soligt i Stockholm idag. Lätt molnighet på eftermiddagen.';
+                    return 'The current weather in Stockholm is 18 degrees Celsius with sunny conditions. There will be light cloud coverage this afternoon, perfect weather for outdoor activities.';
                     
                 case 'system':
                     if (intent.action === 'lights_on') {
-                        return 'Tänder lamporna... Alla lampor är nu på.';
+                        return 'I\'m turning on the lights for you now. All smart lights in your home have been activated successfully. The lighting system is fully operational.';
                     } else if (intent.action === 'lights_off') {
-                        return 'Släcker lamporna... Alla lampor är nu avstängda.';
+                        return 'I\'m turning off the lights now. All smart lights have been switched off successfully. Your home lighting system is now in standby mode.';
                     }
-                    return 'Utför systemkommando...';
+                    return 'I\'m executing your smart home command. All systems are responding normally.';
                     
                 case 'greeting':
                     if (intent.action === 'hello') {
-                        return 'Hej! Jag mår bra, tack för att du frågar. Hur kan jag hjälpa dig idag?';
+                        return 'Hello there! I\'m doing great, thank you for asking. I understand Swedish perfectly, but I prefer to respond in English as it allows me to communicate more precisely. How can I assist you today?';
                     } else if (intent.action === 'how_are_you') {
-                        return 'Jag mår utmärkt! Mitt Whisper ASR och NLU system fungerar perfekt. Vad kan jag hjälpa till med?';
+                        return 'I\'m functioning excellently! My Whisper ASR and NLU systems are operating at peak performance, and I\'m ready to help with any tasks you have. What would you like me to do for you?';
                     }
-                    return 'Hej! Vad kan jag hjälpa dig med?';
+                    return 'Hello! I understand your Swedish input perfectly. What can I help you with today?';
                     
                 default:
-                    return `Jag identifierade "${intent.category}" intent men vet inte hur jag ska hantera det än.`;
+                    return `I identified your intent as "${intent.category}" but I'm still learning how to handle that specific request. Could you provide more details about what you need?`;
             }
         }
         

@@ -24,17 +24,23 @@ import shutil
 logger = logging.getLogger("alice.tts")
 
 class PiperTTSEngine:
-    """Real Swedish TTS using Piper + NST voice models"""
+    """Bilingual TTS using Piper: Swedish input → English output (Alice personality)"""
     
-    def __init__(self, voice_model_path: Optional[str] = None):
-        self.voice_model_path = voice_model_path or self._find_swedish_voice_model()
+    def __init__(self, english_voice_path: Optional[str] = None, swedish_voice_path: Optional[str] = None):
+        self.english_voice_path = english_voice_path or self._find_english_voice_model()
+        self.swedish_voice_path = swedish_voice_path or self._find_swedish_voice_model()
         self.piper_binary = self._find_piper_binary()
         
-        if not self.voice_model_path or not self.piper_binary:
-            logger.warning("Piper TTS not fully configured - will fallback to mock TTS")
+        if not self.piper_binary:
+            logger.warning("Piper binary not found - will fallback to mock TTS")
+            self.available = False
+        elif not self.english_voice_path:
+            logger.warning("English voice model not found - will fallback to mock TTS")
             self.available = False
         else:
-            logger.info(f"Piper TTS ready with voice: {Path(self.voice_model_path).name}")
+            logger.info(f"Alice TTS ready - English: {Path(self.english_voice_path).name}")
+            if self.swedish_voice_path:
+                logger.info(f"Alice TTS ready - Swedish: {Path(self.swedish_voice_path).name}")
             self.available = True
     
     def _find_piper_binary(self) -> Optional[str]:
@@ -52,8 +58,22 @@ class PiperTTSEngine:
         
         return None
     
+    def _find_english_voice_model(self) -> Optional[str]:
+        """Find English voice model file (Amy - Alice's voice)"""
+        model_paths = [
+            "server/voices/en_US-amy-medium.onnx",
+            "voices/en_US-amy-medium.onnx",
+            "./en_US-amy-medium.onnx"
+        ]
+        
+        for model_path in model_paths:
+            if Path(model_path).exists():
+                return model_path
+        
+        return None
+    
     def _find_swedish_voice_model(self) -> Optional[str]:
-        """Find Swedish voice model file"""
+        """Find Swedish voice model file (for fallback)"""
         model_paths = [
             "server/voices/sv_SE-nst-medium.onnx",
             "voices/sv_SE-nst-medium.onnx",
@@ -66,13 +86,14 @@ class PiperTTSEngine:
         
         return None
     
-    def generate_speech_wav(self, text: str, output_path: str) -> bool:
+    def generate_speech_wav(self, text: str, output_path: str, use_english: bool = True) -> bool:
         """
-        Generate Swedish speech as WAV using Piper
+        Generate speech as WAV using Piper (Alice speaks English by default)
         
         Args:
-            text: Swedish text to synthesize
+            text: Text to synthesize
             output_path: Output WAV file path
+            use_english: True for English (Alice's voice), False for Swedish
             
         Returns:
             bool: Success status
@@ -80,14 +101,20 @@ class PiperTTSEngine:
         if not self.available:
             return False
         
+        # Select voice model
+        voice_model = self.english_voice_path if use_english else self.swedish_voice_path
+        if not voice_model:
+            logger.error(f"Voice model not available: {'English' if use_english else 'Swedish'}")
+            return False
+        
         try:
             # Ensure output directory exists
             Path(output_path).parent.mkdir(parents=True, exist_ok=True)
             
-            # Run Piper TTS
+            # Run Piper TTS with selected voice
             cmd = [
                 self.piper_binary,
-                "--model", self.voice_model_path,
+                "--model", voice_model,
                 "--output_file", output_path
             ]
             
@@ -162,13 +189,14 @@ class PiperTTSEngine:
             logger.error(f"WAV to MP3 conversion failed: {e}")
             return False
     
-    def generate_tts_mp3(self, text: str, output_mp3_path: str) -> bool:
+    def generate_tts_mp3(self, text: str, output_mp3_path: str, use_english: bool = True) -> bool:
         """
-        Complete TTS pipeline: Text → Piper WAV → LAME MP3
+        Complete TTS pipeline: Text → Piper WAV → LAME MP3 (Alice speaks English)
         
         Args:
-            text: Swedish text to synthesize
+            text: Text to synthesize (English for Alice's responses)
             output_mp3_path: Final MP3 output path
+            use_english: True for English (Alice's default), False for Swedish
             
         Returns:
             bool: Success status
@@ -182,8 +210,8 @@ class PiperTTSEngine:
             tmp_wav_path = tmp_wav.name
         
         try:
-            # Step 1: Generate WAV with Piper
-            if not self.generate_speech_wav(text, tmp_wav_path):
+            # Step 1: Generate WAV with Piper (English by default for Alice)
+            if not self.generate_speech_wav(text, tmp_wav_path, use_english):
                 return False
             
             # Step 2: Convert to CBR LAME MP3
@@ -234,50 +262,51 @@ def generate_real_tts_audio(text: str, base_filename: str, output_dir: str = "./
 
 # Test function
 def test_piper_tts():
-    """Test Piper TTS with Swedish phrases"""
-    print("🧪 Testing Piper TTS with Swedish phrases...")
+    """Test Alice's bilingual TTS (Swedish input → English responses)"""
+    print("🧪 Testing Alice's English voice with realistic responses...")
     
     engine = PiperTTSEngine()
-    print(f"📡 Piper TTS available: {'✅ Yes' if engine.available else '❌ No'}")
+    print(f"📡 Alice TTS available: {'✅ Yes' if engine.available else '❌ No'}")
     
     if not engine.available:
-        print("❌ Cannot test - Piper TTS not configured properly")
+        print("❌ Cannot test - Alice TTS not configured properly")
         return
     
-    test_phrases = [
-        "Hej, jag heter Alice.",
-        "Du har tre nya email.",
-        "Det är arton grader och soligt i Stockholm idag.",
-        "Klockan är nu tretton trettio."
+    # Alice responds in English to Swedish queries (realistic assistant behavior)
+    test_responses = [
+        "Hello! I understand you want to check your email. You have 3 new messages and 1 important notification from your manager.",
+        "Good morning! The current weather in Stockholm is 18 degrees Celsius with sunny conditions. Light clouds are expected this afternoon.",
+        "I'm turning on the lights for you now. All smart lights in your home have been activated successfully.",
+        "The current time is 1:30 PM. You have a meeting scheduled in 30 minutes with the development team."
     ]
     
     output_dir = Path("./test_real_tts")
     output_dir.mkdir(exist_ok=True)
     
-    for i, phrase in enumerate(test_phrases, 1):
-        print(f"\n📝 Test {i}: '{phrase}'")
+    for i, response in enumerate(test_responses, 1):
+        print(f"\n📝 Alice Response {i}: '{response[:60]}...'")
         
-        mp3_path = output_dir / f"piper_test_{i}.mp3"
-        success = engine.generate_tts_mp3(phrase, str(mp3_path))
+        mp3_path = output_dir / f"alice_english_{i}.mp3"
+        success = engine.generate_tts_mp3(response, str(mp3_path), use_english=True)
         
         if success:
             file_size = mp3_path.stat().st_size
             print(f"✅ Generated: {mp3_path.name}")
             print(f"   Size: {file_size} bytes ({file_size/1024:.1f} KB)")
-            print(f"   Real Swedish speech: ✅")
+            print(f"   Alice's English voice (Amy): ✅")
             
-            # Quick verification that it's not a sine wave
+            # Quick verification 
             try:
                 with open(mp3_path, 'rb') as f:
                     data = f.read(1024)
                     if b'sine' in data or b'440' in data:
-                        print("   ⚠️ WARNING: May still contain sine wave data")
+                        print("   ⚠️ WARNING: May contain sine wave data")
                     else:
-                        print("   ✅ Contains real audio data (not sine waves)")
+                        print("   ✅ Contains real speech data (Amy voice)")
             except:
                 pass
         else:
-            print(f"❌ Failed to generate TTS")
+            print(f"❌ Failed to generate Alice TTS")
     
     print(f"\n📁 Test files saved to: {output_dir}")
     print("🎵 Listen to verify Swedish speech (not 440Hz tones)")
