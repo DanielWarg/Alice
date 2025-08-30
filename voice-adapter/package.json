@@ -1,0 +1,14 @@
+{
+  "name": "@alice/voice-adapter",
+  "version": "2.0.0",
+  "description": "Voice adapter stub for Alice - Voice v2 complete, this is legacy compatibility",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs", 
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "echo 'Voice v2 complete - stub only'",
+    "dev": "echo 'Voice v2 complete - stub only'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

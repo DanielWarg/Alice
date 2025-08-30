@@ -1,27 +1,41 @@
 {
   "name": "alice",
-  "version": "1.0.0",
-  "description": "",
-  "main": "k6_enterprise_soak.js",
+  "version": "2.0.0",
+  "description": "Alice Personal AI Assistant - Swedish ASR → English TTS, Production Ready",
+  "main": "server/app_minimal.py",
+  "type": "module",
   "directories": {
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev:backend": "cd server && uvicorn app_minimal:app --host 127.0.0.1 --port 8000 --reload",
+    "dev:frontend": "cd web && npm run dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build": "cd web && npm run build",
+    "start": "cd server && uvicorn app_minimal:app --host 0.0.0.0 --port 8000",
+    "test": "echo \"Run backend tests: cd server && python -m pytest\" && echo \"Run frontend tests: cd web && npm test\""
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DanielWarg/Alice.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
+  "keywords": ["ai", "assistant", "voice", "swedish", "tts", "asr", "personal"],
+  "author": "Alice Development Team",
+  "license": "ISC", 
   "bugs": {
     "url": "https://github.com/DanielWarg/Alice/issues"
   },
   "homepage": "https://github.com/DanielWarg/Alice#readme",
   "dependencies": {
-    "express": "^5.1.0"
+    "concurrently": "^9.1.0"
+  },
+  "devDependencies": {},
+  "workspaces": [
+    "web",
+    "voice-adapter"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.11"
   }
 }
