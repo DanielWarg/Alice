@@ -140,25 +140,50 @@ Alice/
 - **Ollama Model**: Dödat när ej aktivt använt för att spara minne
 - **Chrome Process Management**: Kill hung renderer processes
 
+## 🚨 CRITICAL GAPS DISCOVERED 🚨
+
+### **BROKEN DEPENDENCIES** ❌
+- **voice-adapter**: web/package.json refererar `file:../voice-adapter` men modulen finns bara i old/
+- **Frontend build**: KOMMER ATT KRASHA vid npm install på clean system
+- **Missing modules**: alice-tools, nlu-agent refererade men inte tillgängliga
+
+### **DEPLOYMENT BLOCKERS** ❌
+- **No containerization**: Ingen Docker setup för consistent deployment
+- **No CI/CD**: Ingen automatiserad testing eller deployment pipeline
+- **Package.json chaos**: Multiple duplicated dependencies över hela projektet
+- **Environment setup**: Ingen dokumentation för clean system setup
+
+### **PRODUCTION READINESS** ❌
+- **Database**: Ingen migration plan från SQLite till production DB
+- **Monitoring**: Ingen centraliserad logging eller metrics collection
+- **Guardian Server**: Refererad men ingen implementation finns
+- **Security**: Ingen production security hardening documented
+
 ## NEXT STEPS
 
-### Immediate (Frontend Modularization)
+### **🔴 CRITICAL (Fix Broken Dependencies)**
+1. **Fix voice-adapter dependency** - copy from old/ eller create stub
+2. **Clean package.json structure** - consolidate duplicated deps
+3. **Verify module imports** - alice-tools, nlu-agent status
+4. **Test clean build** - verify npm install works on fresh system
+
+### **🟡 HIGH PRIORITY (Deployment Infrastructure)**
+1. **Create Docker setup** - containerization för consistent deployment
+2. **Document environment setup** - complete setup guide från scratch
+3. **Create CI/CD pipeline** - automated testing & deployment
+4. **Implement Guardian server** - eller remove references
+
+### **🟢 MEDIUM (Frontend Modularization)**
 1. **Remove voice imports** från page.jsx - eliminera hard dependencies
-2. **Create stub components** för missing voice files - graceful degradation
+2. **Create stub components** för missing voice files - graceful degradation  
 3. **Add conditional loading** för optional features - feature flags
 4. **Test basic text chat** med backend utan voice dependencies
 
-### Short-term (Architecture Cleanup)
-1. **Re-enable Guardian** when Guardian server är deployad
-2. **Implement feature flags** system för optional modules
-3. **Plugin system** för voice komponenter
-4. **Interface-based** component loading
-
-### Long-term (Production Hardening)
-1. **Resource monitoring** och automatic process management
-2. **Graceful degradation** när moduler saknas
-3. **Performance optimization** för sustained usage
-4. **Production deployment** strategy
+### **⚪ LOW (Production Hardening)**
+1. **Database migration plan** - SQLite → PostgreSQL
+2. **Centralized monitoring** - logging & metrics collection
+3. **Security hardening** - production security checklist
+4. **Performance optimization** - resource monitoring & management
 
 ---
 *Detta dokument uppdateras kontinuerligt med aktuell systemstatus och kända issues.*

@@ -1,5 +1,5 @@
-# Alice System Architecture - Voice v2 Transition
-*Uppdaterad: 2025-08-29 10:30 - VOICE V2 DEVELOPMENT STARTED 🎙️*
+# Alice System Architecture - Post Voice v2
+*Uppdaterad: 2025-08-30 01:40 - VOICE V2 IMPLEMENTATION COMPLETE ✅*
 
 ## CURRENT SYSTEM STATE
 
@@ -15,7 +15,7 @@
 │ ✅ DateTime Widget      Status: LIVE    │
 │ ✅ Guardian API Hooks   Status: LIVE    │
 │ 🧹 Calendar Module     Status: REMOVED │
-│ 🚧 Voice v2 System     Status: DEV     │
+│ ✅ Voice v2 System     Status: PRODUCTION │
 └─────────────────────────────────────────┘
                     │
                     │ HTTP/REST + Guardian Events
@@ -29,50 +29,46 @@
 │ ✅ LLM Status API       Status: WORKING │
 │ ✅ Chat API            Status: LIVE     │
 │ ✅ Real AI Responses   Status: WORKING  │
-│ ✅ Guardian Gate       Status: OPTIMIZED│
+│ ⚠️ Guardian Gate       Status: DISABLED │
 │ ✅ Agent Core System   Status: INTEGRATED│
 │ ✅ NDJSON Logging      Status: STREAMING│
 │ ✅ Database Layer      Status: INTEGRATED│
 │ 🚀 Response Caching    Status: ACTIVE  │
 │ 🚀 Request Batching    Status: ACTIVE  │
 │ 🚀 Async DB Ops       Status: OPTIMIZED│
-│ 🚧 TTS HTTP Route      Status: DEV     │
-│ 🚧 Voice Ack System    Status: DEV     │
+│ ✅ TTS HTTP Route      Status: PRODUCTION │
+│ ✅ Voice v2 Complete   Status: PRODUCTION │
+│ ✅ Real Piper TTS      Status: Amy 320kbps │
 └─────────────────────────────────────────┘
                     │
                     │ LLM Requests + Advanced Protection
                     ▼
 ┌─────────────────────────────────────────┐
-│        🛡️ GUARDIAN 2.0 OPTIMIZED       │
-│    (AI Safety + Auto-Tuning)           │
+│        🛡️ GUARDIAN 2.0 SYSTEM          │
+│    (Security Middleware - DISABLED)    │
 ├─────────────────────────────────────────┤
-│ ✅ Guardian Daemon      Port: 8787     │
-│ ✅ Graceful Killswitch  Status: ARMED  │
-│ 🚀 Hysteresis Logic     Status: TUNED  │
-│ 🚀 Brownout Manager     Status: READY  │
-│ ✅ Auto-Tuning Engine   Status: LIVE   │
-│ ✅ NDJSON Logger        Status: LOGGING│
-│ ✅ Metrics APIs         Status: LIVE   │
-│ ✅ Circuit Breaker      Status: ARMED  │
-│ 🚀 Error Rate <3%       Status: ACHIEVED│
-│ 🚀 Graceful Unknown    Status: ACTIVE │
+│ ⚠️ Guardian Daemon      Status: OFFLINE │
+│ ⚠️ Port 8787           Status: NOT RUNNING │
+│ 🚧 Temporarily Disabled for Voice Testing │
+│ 📋 TODO: Re-enable when Guardian deployed │
+│ 📋 TODO: Fix Guardian server startup     │
 └─────────────────────────────────────────┘
                     │
                     │ Protected & Optimized LLM Communication
                     ▼
 ┌─────────────────────────────────────────┐
-│           LLM LAYER OPTIMIZED           │
-│            (Port 11434)                 │
+│           LLM LAYER - FLEXIBLE         │
+│       (Multiple Provider Options)      │
 ├─────────────────────────────────────────┤
 │ ✅ Ollama Server        Status: LIVE    │
-│ ✅ gpt-oss:20b         Status: LOADED   │
-│ 🚀 Concurrency Control Max: 3 concurrent│
-│ 🚀 Context Window      4096 tokens     │
-│ 🚀 Keep-Alive Time     15min optimized │
-│ 🚀 Exponential Backoff Status: ACTIVE  │
-│ ✅ Safety Limits       RAM: <92%       │
-│ ✅ Timeout Protection   Limit: 45s     │
-│ ✅ Auto Recovery        Status: READY  │
+│ ⚠️ gpt-oss:20b         Status: STOPPED  │
+│ 🔄 NEXT: AI Provider Migration         │
+│   → OpenAI GPT-4o (för higher quality) │
+│   → Claude 3.5 Sonnet (för reasoning)  │
+│   → Llama 3.1 (för local/privacy)      │
+│ ✅ Circuit Breaker      Status: READY  │
+│ ✅ Fallback Chain       Status: CONFIG │
+│ 📋 TODO: Update LLM config for new AI  │
 └─────────────────────────────────────────┘
 ```
 
